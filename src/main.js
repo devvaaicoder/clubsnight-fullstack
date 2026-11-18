@@ -1,3 +1,11 @@
+function escapeHTML(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 // CLIENT FIREWALL
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
@@ -81,10 +89,10 @@
 
             tbody.innerHTML = logs.map(item => `
                 <tr class="hover:bg-purple-900/20 font-mono">
-                    <td class="p-2.5 font-bold text-pink-400">${item.token}</td>
-                    <td class="p-2.5 text-purple-200">${item.firstVisit}</td>
-                    <td class="p-2.5 text-cyan-300">${item.device}</td>
-                    <td class="p-2.5 text-center font-bold text-emerald-400">${item.hits} Sesi</td>
+                    <td class="p-2.5 font-bold text-pink-400">${escapeHTML(item.token)}</td>
+                    <td class="p-2.5 text-purple-200">${escapeHTML(item.firstVisit)}</td>
+                    <td class="p-2.5 text-cyan-300">${escapeHTML(item.device)}</td>
+                    <td class="p-2.5 text-center font-bold text-emerald-400">${Number(item.hits) || 1} Sesi</td>
                 </tr>
             `).join('');
         }
@@ -93,7 +101,7 @@
         const TELEGRAM_ORDER_LINK = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=booking`;
         const TELEGRAM_APP_LINK = `tg://resolve?domain=${TELEGRAM_BOT_USERNAME}&start=booking`;
 
-        const ADMIN_CREDENTIALS = { username: "clubsnight", password: "Clubsnight1@ctrlcornacce$$" };
+        // Admin credentials diverifikasi via Cloudflare Worker
 
         const VCS_PRICING = {
             "Rekomendasi Admin (Bebas Pilih)": { "3": 110000, "5": 130000, "10": 220000, "15": 300000 },
@@ -349,25 +357,48 @@
             }, 2500);
         }
 
-        function handleAdminLogin() {
+        async function handleAdminLogin() {
             const userVal = document.getElementById("adminUser").value.trim();
             const passVal = document.getElementById("adminPass").value;
-            if (userVal === ADMIN_CREDENTIALS.username && passVal === ADMIN_CREDENTIALS.password) {
-                document.getElementById("loginErrorMsg").classList.add("hidden");
-                document.getElementById("adminLoginForm").classList.add("hidden");
-                document.getElementById("adminDashboard").classList.remove("hidden");
-                refreshAnalyticsView();
-                showToast("Login Admin Berhasil!", "Selamat datang di Panel Admin.");
-            } else {
-                document.getElementById("loginErrorMsg").classList.remove("hidden");
+            const errBox = document.getElementById("loginErrorMsg");
+            if (!userVal || !passVal) {
+                errBox.innerText = "Username dan password wajib diisi!";
+                errBox.classList.remove("hidden");
+                return;
+            }
+            try {
+                const res = await fetch(`${WORKER_API_URL}/api/verify-auth`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${passVal}`
+                    },
+                    body: JSON.stringify({ username: userVal })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    sessionStorage.setItem("cn_admin_token", passVal);
+                    errBox.classList.add("hidden");
+                    document.getElementById("adminLoginForm").classList.add("hidden");
+                    document.getElementById("adminDashboard").classList.remove("hidden");
+                    refreshAnalyticsView();
+                    showToast("Login Admin Terverifikasi!", "Sesi aman terhubung ke Cloudflare Worker.");
+                } else {
+                    errBox.innerText = data.error || "Username atau password/token tidak sah!";
+                    errBox.classList.remove("hidden");
+                }
+            } catch (e) {
+                errBox.innerText = "Gagal terhubung ke server autentikasi.";
+                errBox.classList.remove("hidden");
             }
         }
 
         function handleAdminLogout() {
+            sessionStorage.removeItem("cn_admin_token");
             document.getElementById("adminDashboard").classList.add("hidden");
             document.getElementById("adminLoginForm").classList.remove("hidden");
             document.getElementById("adminPass").value = "";
-            showToast("Admin Logout", "Kembali ke tampilan publik.");
+            showToast("Admin Logout", "Token sesi dihapus.");
         }
 
         function publishAnnouncement() {

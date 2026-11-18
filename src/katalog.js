@@ -14,7 +14,14 @@ const LIVECHAT_WORKER_URL = import.meta.env.VITE_LIVECHAT_URL || "https://clubsn
 const TELEGRAM_CS_BOT_URL = "https://t.me/clubsnightcs_bot";
 const WORKER_API_URL = import.meta.env.VITE_API_URL || "https://clubsnight-api.clubsnight.workers.dev";
 const MEDIA_WORKER_URL = import.meta.env.VITE_MEDIA_URL || "https://clubsnight-media.clubsnight.workers.dev";
-const DEV_PIN_OBFUSCATED = "TWpBeU5nPT0=";
+function escapeHTML(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 const PLACEHOLDER_IMG = "https://placehold.co/400x533/180d28/ff1744?text=Clubs+Night";
 
 // ==================== MATA UANG & KURS REGIONAL ====================
@@ -71,10 +78,11 @@ function encodeSecretPin(str) {
 
 function parseMarkdownToHtml(text) {
   if (!text) return "";
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-    .replace(/\*(.*?)\*/g, '<i>$1</i>')
-    .replace(/\n/g, '<br>');
+  const safe = escapeHTML(text);
+  return safe
+    .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+    .replace(/\*(.*?)\*/g, "<i>$1</i>")
+    .replace(/\n/g, "<br>");
 }
 
 function getCompressedImageUrl(url, width = 400, quality = 72) {
@@ -452,7 +460,10 @@ async function saveToCloudflareD1(silent = false) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const res = await fetch(`${WORKER_API_URL}/api/save?t=${Date.now()}`, {
-        method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
+        method: "POST", cache: "no-store", headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionStorage.getItem("cn_admin_token") || ""}`
+        },
         body: JSON.stringify(payload)
       });
       if (res.ok) { success = true; break; }
@@ -1185,19 +1196,35 @@ function handleLogoClick() {
 function openDevPinModal() { document.getElementById('devPinModal').style.display = 'flex'; }
 function closeDevPinModal() { document.getElementById('devPinModal').style.display = 'none'; }
 
-function verifyDevPin() {
-  const pinInput = document.getElementById('devPinInput');
-  const inputVal = pinInput ? pinInput.value.trim() : '';
-  if (encodeSecretPin(inputVal) === DEV_PIN_OBFUSCATED) {
-    sessionStorage.setItem('cn_dev_logged_in', 'true');
-    closeDevPinModal();
-    document.getElementById('devPanelView').style.display = 'block';
-    renderDevTable();
-    if (pinInput) pinInput.value = '';
-    showToast("Login Developer Panel Berhasil!");
-  } else {
-    alert("PIN Akses Salah!");
-    if (pinInput) pinInput.value = '';
+async function verifyDevPin() {
+  const pinInput = document.getElementById("devPinInput");
+  const inputVal = pinInput ? pinInput.value.trim() : "";
+  if (!inputVal) { alert("Masukkan PIN Akses!"); return; }
+
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/verify-auth`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${inputVal}`
+      },
+      body: JSON.stringify({ role: "developer" })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      sessionStorage.setItem("cn_dev_logged_in", "true");
+      sessionStorage.setItem("cn_admin_token", inputVal);
+      closeDevPinModal();
+      document.getElementById("devPanelView").style.display = "block";
+      renderDevTable();
+      if (pinInput) pinInput.value = "";
+      showToast("Login Developer Panel Terverifikasi!");
+    } else {
+      alert(data.error || "PIN Akses Salah!");
+      if (pinInput) pinInput.value = "";
+    }
+  } catch (err) {
+    alert("Gagal terhubung ke server verifikasi.");
   }
 }
 
@@ -1300,7 +1327,11 @@ async function uploadImageToCatbox() {
 
   try {
     statusText.innerText = "⏳ Mengunggah foto ke R2...";
-    const res = await fetch(`${MEDIA_WORKER_URL}/upload`, { method: "POST", body: formData });
+    const res = await fetch(`${MEDIA_WORKER_URL}/upload`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${sessionStorage.getItem("cn_admin_token") || ""}` },
+      body: formData
+    });
     const data = await res.json();
     if (data.success && data.url) {
       imageUrlInput.value = data.url;
@@ -1331,7 +1362,11 @@ async function uploadVideoToCloudinary() {
 
   try {
     statusText.innerText = "⏳ Mengunggah video ke R2...";
-    const res = await fetch(`${MEDIA_WORKER_URL}/upload`, { method: "POST", body: formData });
+    const res = await fetch(`${MEDIA_WORKER_URL}/upload`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${sessionStorage.getItem("cn_admin_token") || ""}` },
+      body: formData
+    });
     const data = await res.json();
     if (data.success && data.url) {
       videoUrlInput.value = data.url;
@@ -1593,7 +1628,7 @@ function openCommentsModal(talentId) {
   const t = talents.find(item => item.id === talentId);
   const listEl = document.getElementById('commentsList');
   if (!t || !listEl) return;
-  listEl.innerHTML = t.comments?.length ? t.comments.map(c => `<div class="comment-item"><div class="comment-author">${c.author}</div><div class="comment-text">${c.text}</div></div>`).join('') : '<p style="text-align:center; color:var(--text-muted); padding:10px;">Belum ada ulasan.</p>';
+  listEl.innerHTML = t.comments?.length ? t.comments.map(c => `<div class="comment-item"><div class="comment-author">${escapeHTML(c.author)}</div><div class="comment-text">${escapeHTML(c.text)}</div></div>`).join('') : '<p style="text-align:center; color:var(--text-muted); padding:10px;">Belum ada ulasan.</p>';
   document.getElementById('commentsModal').style.display = 'flex';
 }
 
