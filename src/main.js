@@ -1,5 +1,3 @@
-import "./luxury-scrollytelling.css";
-import "./scrollytelling.js";
 function escapeHTML(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
