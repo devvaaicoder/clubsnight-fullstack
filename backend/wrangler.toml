@@ -1,4 +1,4 @@
-name = "clubsnight-core"
+name = "clubsnight-fullstack"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
