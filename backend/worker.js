@@ -42,6 +42,7 @@ export default {
       // 1. Verifikasi Login Admin / PIN Menu Developer
       if (url.pathname === "/api/verify-auth" && request.method === "POST") {
         if (!isAuthorized()) {
+          await new Promise(r => setTimeout(r, 1500));
           return new Response(JSON.stringify({ success: false, error: "PIN atau Token tidak valid!" }), {
             status: 401,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -122,6 +123,13 @@ export default {
           });
         }
 
+        const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime"];
+        if (file.type && !allowedMimes.includes(file.type)) {
+          return new Response(JSON.stringify({ success: false, message: "Format file dilarang demi keamanan!" }), {
+            status: 415,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
         const folder = mediaType === "video" ? "assets-video" : "assets-pict";
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const objectKey = `${folder}/${Date.now()}_${safeName}`;
