@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+  <meta name="robots" content="index, follow" />
+
+  <meta property="og:title" content="Clubs'Night | Showcase Talent & Reels Feed" />
+  <meta property="og:description" content="Layanan Video Call & Booking Service Privat No. #1 Telegram." />
+  <meta property="og:image" content="https://i.ibb.co.com/kswT8Lkk/1788264004418.png" />
+  <meta property="og:url" content="https://clubsnight.my.id/katalog" />
+  <meta property="og:type" content="website" />
+
+  <link rel="icon" type="image/x-icon" href="https://i.ibb.co.com/4RXGWh17/favicon.jpg">
+  <link rel="shortcut icon" href="https://i.ibb.co.com/4RXGWh17/favicon.jpg">
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#07040c">
+  <meta name="apple-mobile-web-app-title" content="Nighty">
+
+  <title>Clubs'Night | Showcase Talent & Reels Feed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  
+
+  <script>
+    if (top !== self) { top.location.replace(self.location.href); }
+  </script>
+</head>
+<body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
+
+  <!-- AMBIENT CANVAS HIGH-CONTRAST -->
+  <canvas id="ambientCanvas" aria-hidden="true"></canvas>
+
+  <!-- INTERACTIVE WEBSITE TOUR SVG SPOTLIGHT OVERLAY -->
+  <svg id="cnTourSvgOverlay" class="tour-svg-overlay" style="display:none;" aria-hidden="true">
+    <defs>
+      <mask id="tourHoleMask">
+        <!-- Lapisan putih solid: menutup seluruh layar -->
+        <rect x="0" y="0" width="100%" height="100%" fill="#ffffff" />
+        <!-- Lubang hitam: menjadi tembus pandang (spotlight) -->
+        <rect id="tourMaskCutout" x="0" y="0" width="0" height="0" rx="14" ry="14" fill="#000000" />
+      </mask>
+    </defs>
+    <!-- Background overlay gelap yang dipotong dengan mask di atas -->
+    <rect x="0" y="0" width="100%" height="100%" fill="rgba(4, 2, 8, 0.82)" mask="url(#tourHoleMask)" />
+    <!-- Bingkai neon merah di sekeliling lubang sorotan -->
+    <rect id="tourSpotlightBorder" class="tour-spotlight-border" x="0" y="0" width="0" height="0" rx="14" ry="14" />
+  </svg>
+
+  <!-- INTERACTIVE WEBSITE TOUR TOOLTIP CARD -->
+  <div id="cnTourBox" class="tour-tooltip-card" style="display:none;">
+    <div class="tour-header">
+      <span class="tour-step-badge" id="tourStepBadge">Langkah 1 / 5</span>
+      <button class="tour-close-btn" onclick="skipTour()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <h4 id="tourTitle" class="tour-title">Selamat Datang! 👋</h4>
+    <p id="tourDesc" class="tour-desc">Mari kenali fitur-fitur utama website Clubs'Night agar pengalaman eksplorasi Anda lebih menyenangkan.</p>
+    <div class="tour-footer">
+      <button class="btn-outline tour-btn-skip" onclick="skipTour()">Lewati</button>
+      <button class="btn-neon tour-btn-next" id="tourNextBtn" onclick="nextTourStep()">
+        Lanjut <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastBox" class="toast-container">
+    <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--crimson-red); margin-right:6px;"></i>
+    <span id="toastMsg"></span>
+  </div>
+
+  <!-- FLOATING AD CARD -->
+  <div id="floatingMediaAd" class="floating-ad-card">
+    <div class="floating-ad-badge"><i class="fa-solid fa-fire-flame-curved"></i> EXCLUSIVITY 18+</div>
+    <button class="floating-ad-close" onclick="closeMediaAdPermanently()" title="Tutup Iklan" aria-label="Tutup">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="floating-ad-icon-wrapper">
+      <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" class="floating-ad-img" alt="Media Bot" onerror="this.onerror=null;this.src='https://i.ibb.co.com/4RXGWh17/favicon.jpg';">
+    </div>
+    <div class="floating-ad-content">
+      <div class="floating-ad-title">Video Private Talent Asli! 🔥</div>
+      <div class="floating-ad-price">Mulai dari Rp 2.500</div>
+      <div class="floating-ad-desc">Nikmati Video Collection Private Clubs'Night yang Langka!</div>
+    </div>
+    <a href="https://t.me/Clubsnight_Mediabot" target="_blank" class="floating-ad-btn" onclick="trackMediaAdClick()">
+      <span>Akses</span> <i class="fa-solid fa-arrow-right"></i>
+    </a>
+  </div>
+
+  <!-- MODALS -->
+  <div id="ageGateModal" class="overlay-modal" style="display:none;">
+    <div class="modal-card age-modal-card">
+      <div class="modal-icon-badge">18+</div>
+      <h2 class="modal-title">AREA KHUSUS DEWASA</h2>
+      <p class="modal-desc">Platform katalog eksklusif ini memuat konten layanan pendampingan & panggilan virtual privat khusus dewasa. Pastikan Anda berusia minimal 18 tahun.</p>
+      <button class="btn-neon" onclick="confirmAge()">
+        <i class="fa-solid fa-shield-heart"></i> Saya Berusia 18+ (Masuk)
+      </button>
+    </div>
+  </div>
+
+  <div id="devPinModal" class="overlay-modal" style="display:none;">
+    <div class="modal-card dev-modal-card">
+      <div class="modal-icon-badge dev-badge"><i class="fa-solid fa-terminal"></i></div>
+      <h3 class="modal-title" style="color:var(--neon-cyan);">DEVELOPER ACCESS</h3>
+      <input type="password" id="devPinInput" class="form-control pin-input" placeholder="Masukkan PIN Akses...">
+      <div class="modal-actions">
+        <button class="btn-neon" onclick="verifyDevPin()"><i class="fa-solid fa-unlock-keyhole"></i> Masuk</button>
+        <button class="btn-outline" onclick="closeDevPinModal()">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="commentsModal" class="comments-modal">
+    <div class="comments-content">
+      <div class="comments-header">
+        <h4><i class="fa-regular fa-comments" style="color:var(--crimson-red); margin-right:6px;"></i> Ulasan & Komentar Publik</h4>
+        <button class="btn-icon-close" onclick="closeCommentsModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="comments-list" id="commentsList"></div>
+      <div class="comments-form">
+        <input type="text" id="commentAuthorInput" class="form-control" placeholder="Nama samaran / panggilan Anda...">
+        <div class="comments-input-row">
+          <input type="text" id="commentTextInput" class="form-control" placeholder="Bagikan kesan atau komentar...">
+          <button class="btn-neon btn-send-comment" onclick="submitComment()">
+            <i class="fa-solid fa-paper-plane"></i> Kirim
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER NAVIGATION -->
+  <header id="mainHeader">
+    <div class="header-main-row">
+      <div class="header-brand-wrap" onclick="handleLogoClick()">
+        <div class="brand-logo">
+          <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" class="header-favicon-img" alt="Logo">
+          CLUBS'<span>NIGHT</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="btn-tour-trigger" onclick="startWebsiteTour()" title="Mulai Panduan Website">
+          <i class="fa-solid fa-circle-question"></i>
+          <span>Panduan</span>
+        </button>
+
+        <div class="currency-wrap header-currency-right">
+          <i class="fa-solid fa-coins currency-icon"></i>
+          <select class="currency-switcher" id="currencySwitcher" onchange="changeCurrency(this.value)">
+            <option value="IDR">IDR (Rp)</option>
+            <option value="USD">USD ($)</option>
+            <option value="MYR">MYR (RM)</option>
+            <option value="THB">THB (฿)</option>
+            <option value="SGD">SGD (S$)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <nav class="header-nav header-nav-menu-shift">
+      <a href="#galeri" onclick="showHomeReels()"><i class="fa-solid fa-house"></i> Beranda</a>
+      <a href="#vcsSection" onclick="showVcsGallery()"><i class="fa-solid fa-compass"></i> Galeri</a>
+      <a href="#testimoni" onclick="showTestimonials()"><i class="fa-solid fa-star"></i> Testimoni</a>
+      <a href="#blog" onclick="showBlogView()"><i class="fa-solid fa-newspaper"></i> Blog</a>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <div class="agency-badge-wrapper">
+      <div class="agency-header-badge">
+        <i class="fa-solid fa-crown badge-crown"></i>
+        <span>Clubs'Night Agency No. #1 Telegram</span>
+        <i class="fa-solid fa-sparkles badge-sparkle"></i>
+      </div>
+    </div>
+
+    <!-- HERO BANNER SLIDER -->
+    <div class="banner-container" id="bannerContainer" data-tour-step="2">
+      <div class="banner-wrapper" id="bannerWrapper"></div>
+      <div class="banner-dots" id="bannerDots"></div>
+    </div>
+
+    <!-- SECTION TESTIMONI & REAL-TIME TELEGRAM ORDER HISTORY -->
+    <div id="testimoniView" class="testimoni-container" style="display: none;">
+      <div class="calculator-card">
+        <div class="testimoni-header-flex">
+          <h3 class="section-title" style="margin-bottom:0;">
+            <i class="fa-solid fa-clipboard-list" style="color:var(--neon-green);"></i>
+            <span>Live Testimoni & History Order Telegram</span>
+          </h3>
+          <span class="live-pulse-pill"><span class="status-dot-ready"></span> Real-Time Connected</span>
+        </div>
+        <p class="section-sub-desc" style="margin-top: 6px;">Menampilkan daftar riwayat transaksi & order layanan talent yang terhubung langsung secara real-time saat pengunjung menekan tombol pemesanan Telegram.</p>
+        
+        <div class="testimoni-table-wrapper">
+          <table class="dev-table testimoni-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama Client</th>
+                <th>Talent & Layanan</th>
+                <th>Sesi & Durasi</th>
+                <th>Total Harga</th>
+                <th>Tanggal & Jam</th>
+              </tr>
+            </thead>
+            <tbody id="testimonialTableBody"></tbody>
+          </table>
+        </div>
+        <button class="btn-outline" onclick="showGallery()" style="margin-top: 16px;"><i class="fa-solid fa-arrow-left"></i> Kembali ke Katalog Galeri</button>
+      </div>
+    </div>
+
+    <!-- SECTION BLOG & STATUS SISTEM DENGAN DOKUMEN HYBRID -->
+    <div id="blogView" class="blog-container" style="display: none;">
+      <div class="calculator-card">
+        
+        <div class="blog-status-banner">
+          <div class="system-status-indicator">
+            <span class="status-dot-ready"></span>
+            <span class="system-status-text">Status Sistem: <b>Semua Layanan Berjalan Normal (Operational)</b></span>
+          </div>
+          <span class="system-ping-badge"><i class="fa-solid fa-bolt"></i> Server 99.9% Uptime</span>
+        </div>
+
+        <div class="blog-header-box" style="margin-bottom: 14px;">
+          <h3 class="section-title" style="margin-bottom: 4px;">
+            <i class="fa-solid fa-book-bookmark" style="color:var(--crimson-red);"></i>
+            <span>Pusat Berita & Artikel Resmi</span>
+          </h3>
+          <p class="section-sub-desc">Baca konsep merchandise, peraturan agensi, dan info server resmi langsung tanpa perlu mengunduh file.</p>
+        </div>
+
+        <div class="article-tabs-scroller">
+          <button class="article-tab-btn active" onclick="showPdfTab('https://drive.google.com/file/d/1ZVizUPpn-ivGkJIbVP1LG4JmI6-y_duk/preview', 'Project Plan Merchandise Clubs\'Night', this)">
+            <i class="fa-solid fa-shirt"></i> Project Plan Merch
+          </button>
+          <button class="article-tab-btn" onclick="showRulesTab(this)">
+            <i class="fa-solid fa-file-shield"></i> Aturan Agensi
+          </button>
+          <button class="article-tab-btn" onclick="showServerInfoTab(this)">
+            <i class="fa-solid fa-server"></i> Info Server
+          </button>
+        </div>
+
+        <div class="active-article-title-bar">
+          <span id="activeArticleName"><i class="fa-solid fa-file-lines"></i> Project Plan Merchandise Clubs'Night</span>
+          <a id="btnPdfFullscreen" href="https://drive.google.com/file/d/1ZVizUPpn-ivGkJIbVP1LG4JmI6-y_duk/view" target="_blank" rel="noopener noreferrer" class="btn-pdf-fullscreen" title="Buka Tab Penuh">
+            <i class="fa-solid fa-up-right-from-square"></i> Fullscreen
+          </a>
+        </div>
+
+        <div id="pdfViewerFrame" class="pdf-viewer-frame">
+          <iframe 
+            id="pdfEmbedFrame" 
+            src="https://drive.google.com/file/d/1ZVizUPpn-ivGkJIbVP1LG4JmI6-y_duk/preview" 
+            allow="autoplay"
+            loading="lazy">
+          </iframe>
+        </div>
+
+        <div id="rulesContentBox" class="blog-article-content" style="display: none;">
+          <div class="article-inner-body">
+            <h4 style="color:var(--crimson-red); margin-bottom: 10px; font-size: 1.05rem;">
+              <i class="fa-solid fa-shield-halved"></i> PERATURAN RESMI CLUBS'NIGHT AGENCY
+            </h4>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom: 12px;">Pembaruan Terakhir: 18 Oktober 2026</p>
+            
+            <div class="rule-item-card">
+              <b>1. Privasi & Keamanan Ketat</b>
+              <p>Dilarang keras merekam layar (screen record), memotret (screenshot), atau menyebarluaskan sesi panggilan privat dalam bentuk apapun. Pelanggaran berakibat pemblokiran permanen dan sanksi blacklist.</p>
+            </div>
+
+            <div class="rule-item-card">
+              <b>2. Ketentuan Usia (18+)</b>
+              <p>Seluruh talent dan pengunjung wajib berusia minimal 18 tahun. Layanan ini eksklusif bagi pengguna dewasa yang telah memverifikasi batasan umur.</p>
+            </div>
+
+            <div class="rule-item-card">
+              <b>3. Sistem Pembayaran & Konfirmasi</b>
+              <p>Semua transaksi hanya sah bila dilakukan melalui verifikasi bot Telegram resmi atau rekening agensi yang tertera pada kalkulator website.</p>
+            </div>
+
+            <div class="rule-item-card">
+              <b>4. Etika Komunikasi Sesi</b>
+              <p>Saling menghormati batas privasi dan kesepakatan durasi waktu sesi antara talent dan client demi kenyamanan bersama.</p>
+            </div>
+
+            <a href="https://telegra.ph/PERATURAN-AGENCY-10-18" target="_blank" rel="noopener" class="btn-outline" style="margin-top: 14px; width: 100%;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Baca Versi Lengkap di Telegraph
+            </a>
+          </div>
+        </div>
+
+        <div id="serverContentBox" class="blog-article-content" style="display: none;">
+          <div class="article-inner-body">
+            <h4 style="color:var(--neon-green); margin-bottom: 10px; font-size: 1.05rem;">
+              <i class="fa-solid fa-server"></i> STATUS INFRASTRUKTUR & SERVER
+            </h4>
+            <div class="server-stat-grid">
+              <div class="server-stat-card">
+                <span class="stat-label">Web Core Node</span>
+                <span class="stat-value" style="color:var(--neon-green);">🟢 Online (Edge CDN)</span>
+              </div>
+              <div class="server-stat-card">
+                <span class="stat-label">Telegram Sync API</span>
+                <span class="stat-value" style="color:var(--neon-green);">🟢 Connected (24ms)</span>
+              </div>
+              <div class="server-stat-card">
+                <span class="stat-label">Encryption Level</span>
+                <span class="stat-value" style="color:var(--neon-cyan);">AES-256 Bit E2EE</span>
+              </div>
+              <div class="server-stat-card">
+                <span class="stat-label">Database Cluster</span>
+                <span class="stat-value" style="color:var(--neon-green);">🟢 Cloudflare D1 Replicated</span>
+              </div>
+            </div>
+            <p style="font-size:0.76rem; color:var(--text-muted); margin-top: 14px; line-height: 1.5;">
+              Sistem beroperasi pada jaringan terdistribusi dengan perlindungan proteksi DDoS aktif serta sinkronisasi data instan antar cabang agensi partner resmi.
+            </p>
+          </div>
+        </div>
+
+        <button class="btn-outline" onclick="showGallery()" style="margin-top: 16px; width: 100%;">
+          <i class="fa-solid fa-arrow-left"></i> Kembali ke Katalog Galeri
+        </button>
+
+      </div>
+    </div>
+
+    <!-- DEVELOPER PANEL -->
+    <section id="devPanelView" class="dev-panel-container">
+      <div class="dev-panel-header">
+        <h3><i class="fa-solid fa-sliders" style="color:var(--neon-cyan);"></i> Developer Panel Management</h3>
+        <div class="dev-header-btns">
+          <button class="btn-danger" onclick="logoutDevPanel()"><i class="fa-solid fa-power-off"></i> Logout</button>
+          <button class="btn-outline" onclick="closeDevPanel()">Tutup</button>
+        </div>
+      </div>
+
+      <div class="dev-toolbar">
+        <button class="btn-neon dev-tool-btn" onclick="openAddTalentForm()"><i class="fa-solid fa-user-plus"></i> Tambah Talent</button>
+        <button class="dev-tool-btn" onclick="openBannerManager()"><i class="fa-regular fa-images"></i> Banner (Max 4)</button>
+        <button class="dev-tool-btn voucher-tool-btn" onclick="openVoucherManager()"><i class="fa-solid fa-ticket"></i> Kode Voucher</button>
+        <button class="dev-tool-btn" onclick="exportDataJSON()"><i class="fa-solid fa-download"></i> Export</button>
+        <button class="dev-tool-btn" onclick="triggerImportJSON()"><i class="fa-solid fa-upload"></i> Import</button>
+        <input type="file" id="jsonFileInput" accept=".json" style="display:none;" onchange="importDataJSON(event)">
+      </div>
+
+      <div id="devVoucherCard" class="calculator-card dev-subcard" style="display: none;">
+        <h4 style="color: var(--neon-green); margin-bottom: 12px; font-size:0.88rem;"><i class="fa-solid fa-tags"></i> Generator Kode Voucher Diskon</h4>
+        <form id="voucherForm" onsubmit="saveVoucherData(event)">
+          <div class="dev-grid-2">
+            <div class="form-group">
+              <label>Kode Voucher (Huruf Kapital)</label>
+              <input type="text" id="devVoucherCode" class="form-control" required placeholder="Contoh: CN5000" style="text-transform:uppercase;">
+            </div>
+            <div class="form-group">
+              <label>Tipe Potongan Diskon</label>
+              <select id="devVoucherType" class="form-control" required>
+                <option value="5000_fixed">Potongan Rp 5.000</option>
+                <option value="10">Diskon 10%</option>
+                <option value="25">Diskon 25%</option>
+                <option value="100">Diskon 100%</option>
+              </select>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button type="submit" class="btn-neon" style="padding:9px;">Simpan Voucher</button>
+            <button type="button" class="btn-outline" onclick="hideVoucherForm()" style="padding:9px;">Tutup</button>
+          </div>
+        </form>
+
+        <div style="overflow-x: auto; margin-top: 14px;">
+          <table class="dev-table">
+            <thead>
+              <tr>
+                <th>Kode</th>
+                <th>Diskon</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="devVoucherTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="devBannerCard" class="calculator-card dev-subcard" style="display: none;">
+        <h4 style="color: var(--amethyst-light); margin-bottom: 12px; font-size:0.88rem;"><i class="fa-solid fa-panorama"></i> Kelola Banner Slide (Maksimal 4)</h4>
+        <form id="bannerForm" onsubmit="saveBannerData(event)">
+          <div class="dev-grid-2">
+            <div class="form-group">
+              <label>Judul Banner</label>
+              <input type="text" id="devBannerTitle" class="form-control" required placeholder="Contoh: Promo Spesial">
+            </div>
+            <div class="form-group">
+              <label>Sub-judul / Deskripsi</label>
+              <input type="text" id="devBannerSub" class="form-control" required placeholder="Contoh: Diskon Paket VC">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>URL Gambar Banner</label>
+            <input type="url" id="devBannerImg" class="form-control" required placeholder="https://images.unsplash.com/...">
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button type="submit" class="btn-neon" style="padding:9px;">Simpan Banner</button>
+            <button type="button" class="btn-outline" onclick="hideBannerForm()" style="padding:9px;">Tutup</button>
+          </div>
+        </form>
+
+        <div style="overflow-x: auto; margin-top: 14px;">
+          <table class="dev-table">
+            <thead>
+              <tr>
+                <th>Gambar</th>
+                <th>Judul</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="devBannerTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="devFormCard" class="dev-form-box" style="display:none;">
+        <h4 id="devFormTitle" style="color:var(--crimson-red); margin-bottom:10px; font-size:0.9rem;">Data Talent</h4>
+        <form id="talentEditorForm" onsubmit="saveTalentData(event)">
+          <input type="hidden" id="editTalentId">
+          
+          <div class="dev-grid-2">
+            <div class="form-group upload-Highlight-box">
+              <label style="color:var(--crimson-red); font-weight:700;">1. Foto Talent (Upload ke R2 / Link):</label>
+              <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
+                <input type="file" id="devImageFileInput" accept="image/*" class="form-control" style="padding: 5px;">
+                <button type="button" id="btnUploadImage" class="btn-neon" onclick="uploadImageToCatbox()" style="width: auto; padding: 7px 14px; font-size: 0.75rem; white-space: nowrap;">
+                  🖼️ Upload Foto (R2)
+                </button>
+              </div>
+              <p id="uploadImageStatusText" style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;"></p>
+
+              <div style="margin-top: 8px;">
+                <label style="font-size: 0.7rem; color: var(--neon-cyan);">🔗 Link URL Foto:</label>
+                <input type="url" id="devTalentImg" class="form-control" placeholder="URL foto terisi otomatis dari R2..." style="margin-top:4px;" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>2. Nama Talent</label>
+              <input type="text" id="devTalentName" class="form-control" required placeholder="Nama talent...">
+            </div>
+          </div>
+
+          <div class="dev-grid-2">
+            <div class="form-group">
+              <label>3. Kategori Utama Service</label>
+              <select id="devTalentCategory" class="form-control" required>
+                <option value="VCService">VCService (Virtual Call)</option>
+                <option value="BOP Service">BOP Service (Offline RSVP)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>4. Asal Agency</label>
+              <select id="devTalentAgency" class="form-control" required>
+                <option value="Clubs'Night">Clubs'Night</option>
+                <option value="Noctis Angel">Noctis Angel</option>
+                <option value="Lotus">Lotus</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 8px;">
+            <label style="color:var(--neon-green); font-weight:700;">Status Live Standby:</label>
+            <select id="devTalentStatus" class="form-control" required>
+              <option value="ready">🟢 Ready</option>
+              <option value="busy">🔴 Antrean</option>
+              <option value="offline">⚪ Close Order</option>
+            </select>
+          </div>
+
+          <div class="form-group upload-Highlight-box" style="margin-top: 8px;">
+            <label style="color:var(--neon-cyan); font-weight:700;">Upload Video Short / Reels ke Cloudflare R2:</label>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
+              <input type="file" id="devVideoFileInput" accept="video/*" class="form-control" style="padding: 5px;">
+              <button type="button" id="btnUploadVideo" class="btn-neon" onclick="uploadVideoToCloudinary()" style="width: auto; padding: 7px 14px; font-size: 0.75rem; white-space: nowrap;">
+                ☁️ Upload Video (R2)
+              </button>
+            </div>
+            <p id="uploadStatusText" style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;"></p>
+            <input type="url" id="devTalentVideo" class="form-control" placeholder="URL Video MP4 R2 terisi otomatis / isi manual..." style="margin-top:6px;">
+          </div>
+
+          <div class="form-group" style="margin-top:8px;">
+            <label>URL Voice Note Preview (Opsional)</label>
+            <input type="url" id="devTalentAudio" class="form-control" placeholder="https://domain.com/voice.mp3">
+          </div>
+
+          <!-- INPUT HARGA DENGAN TATA LETAK CARD COMPACT GRID -->
+          <div class="form-group" style="margin-top: 12px;">
+            <label style="color:var(--neon-cyan); font-weight:700;">5. Kategori Service & Input Harga (3, 5, 7, 10 Menit):</label>
+            <p style="font-size:0.68rem; color:var(--text-muted); margin-bottom: 6px;">Centang kategori di bawah ini untuk membuka opsi input harga per durasinya.</p>
+            
+            <div class="cat-checkbox-grid">
+              <!-- Kategori A -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="a" onchange="toggleCatInput('a')"> a. Atas saja tanpa face</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_a">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_a_m3" checked onchange="toggleMinInput('a','m3')"> 3 Menit</label><input type="number" id="catPrice_a_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_a_m5" checked onchange="toggleMinInput('a','m5')"> 5 Menit</label><input type="number" id="catPrice_a_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_a_m7" checked onchange="toggleMinInput('a','m7')"> 7 Menit</label><input type="number" id="catPrice_a_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_a_m10" checked onchange="toggleMinInput('a','m10')"> 10 Menit</label><input type="number" id="catPrice_a_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+
+              <!-- Kategori B -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="b" onchange="toggleCatInput('b')"> b. Atas saja dengan face</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_b">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_b_m3" checked onchange="toggleMinInput('b','m3')"> 3 Menit</label><input type="number" id="catPrice_b_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_b_m5" checked onchange="toggleMinInput('b','m5')"> 5 Menit</label><input type="number" id="catPrice_b_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_b_m7" checked onchange="toggleMinInput('b','m7')"> 7 Menit</label><input type="number" id="catPrice_b_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_b_m10" checked onchange="toggleMinInput('b','m10')"> 10 Menit</label><input type="number" id="catPrice_b_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+
+              <!-- Kategori C -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="c" onchange="toggleCatInput('c')"> c. Bawah saja tanpa face</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_c">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_c_m3" checked onchange="toggleMinInput('c','m3')"> 3 Menit</label><input type="number" id="catPrice_c_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_c_m5" checked onchange="toggleMinInput('c','m5')"> 5 Menit</label><input type="number" id="catPrice_c_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_c_m7" checked onchange="toggleMinInput('c','m7')"> 7 Menit</label><input type="number" id="catPrice_c_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_c_m10" checked onchange="toggleMinInput('c','m10')"> 10 Menit</label><input type="number" id="catPrice_c_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+
+              <!-- Kategori D -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="d" onchange="toggleCatInput('d')"> d. Bawah saja dengan face</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_d">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_d_m3" checked onchange="toggleMinInput('d','m3')"> 3 Menit</label><input type="number" id="catPrice_d_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_d_m5" checked onchange="toggleMinInput('d','m5')"> 5 Menit</label><input type="number" id="catPrice_d_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_d_m7" checked onchange="toggleMinInput('d','m7')"> 7 Menit</label><input type="number" id="catPrice_d_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_d_m10" checked onchange="toggleMinInput('d','m10')"> 10 Menit</label><input type="number" id="catPrice_d_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+
+              <!-- Kategori E -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="e" onchange="toggleCatInput('e')"> e. Fullbody tanpa face</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_e">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_e_m3" checked onchange="toggleMinInput('e','m3')"> 3 Menit</label><input type="number" id="catPrice_e_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_e_m5" checked onchange="toggleMinInput('e','m5')"> 5 Menit</label><input type="number" id="catPrice_e_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_e_m7" checked onchange="toggleMinInput('e','m7')"> 7 Menit</label><input type="number" id="catPrice_e_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_e_m10" checked onchange="toggleMinInput('m10')"> 10 Menit</label><input type="number" id="catPrice_e_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+
+              <!-- Kategori F -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="f" onchange="toggleCatInput('f')"> f. Fullbody dengan face</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_f">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_f_m3" checked onchange="toggleMinInput('f','m3')"> 3 Menit</label><input type="number" id="catPrice_f_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_f_m5" checked onchange="toggleMinInput('f','m5')"> 5 Menit</label><input type="number" id="catPrice_f_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_f_m7" checked onchange="toggleMinInput('f','m7')"> 7 Menit</label><input type="number" id="catPrice_f_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_f_m10" checked onchange="toggleMinInput('f','m10')"> 10 Menit</label><input type="number" id="catPrice_f_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+
+              <!-- Kategori G -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="g" onchange="toggleCatInput('g')"> g. BOP /+ dengan request</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_g">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_g_m3" checked onchange="toggleMinInput('g','m3')"> 3 Menit</label><input type="number" id="catPrice_g_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_g_m5" checked onchange="toggleMinInput('g','m5')"> 5 Menit</label><input type="number" id="catPrice_g_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_g_m7" checked onchange="toggleMinInput('g','m7')"> 7 Menit</label><input type="number" id="catPrice_g_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_g_m10" checked onchange="toggleMinInput('g','m10')"> 10 Menit</label><input type="number" id="catPrice_g_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+
+              <!-- Kategori H -->
+              <div class="cat-item-row">
+                <div class="cat-item-header">
+                  <label><input type="checkbox" class="cat-chk" value="h" onchange="toggleCatInput('h')"> h. BOP /- tanpa request</label>
+                </div>
+                <div class="cat-minutes-box" id="boxMinutes_h">
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_h_m3" checked onchange="toggleMinInput('h','m3')"> 3 Menit</label><input type="number" id="catPrice_h_m3" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_h_m5" checked onchange="toggleMinInput('h','m5')"> 5 Menit</label><input type="number" id="catPrice_h_m5" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_h_m7" checked onchange="toggleMinInput('h','m7')"> 7 Menit</label><input type="number" id="catPrice_h_m7" class="form-control" placeholder="Rp"></div>
+                  <div class="cat-min-input"><label><input type="checkbox" id="chk_h_m10" checked onchange="toggleMinInput('h','m10')"> 10 Menit</label><input type="number" id="catPrice_b_m10" class="form-control" placeholder="Rp"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:16px;">
+            <button type="submit" class="btn-neon" style="padding:10px;">Tambahkan / Simpan Talent</button>
+            <button type="button" class="btn-outline" onclick="hideTalentForm()" style="padding:10px;">Batal</button>
+          </div>
+        </form>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="dev-table">
+          <thead>
+            <tr><th>Foto</th><th>Nama</th><th>Agency</th><th>Status</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="devTalentTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- GALLERY & REELS VIEW -->
+    <div id="galleryView" style="width:100%;">
+      <section class="controls-section" id="galeri">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="searchInput" placeholder="Cari nama talent impianmu..." oninput="filterTalents()">
+          <span class="search-badge-hint"><i class="fa-solid fa-bolt"></i> Instan</span>
+        </div>
+
+        <div class="unified-icon-nav-box" data-tour-step="3">
+          
+          <!-- Label Baris 1: Kategori Layanan & Agensi -->
+          <div class="nav-row-title"><i class="fa-solid fa-layer-group"></i> Kategori Layanan & Agensi:</div>
+          <div class="icon-nav-row">
+            <button class="icon-chip active-gradient" onclick="setCategory('All', this, 'Semua Reels Feed', 'Menampilkan seluruh koleksi video reels & talent.')" title="Semua Talent">
+              <i class="fa-solid fa-circle-play" style="color: #ec4899;"></i>
+              <span>Semua</span>
+            </button>
+            <button class="icon-chip" onclick="setCategory('Status:ready', this, 'Talent Ready Standby', 'Menampilkan talent yang sedang online & siap melayani.')" title="Talent Ready">
+              <i class="fa-solid fa-satellite-dish" style="color: #10b981;"></i>
+              <span>Ready</span>
+            </button>
+            <button class="icon-chip" onclick="setCategory('VCService', this, 'VCService (Virtual Call)', 'Layanan panggilan video privat 1-on-1 via Telegram.')" title="VCService">
+              <i class="fa-solid fa-video" style="color: #38bdf8;"></i>
+              <span>VCService</span>
+            </button>
+            <button class="icon-chip" onclick="setCategory('BOP Service', this, 'BOP Service (Offline RSVP)', 'Layanan pendampingan offline privat dengan sistem reservasi.')" title="BOP Service">
+              <i class="fa-solid fa-gem" style="color: #f59e0b;"></i>
+              <span>BOP (Meet)</span>
+            </button>
+            <button class="icon-chip" onclick="setCategory('Agency:Clubs\'Night', this, 'Agensi Clubs\'Night', 'Talent eksklusif dari agensi utama Clubs\'Night.')" title="Agensi Clubs'Night">
+              <i class="fa-solid fa-fire" style="color: #ff1744;"></i>
+              <span>Clubs'Night</span>
+            </button>
+            <button class="icon-chip" onclick="setCategory('Agency:Lotus', this, 'Agensi Lotus Partner', 'Talent eksklusif dari agensi partner Lotus.')" title="Agensi Lotus">
+              <i class="fa-solid fa-spa" style="color: #a855f7;"></i>
+              <span>Lotus</span>
+            </button>
+            <button class="icon-chip" onclick="setCategory('Agency:Noctis Angel', this, 'Agensi Noctis Angel', 'Talent eksklusif dari agensi partner Noctis Angel.')" title="Agensi Noctis Angel">
+              <i class="fa-solid fa-feather" style="color: #06b6d4;"></i>
+              <span>Noctis</span>
+            </button>
+          </div>
+
+          <!-- Label Baris 2: Favorit & Karakter Mood Sesi -->
+          <div class="nav-row-title" style="margin-top: 4px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Karakter & Mood Sesi:</div>
+          <div class="icon-nav-row sub-row">
+            <button class="icon-chip" onclick="setCategory('Favorit', this, 'Favorit Tersimpan', 'Menampilkan talent yang sudah Anda sukai / love.')" title="Favorit Saya">
+              <i class="fa-solid fa-heart" style="color: #ff1744;"></i>
+              <span>Favorit</span>
+            </button>
+            <button class="icon-chip active-gradient" onclick="filterByVibe('All', this, 'Semua Karakter', 'Menampilkan semua pilihan kepribadian talent.')" title="Semua Vibe">
+              <i class="fa-solid fa-wand-magic-sparkles" style="color: #c084fc;"></i>
+              <span>Semua</span>
+            </button>
+            <button class="icon-chip" onclick="filterByVibe('GFE', this, 'GFE (Girlfriend Experience)', 'Karakter perhatian, hangat, dan manis serasa pacar sendiri.')" title="Girlfriend Experience">
+              <i class="fa-solid fa-heart-pulse" style="color: #f43f5e;"></i>
+              <span>GFE</span>
+            </button>
+            <button class="icon-chip" onclick="filterByVibe('Deep Talk', this, 'Teman Deep Talk', 'Teman ngobrol seru, pendengar setia & curhat bermakna.')" title="Deep Talk">
+              <i class="fa-solid fa-comments" style="color: #3b82f6;"></i>
+              <span>Curhat</span>
+            </button>
+            <button class="icon-chip" onclick="filterByVibe('Cosplay', this, 'Kostum Cosplay', 'Tampilan unik & menarik dengan berbagai kostum cosplay.')" title="Cosplay">
+              <i class="fa-solid fa-masks-theater" style="color: #eab308;"></i>
+              <span>Cosplay</span>
+            </button>
+            <button class="icon-chip" onclick="filterByVibe('Manja', this, 'Tipe Manja & Gemas', 'Sesi seru, imut, menggemaskan dan penuh kehangatan.')" title="Tipe Manja">
+              <i class="fa-solid fa-face-kiss-wink-heart" style="color: #fb7185;"></i>
+              <span>Manja</span>
+            </button>
+          </div>
+
+          <!-- Drawer Deskripsi & Tombol Reset Filter Otomatis -->
+          <div class="nav-info-drawer" id="navInfoDrawer">
+            <div class="nav-info-text">
+              <div class="nav-info-title" id="navInfoTitle"><i class="fa-solid fa-circle-info"></i> Semua Reels Feed</div>
+              <div class="nav-info-desc" id="navInfoDesc">Menampilkan seluruh koleksi video reels & talent.</div>
+            </div>
+            <button type="button" id="btnResetFilter" class="btn-reset-filter" onclick="resetAllFilters()" style="display: none;">
+              <i class="fa-solid fa-rotate-left"></i> Lepas Filter
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- REELS FEED -->
+      <section id="reelsFeedSection" style="display: block; margin-bottom: 24px;" data-tour-step="4">
+        <div class="reels-feed-container" id="reelsFeedContainer"></div>
+      </section>
+
+      <!-- GRID FEED -->
+      <div id="gridFeedSection" style="display: none;">
+        <section style="margin-bottom:28px;" id="vcsSection">
+          <h3 class="section-title" id="vcsSectionTitle">
+            <i class="fa-solid fa-video" style="color:var(--crimson-red);"></i>
+            <span>VCService Showcase (Virtual Call)</span>
+          </h3>
+          <div class="talent-grid" id="vcsGrid"></div>
+        </section>
+
+        <section style="margin-bottom:20px;" id="bopSection">
+          <h3 class="section-title" id="bopSectionTitle">
+            <i class="fa-solid fa-gem" style="color:var(--neon-amber);"></i>
+            <span>BOP Service (Booking Offline Private RSVP)</span>
+          </h3>
+          <p class="section-sub-desc">Layanan pendampingan offline privat secara langsung dengan sistem konfirmasi RSVP eksklusif.</p>
+          <div class="talent-grid" id="bopGrid"></div>
+        </section>
+      </div>
+
+      <div class="load-more-wrapper">
+        <button id="loadMoreBtn" class="btn-load-more" onclick="loadMore()">
+          <i class="fa-solid fa-angles-down"></i> Muat Lebih Banyak Talent
+        </button>
+      </div>
+    </div>
+
+    <!-- DETAIL TALENT VIEW -->
+    <div id="detailView" class="detail-container">
+      <button class="btn-outline btn-back-gallery" onclick="showGallery()">
+        <i class="fa-solid fa-arrow-left"></i> Kembali ke Galeri Katalog
+      </button>
+
+      <div class="detail-card">
+        <div class="detail-header">
+          <div class="detail-thumb-frame">
+            <img id="detailImg" src="" class="detail-thumb" alt="Talent" onerror="handleImgError(this)">
+          </div>
+          <div class="detail-meta">
+            <div id="detailAgency" class="detail-agency-pill"></div>
+            <h2 id="detailName" class="detail-talent-title"></h2>
+            <div id="detailCategory" class="talent-tag"></div>
+            <p id="detailStats" class="detail-stats-text"></p>
+
+            <div id="voicePreviewContainer" class="voice-preview-box" style="display: none;">
+              <label><i class="fa-solid fa-waveform-lines"></i> Preview Voice Note Talent:</label>
+              <audio id="detailAudio" controls></audio>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="label-accent"><i class="fa-solid fa-list-check"></i> a. Pilih Kategori Service:</label>
+          <select id="detailBagianOption" class="form-control" onchange="renderVisitorDurationDropdown()"></select>
+        </div>
+
+        <div class="form-group duration-select-box" id="detailDurationWrapper">
+          <label class="label-accent"><i class="fa-regular fa-clock"></i> Pilih Durasi Menit Per Sesi:</label>
+          <select id="detailMinuteOption" class="form-control" onchange="onVisitorSelectCategory()"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="label-green"><i class="fa-solid fa-tag"></i> b. Estimasi Harga Service:</label>
+          <input type="text" id="detailPriceDisplay" class="form-control price-highlight-input" readonly value="Rp 0">
+        </div>
+
+        <div class="form-group">
+          <label class="label-amber"><i class="fa-solid fa-wand-sparkles"></i> c. Request Service Khusus (Ketik Sendiri):</label>
+          <p style="font-size:0.68rem; color:var(--crimson-red); font-weight:700; margin-bottom:4px;">⚠️ Request khusus ini mungkin akan dikenakan biaya tambahan!</p>
+          <textarea id="clientCustomRequest" class="form-control" placeholder="Contoh: Tolong ganti outfit hitam / gunakan kostum cosplay..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label><i class="fa-regular fa-user"></i> Nama Client / Panggilan</label>
+          <input type="text" id="clientName" class="form-control" placeholder="Masukkan nama panggilan Anda...">
+          <label style="margin-top:8px;"><i class="fa-regular fa-calendar-check"></i> Catatan Tambahan (Opsional)</label>
+          <textarea id="clientNote" class="form-control" placeholder="Catatan jam sesi atau jadwal booking..."></textarea>
+        </div>
+
+        <button class="btn-neon" onclick="processToCalculator()" style="margin-top:18px;">
+          <i class="fa-solid fa-bolt"></i> Hitung Total & Lanjut Pemesanan
+        </button>
+
+        <!-- FORM KALKULATOR & KONFIRMASI LANGSUNG DI DALAM DETAIL -->
+        <div id="calculatorCardInline" class="calculator-card" style="display: none; margin-top: 24px;">
+          <h3 class="section-title" style="margin-bottom:14px;">
+            <i class="fa-solid fa-file-invoice-dollar" style="color:var(--crimson-red);"></i>
+            <span>Rincian & Konfirmasi Order</span>
+          </h3>
+          <form onsubmit="copyAndRedirectToBot(event)">
+            <div class="calc-grid-2">
+              <div class="form-group"><label>Talent & Agency</label><input type="text" id="calcTalent" class="form-control" readonly placeholder="-"></div>
+              <div class="form-group"><label>Kategori Utama</label><input type="text" id="calcCategory" class="form-control" readonly placeholder="-"></div>
+            </div>
+            <div class="calc-grid-2">
+              <div class="form-group"><label>Durasi & Kategori Service</label><input type="text" id="calcBagian" class="form-control" readonly placeholder="-"></div>
+              <div class="form-group"><label>Harga Sesi (Murni)</label><input type="number" id="calcHarga" class="form-control" readonly value="0"></div>
+            </div>
+            <div class="form-group"><label>Request Service Khusus</label><input type="text" id="calcCustomRequest" class="form-control" readonly placeholder="-"></div>
+
+            <div class="form-group voucher-apply-box">
+              <label style="color:var(--neon-green); font-weight:700;"><i class="fa-solid fa-ticket"></i> Kode Voucher Promo (Contoh: CN5000):</label>
+              <div class="voucher-input-row">
+                <input type="text" id="calcVoucherInput" class="form-control" placeholder="Ketik kode voucher..." style="text-transform:uppercase;">
+                <button type="button" class="btn-neon btn-voucher-apply" onclick="applyVoucherCode()">Gunakan</button>
+              </div>
+              <p id="voucherStatusText" style="font-size:0.72rem; margin-top:4px; font-weight:700;"></p>
+            </div>
+
+            <div class="admin-fee-notice">
+              <div class="notice-heading"><i class="fa-solid fa-circle-info"></i> Rincian Biaya Administrasi Sistem:</div>
+              <div class="notice-grid">
+                <span>• Order &lt; Rp 100rb: <b>Rp 10.000</b></span>
+                <span>• Order &gt; Rp 100rb: <b>Rp 15.000</b></span>
+                <span>• Order &ge; Rp 250rb: <b>Rp 20.000</b></span>
+              </div>
+            </div>
+
+            <div class="calc-grid-2" style="margin-top:6px;">
+              <div class="form-group"><label>Nama Client</label><input type="text" id="calcClient" class="form-control" placeholder="Nama panggilan..."></div>
+              <div class="form-group"><label>Catatan Tambahan</label><textarea id="calcNote" class="form-control" placeholder="Catatan waktu sesi..."></textarea></div>
+            </div>
+
+            <div class="total-box">
+              <span class="total-label">Total Pembayaran Sesi</span>
+              <h3><span id="displayTotal">Rp 0</span></h3>
+            </div>
+
+            <div id="qrisContainer" style="margin-top:14px; text-align:center;"></div>
+
+            <div class="terms-box">
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkNoRecord" required>
+                <span>Saya berjanji <b>Tidak Akan Merekam / Screenshot</b> selama sesi privat berlangsung.</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkRuleAgree" required>
+                <span>Saya mematuhi seluruh prosedur privasi agensi dan bersedia diblokir permanen jika melanggar.</span>
+              </label>
+            </div>
+
+            <button type="submit" class="btn-neon btn-submit-telegram">
+              <i class="fa-brands fa-telegram"></i> Lanjutkan Pemesanan ke Telegram
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== FOOTER RAPI & ESTETIS ==================== -->
+  <footer>
+    <div class="footer-container">
+      
+      <!-- TENTANG CLUBS'NIGHT -->
+      <div class="footer-block footer-about">
+        <div class="brand-logo">
+          <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" class="header-favicon-img" alt="Logo Favicon">
+          <span class="brand-text">CLUBS'<span>NIGHT</span></span>
+        </div>
+        <p class="footer-desc">
+          Platform agensi penyedia layanan Video Call Privat & Booking Service No. #1 Telegram. Menghadirkan pengalaman interaktif terbaik dengan talent tepercaya, privasi terjaga 100%, serta sistem verifikasi transparan.
+        </p>
+      </div>
+
+      <!-- LINK MEDIA SOSIAL DENGAN IKON KHUSUS -->
+      <div class="footer-block footer-socials">
+        <h4 class="footer-heading"><i class="fa-solid fa-share-nodes"></i> Media Sosial & Komunitas</h4>
+        <div class="social-buttons-grid">
+          <a href="https://www.tiktok.com/@clubs_night?_r=1&_t=ZS-9Af5DyQwTpq" target="_blank" rel="noopener" class="btn-social btn-tiktok" title="TikTok">
+            <i class="fa-brands fa-tiktok social-icon anim-bounce text-tiktok"></i>
+            <span>TikTok</span>
+          </a>
+
+          <a href="https://t.me/clubs_night" target="_blank" rel="noopener" class="btn-social btn-telegram" title="Telegram Channel">
+            <i class="fa-brands fa-telegram social-icon anim-pulse text-telegram"></i>
+            <span>Telegram</span>
+          </a>
+
+          <!-- Twitter / X: Logo X Bersih Putih Solid -->
+          <a href="https://x.com/Clubsnightid" target="_blank" rel="noopener" class="btn-social btn-twitter" title="Twitter / X">
+            <svg class="custom-social-svg anim-spin" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            <span>Twitter / X</span>
+          </a>
+
+          <!-- Threads: Icon @ Spiral Elegan -->
+          <a href="https://www.threads.com/@clubsnight.my.id" target="_blank" rel="noopener" class="btn-social btn-threads" title="Threads">
+            <svg class="custom-social-svg anim-shake" viewBox="0 0 24 24" fill="#c084fc" aria-hidden="true">
+              <path d="M12.186 24C5.467 24 0 18.635 0 12.033 0 5.432 5.467.066 12.186.066c6.452 0 11.666 4.965 11.814 11.393h-2.508c-.144-5.02-4.227-8.913-9.306-8.913-5.284 0-9.58 4.238-9.58 9.487 0 5.25 4.296 9.488 9.58 9.488 3.864 0 7.23-2.316 8.704-5.65-1.026.545-2.22.868-3.488.868-4.004 0-7.05-3.053-7.05-7.067 0-4.015 3.046-7.068 7.05-7.068 3.992 0 7.038 3.04 7.05 7.039.01 2.378-.85 4.67-2.39 6.454 2.73-1.63 4.542-4.634 4.542-8.064 0-5.203-4.24-9.42-9.448-9.42C6.91 1.63 2.68 5.847 2.68 11.05s4.23 9.42 9.448 9.42c1.464 0 2.875-.333 4.148-.962.61.94 1.39 1.76 2.316 2.428-1.928 1.31-4.256 2.064-6.406 2.064zm-.05-18.72c-2.673 0-4.63 1.942-4.63 4.622 0 2.68 1.957 4.623 4.63 4.623 2.674 0 4.63-1.943 4.63-4.623 0-2.68-1.956-4.622-4.63-4.622z"/>
+            </svg>
+            <span>Threads</span>
+          </a>
+
+          <a href="https://www.instagram.com/clubs.nightid" target="_blank" rel="noopener" class="btn-social btn-instagram" title="Instagram">
+            <i class="fa-brands fa-instagram social-icon anim-pulse text-instagram"></i>
+            <span>Instagram</span>
+          </a>
+
+          <!-- Tevi Live: TV dengan Tombol Play -->
+          <a href="https://tevi.com/@Clubsnight.id/s/TZC3AJ" target="_blank" rel="noopener" class="btn-social btn-tevi" title="Tevi Stream">
+            <svg class="custom-social-svg anim-bounce" viewBox="0 0 24 24" fill="#f59e0b" aria-hidden="true">
+              <path d="M7.5 2.5L10.8 6H13.2L16.5 2.5l1.4 1.4-2.8 3.1H19c1.65 0 3 1.35 3 3v8c0 1.65-1.35 3-3 3H5c-1.65 0-3-1.35-3-3V10c0-1.65 1.35-3 3-3h3.9L6.1 3.9l1.4-1.4z" opacity="0.95"/>
+              <polygon points="10,10.5 15.5,14 10,17.5" fill="#07040c"/>
+            </svg>
+            <span>Tevi Live</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- PENGADUAN, LEGALITAS & PRIVASI -->
+      <div class="footer-block footer-info">
+        <h4 class="footer-heading"><i class="fa-solid fa-shield-halved"></i> Pengaduan & Legalitas</h4>
+        <ul class="footer-info-list">
+          <li>
+            <i class="fa-solid fa-envelope text-accent"></i>
+            <span>Pengaduan Web: <a href="mailto:cs@clubsnight-agency.my.id">cs@clubsnight-agency.my.id</a></span>
+          </li>
+          <li>
+            <i class="fa-solid fa-scale-balanced text-accent"></i>
+            <span>Legalitas: <b>18+ Adult Service & End-to-End Encryption Secured</b></span>
+          </li>
+          <li>
+            <i class="fa-solid fa-lock text-accent"></i>
+            <span>Privasi: Data pengguna dijamin aman & tidak dibagikan ke pihak ketiga.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- JARINGAN AGENSI PENDUKUNG -->
+      <div class="footer-block footer-partners-section">
+        <div class="footer-partner-title"><i class="fa-solid fa-link"></i> Didukung Oleh Jaringan Agensi Resmi</div>
+        <div class="footer-partners-grid">
+          <div class="partner-item">
+            <img src="https://i.ibb.co.com/kswT8Lkk/1788264004418.png" class="partner-img" alt="Clubs'Night">
+            <span>Clubs'<span>Night</span></span>
+          </div>
+          <div class="partner-item active-highlight">
+            <img src="https://i.ibb.co.com/Z6g3B0v5/by-20261010-140010-0000.png" class="partner-img" alt="Nighty">
+            <span>Nighty</span>
+          </div>
+          <div class="partner-item">
+            <img src="https://i.ibb.co.com/mFtnP4Lb/IMG-20261005-133651-837.jpg" class="partner-img" alt="Lotus">
+            <span>Lotus</span>
+          </div>
+          <div class="partner-item">
+            <img src="https://i.ibb.co.com/HWSSFjc/615183-removebg-preview.png" class="partner-img" alt="Noctis Angel">
+            <span>Noctis Angel</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- COPYRIGHT -->
+      <div class="copyright-text">
+        &copy; 2026 <b>Clubs'Night Agency</b>. Seluruh hak cipta dilindungi.
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- FLOATING LIVECHAT -->
+  <div id="cn-chat-widget" class="cn-chat-widget" data-tour-step="5">
+    <button id="cn-chat-btn" class="cn-chat-trigger" onclick="toggleCnChat()">
+      <i class="fa-solid fa-arrows-up-down-left-right drag-icon-hint" title="Geser posisi"></i>
+      <span class="chat-pulse-dot"></span>
+      <i class="fa-solid fa-headset"></i>
+      <span>Live Chat CS</span>
+    </button>
+
+    <div id="cn-chat-box" class="cn-chat-window" style="display: none;">
+      <div class="cn-chat-header" id="cnChatHeaderDrag">
+        <div class="cn-chat-title">
+          <span class="online-indicator"></span>
+          <span>Clubs'Night Asisstant</span>
+        </div>
+        <div class="cn-chat-header-Right">
+          <button onclick="connectToAdminTelegram()" class="cn-admin-header-btn" title="Hubungkan langsung dengan Admin CS Telegram">
+            <i class="fa-brands fa-telegram"></i> Admin CS
+          </button>
+          <button onclick="toggleCnChat()" class="cn-close-btn" aria-label="Tutup Chat">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="cn-quick-chips-bar">
+        <button class="cn-quick-chip" onclick="sendQuickMsg('vcs')">📹 Cara Order VCS</button>
+        <button class="cn-quick-chip" onclick="sendQuickMsg('Siapa talent yang ready sekarang?')">🔥 Talent Ready</button>
+        <button class="cn-quick-chip" onclick="sendQuickMsg('Bagaimana cara order?')">📝 Cara Order</button>
+        <button class="cn-quick-chip" onclick="sendQuickMsg('Bagaimana cara melakukan VC?')">📹 Cara VC</button>
+        <button class="cn-quick-chip" onclick="sendQuickMsg('Bagaimana keamanan data privasi?')">🔒 Privasi</button>
+        <button class="cn-quick-chip" onclick="sendQuickMsg('Berapa daftar harga sesi VC?')">💰 Daftar Harga</button>
+        <button class="cn-quick-chip" onclick="sendQuickMsg('Apakah ada kode voucher promo?')">🎟️ Voucher Promo</button>
+      </div>
+      
+      <div id="cn-messages" class="cn-messages-area">
+        <div class="cn-welcome-bubble">
+          Halo! 👋 Selamat datang di <b>Clubs'Night</b>.<br><br>
+          Pilih topik bantuan cepat di atas atau ketik pertanyaanmu di bawah ini!
+        </div>
+      </div>
+
+      <div class="cn-chat-input-bar">
+        <input type="text" id="cn-input" placeholder="Ketik pesan atau pertanyaan..." onkeypress="if(event.key==='Enter') sendCnMessage()">
+        <button onclick="sendCnMessage()" class="cn-send-btn">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK BACK TO TOP -->
+  <button id="btnBackToTop" class="btn-back-to-top" onclick="scrollToTopPage()" title="Kembali ke Atas">
+    <i class="fa-solid fa-arrow-up"></i>
+  </button>
+
+  <script type="module" src="/src/katalog.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Dependencies & Build Output
+node_modules/
+dist/
+.vite/
+
+# Environment & Secret Files
+.env
+.env.local
+.env.*.local
+backend/wrangler-account.json
+.wrangler/
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+*.log

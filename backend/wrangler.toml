@@ -1,0 +1,8 @@
+name = "clubsnight-api"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "clubsnight-db"
+database_id = "e7cbc4c4-32e9-423d-9003-7988c80231d3"
