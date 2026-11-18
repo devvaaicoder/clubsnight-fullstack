@@ -1224,7 +1224,19 @@ async function verifyDevPin() {
       if (pinInput) pinInput.value = "";
     }
   } catch (err) {
-    alert("Gagal terhubung ke server verifikasi.");
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const localToken = import.meta.env.VITE_LOCAL_ADMIN_TOKEN;
+    if (isLocal && localToken && inputVal === localToken) {
+      sessionStorage.setItem("cn_dev_logged_in", "true");
+      sessionStorage.setItem("cn_admin_token", inputVal);
+      closeDevPinModal();
+      document.getElementById("devPanelView").style.display = "block";
+      renderDevTable();
+      if (pinInput) pinInput.value = "";
+      showToast("Login Lokal Aktif (Deploy backend/worker.js untuk mode production)");
+    } else {
+      alert("Gagal terhubung ke server verifikasi. Pastikan backend/worker.js sudah di-deploy di Cloudflare.");
+    }
   }
 }
 

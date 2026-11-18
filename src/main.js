@@ -388,9 +388,20 @@ function escapeHTML(str) {
                     errBox.classList.remove("hidden");
                 }
             } catch (e) {
-                errBox.innerText = "Gagal terhubung ke server autentikasi.";
-                errBox.classList.remove("hidden");
-            }
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const localToken = import.meta.env.VITE_LOCAL_ADMIN_TOKEN;
+    if (isLocal && localToken && passVal === localToken) {
+      sessionStorage.setItem("cn_admin_token", passVal);
+      errBox.classList.add("hidden");
+      document.getElementById("adminLoginForm").classList.add("hidden");
+      document.getElementById("adminDashboard").classList.remove("hidden");
+      refreshAnalyticsView();
+      showToast("Login Lokal Aktif", "Deploy backend/worker.js untuk verifikasi server.");
+    } else {
+      errBox.innerText = "Gagal terhubung ke server autentikasi. Pastikan backend/worker.js sudah di-deploy.";
+      errBox.classList.remove("hidden");
+    }
+  }
         }
 
         function handleAdminLogout() {
