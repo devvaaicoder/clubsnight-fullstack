@@ -140,6 +140,15 @@ async function verifySessionToken(secret, token) {
 }
 
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      fetch("https://GANTI-URL-RENDER-KAMU.onrender.com", {
+        method: "GET",
+        headers: { "User-Agent": "ClubsNight-KeepAlive/1.0" }
+      }).catch(() => null)
+    );
+  },
+
   async fetch(request, env, ctx) {
     const allowedOrigins = [
       "https://clubsnight.my.id",
