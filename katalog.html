@@ -176,6 +176,102 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0c0810" />
+
+<style id="cnDualAuthStyle">
+  .cn-auth-tabs {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 4px;
+    margin: 16px 0 14px;
+    gap: 4px;
+  }
+  .cn-auth-tab {
+    flex: 1;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .cn-auth-tab.active {
+    background: linear-gradient(135deg, #e11d48, #9f1239);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35);
+  }
+  .cn-local-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+    margin-bottom: 14px;
+  }
+  .cn-local-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    border-radius: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 10, 20, 0.7);
+    color: #fff;
+    font-size: 13.5px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .cn-local-input:focus {
+    border-color: #e11d48;
+  }
+  .cn-local-submit {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e11d48, #be123c);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 2px;
+  }
+  .cn-local-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .cn-local-error {
+    display: none;
+    font-size: 12px;
+    color: #ff6b81;
+    background: rgba(255, 107, 129, 0.1);
+    border: 1px solid rgba(255, 107, 129, 0.25);
+    padding: 8px 10px;
+    border-radius: 9px;
+    text-align: center;
+  }
+  .cn-auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cn-auth-divider::before,
+  .cn-auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+</style>
+
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
   <!-- CN-SPLASH-BODY-START -->
@@ -6174,6 +6270,22 @@
       <p class="cn-hg-sub">Seluruh operasional &amp; privasi berada di bawah ekosistem Telegram resmi agensi. Silakan verifikasi akun Telegram Anda untuk masuk.</p>
 
       <!-- Container Resmi Telegram Login Widget (Aktif saat domain HTTPS terdaftar di BotFather) -->
+      
+      <div id="cnLocalAuthBox">
+        <div class="cn-auth-tabs">
+          <button type="button" id="cnTabLogin" class="cn-auth-tab active" onclick="window.cnSwitchAuthTab('login')">Masuk</button>
+          <button type="button" id="cnTabRegister" class="cn-auth-tab" onclick="window.cnSwitchAuthTab('register')">Daftar Baru</button>
+        </div>
+        <form id="cnLocalAuthForm" class="cn-local-form" onsubmit="window.cnSubmitLocalAuth(event)">
+          <input type="text" id="cnLocalName" class="cn-local-input" placeholder="Nama Panggilan (opsional)" maxlength="40" style="display:none;" autocomplete="nickname" />
+          <input type="text" id="cnLocalUser" class="cn-local-input" placeholder="Username (huruf, angka, _)" minlength="3" maxlength="24" required autocomplete="username" />
+          <input type="password" id="cnLocalPass" class="cn-local-input" placeholder="Password (min. 6 karakter)" minlength="6" required autocomplete="current-password" />
+          <div id="cnLocalErr" class="cn-local-error"></div>
+          <button type="submit" id="cnLocalSubmitBtn" class="cn-local-submit">Masuk Akun Clubs' Night</button>
+        </form>
+        <div class="cn-auth-divider">atau masuk via Telegram</div>
+      </div>
+
       <div id="cnTgWidgetContainer" class="cn-hg-widget-box">
         <button type="button" class="cn-tg-login-btn" onclick="window.cnTriggerTelegramAuth()">
           <i class="fa-brands fa-telegram"></i>
