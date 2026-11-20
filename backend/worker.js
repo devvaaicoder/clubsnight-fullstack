@@ -149,6 +149,7 @@ export default {
       "http://localhost:5175",
       "https://clubsnight.my.id",
   "https://clubsnight-fullstack.clubsnight.workers.dev",
+  "https://clubsnight-id.pages.dev",
   "http://127.0.0.1:5173"
     ];
     const origin = request.headers.get("Origin") || "";
