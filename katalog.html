@@ -273,43 +273,22 @@
 </style>
 
 
-<style id="cnSmoothAuthCss">
-  #cnHardAuthGate {
-    transition: opacity 0.22s ease, visibility 0.22s ease;
-  }
-  #cnHardAuthGate.cn-gate-hidden {
-    opacity: 0 !important;
+
+<style id="cnPerfAndAuthCss">
+  /* Matikan modal Hard Auth Gate lama sepenuhnya (pindah ke /login.html) */
+  #cnHardAuthGate, .cn-hard-gate, .cn-auth-gate-overlay {
+    display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
-    display: none !important;
   }
-  #cnHardAuthGate.cn-gate-visible {
-    opacity: 1 !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-    display: flex !important;
+  /* Optimasi GPU HP: matikan backdrop-filter blur berat pada modal Edit Profil & overlay */
+  [id*="profile" i], [class*="profile" i], [id*="modal" i], [class*="modal" i], [class*="backdrop" i] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
-  .cn-gate-close-btn {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.75);
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s, color 0.2s;
-  }
-  .cn-gate-close-btn:hover {
-    background: rgba(225,29,72,0.25);
-    color: #fff;
+  body.cn-auth-locked, html.cn-auth-locked {
+    overflow: auto !important;
+    filter: none !important;
   }
 </style>
 
@@ -6539,274 +6518,67 @@
     })();
   </script>
 
-<script id="cnDualAuthRuntime">
-(function() {
-  var mode = "login";
-  var SESSION_KEY = "cn_auth_session_v1";
 
-  function switchTab(nextMode) {
-    mode = nextMode === "register" ? "register" : "login";
-    var isReg = mode === "register";
-    var tabLogin = document.getElementById("cnTabLogin");
-    var tabReg = document.getElementById("cnTabRegister");
-    var nameInput = document.getElementById("cnLocalName");
-    var passInput = document.getElementById("cnLocalPass");
-    var btn = document.getElementById("cnLocalSubmitBtn");
-    var err = document.getElementById("cnLocalErr");
-
-    if (tabLogin) tabLogin.classList.toggle("active", !isReg);
-    if (tabReg) tabReg.classList.toggle("active", isReg);
-    if (nameInput) nameInput.style.display = isReg ? "block" : "none";
-    if (passInput) passInput.setAttribute("autocomplete", isReg ? "new-password" : "current-password");
-    if (btn) btn.textContent = isReg ? "Daftar Akun Clubs' Night" : "Masuk Akun Clubs' Night";
-    if (err) { err.style.display = "none"; err.textContent = ""; }
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    var isReg = mode === "register";
-    var uEl = document.getElementById("cnLocalUser");
-    var pEl = document.getElementById("cnLocalPass");
-    var nEl = document.getElementById("cnLocalName");
-    var btn = document.getElementById("cnLocalSubmitBtn");
-    var err = document.getElementById("cnLocalErr");
-
-    var username = uEl ? uEl.value.trim() : "";
-    var password = pEl ? pEl.value : "";
-    var name = nEl ? nEl.value.trim() : "";
-
-    if (err) { err.style.display = "none"; err.textContent = ""; }
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = isReg ? "Mendaftarkan..." : "Memverifikasi...";
-    }
-
-    try {
-      var apiBase = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.phoenixApi) || "https://clubsnight-api.onrender.com";
-      var endpoint = isReg ? "/api/auth/register" : "/api/auth/login";
-      var payload = isReg ? { username: username, password: password, name: name } : { username: username, password: password };
-
-      var res = await fetch(apiBase + endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload)
-      });
-
-      var data = await res.json().catch(function() { return {}; });
-      if (!res.ok || !data.user) {
-        throw new Error(data.error || "Gagal memproses akun. Coba lagi.");
-      }
-
-      var u = Object.assign({ provider: "clubsnight", tgId: data.user.tg_id }, data.user);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-      window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: u }));
-      var gate = document.getElementById("cnHardAuthGate");
-      if (gate) gate.style.display = "none";
-      document.body.classList.remove("cn-auth-locked");
-      if (window.cnToast) window.cnToast(isReg ? "Akun berhasil dibuat!" : "Selamat datang kembali!", "success");
-    } catch (ex) {
-      if (err) {
-        err.textContent = ex.message || "Gagal terhubung ke server.";
-        err.style.display = "block";
-      }
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = isReg ? "Daftar Akun Clubs' Night" : "Masuk Akun Clubs' Night";
-      }
-    }
-  }
-
-  function bindDualAuth() {
-    var tabLogin = document.getElementById("cnTabLogin");
-    var tabReg = document.getElementById("cnTabRegister");
-    var form = document.getElementById("cnLocalAuthForm");
-    if (tabLogin && !tabLogin.dataset.bound) {
-      tabLogin.dataset.bound = "1";
-      tabLogin.addEventListener("click", function() { switchTab("login"); });
-    }
-    if (tabReg && !tabReg.dataset.bound) {
-      tabReg.dataset.bound = "1";
-      tabReg.addEventListener("click", function() { switchTab("register"); });
-    }
-    if (form && !form.dataset.bound) {
-      form.dataset.bound = "1";
-      form.addEventListener("submit", handleSubmit);
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindDualAuth);
-  } else {
-    bindDualAuth();
-  }
-})();
-</script>
-
-
-
-<script id="cnUnifiedAuthController">
+<script id="cnStandaloneAuthBridge">
 (function() {
   var SESSION_KEY = "cn_auth_session_v1";
-
-  function getGateEl() {
-    return document.getElementById("cnHardAuthGate") || document.querySelector(".cn-hard-gate, .cn-auth-gate-overlay");
-  }
+  var API_BASE = "https://clubsnight-api.onrender.com";
 
   function getSession() {
     try {
-      var raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return null;
-      var u = JSON.parse(raw);
+      var u = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
       return (u && (u.tg_id || u.tgId || u.username)) ? u : null;
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   }
 
-  // Pastikan tombol close (✕) ada di dalam kartu login
-  function ensureCloseButton() {
-    var gate = getGateEl();
-    if (!gate) return;
-    var card = gate.querySelector(".cn-hard-gate-card, .cn-auth-card") || gate.firstElementChild;
-    if (!card || card.querySelector(".cn-gate-close-btn")) return;
-    card.style.position = "relative";
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "cn-gate-close-btn";
-    btn.setAttribute("aria-label", "Tutup");
-    btn.innerHTML = "&times;";
-    btn.addEventListener("click", function() {
-      window.cnCloseAuthModal();
-    });
-    card.appendChild(btn);
+  function goToLogin() {
+    var next = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
+    window.location.href = "/login.html?next=" + next;
   }
 
-  window.cnOpenAuthModal = function() {
-    var gate = getGateEl();
-    if (!gate) return;
-    ensureCloseButton();
-    // Bersihkan inline style lama yang mungkin mengganggu
-    gate.style.removeProperty("display");
-    gate.style.removeProperty("visibility");
-    gate.style.removeProperty("pointer-events");
-    gate.classList.remove("cn-gate-hidden");
-    gate.classList.add("cn-gate-visible");
-    document.body.style.overflow = "hidden";
-    if (typeof window.cnTriggerTelegramAuth === "function") {
-      window.cnTriggerTelegramAuth();
-    }
-  };
-
-  window.cnCloseAuthModal = function() {
-    var gate = getGateEl();
-    if (gate) {
-      gate.classList.remove("cn-gate-visible", "active", "open", "is-open");
-      gate.classList.add("cn-gate-hidden");
-    }
-    // Pastikan layar tidak pernah tertinggal dalam kondisi blur/terkunci
+  // Override fungsi modal lama agar langsung menuju halaman mandiri /login.html
+  window.cnOpenAuthModal = goToLogin;
+  window.enforceHardGate = function() {
     document.documentElement.classList.remove("cn-auth-locked");
     document.body.classList.remove("cn-auth-locked");
-    document.body.style.overflow = "";
   };
 
-  // Sinkronkan tampilan baris "Masuk / Daftar" di tab Aktivitas
-  function syncActivityAuthUI() {
-    var u = getSession();
-    var allItems = document.querySelectorAll("button, a, div[onclick], li");
-    allItems.forEach(function(el) {
-      if (el.children.length > 4) return;
-      var txt = (el.textContent || "").trim();
-      if (txt.indexOf("Masuk / Daftar") !== -1 || el.dataset.cnAuthRow === "1") {
-        el.dataset.cnAuthRow = "1";
-        if (u) {
-          var badge = (u.role && u.role !== "user") ? " • " + String(u.role).toUpperCase() : "";
-          el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;">' +
-            '<div style="text-align:left;">' +
-              '<div style="font-weight:700;color:#fff;font-size:14px;">' + (u.name || u.username) + '</div>' +
-              '<div style="font-size:12px;color:#fb7185;">@' + (u.username || "member") + badge + '</div>' +
-            '</div>' +
-            '<span style="font-size:12px;font-weight:600;color:#ff6b81;padding:6px 10px;border-radius:8px;background:rgba(255,107,129,0.12);">Keluar</span>' +
-          '</div>';
-          el.onclick = async function(ev) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            try {
-              var apiBase = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.phoenixApi) || "https://clubsnight-api.onrender.com";
-              await fetch(apiBase + "/api/auth/logout", { method: "POST", credentials: "include" });
-            } catch (_) {}
-            localStorage.removeItem(SESSION_KEY);
-            window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: null }));
-            if (window.cnToast) window.cnToast("Berhasil keluar dari akun.", "info");
-          };
-        } else {
-          el.onclick = function(ev) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            window.cnOpenAuthModal();
-          };
-        }
+  // Sinkronkan sesi diam-diam dengan /api/me di background
+  fetch(API_BASE + "/api/me", { credentials: "include" })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (data && data.user) {
+        var u = Object.assign({ provider: data.user.provider || "telegram", tgId: data.user.tg_id }, data.user);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+        window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: u }));
       }
-    });
-  }
+    }).catch(function() {});
 
-  // Override enforceHardGate agar tidak memblokir dengan layar blur kosong
-  window.enforceHardGate = function() {
-    if (getSession()) {
-      window.cnCloseAuthModal();
-    }
-    syncActivityAuthUI();
-  };
+  // Wajib punya akun untuk semua tombol Order / Booking / Service Talent
+  document.addEventListener("click", function(e) {
+    var btn = e.target && e.target.closest ? e.target.closest("button, a") : null;
+    if (!btn) return;
+    var txt = (btn.textContent || "").trim().toLowerCase();
 
-  window.addEventListener("cn:session-changed", function(ev) {
-    if (ev && ev.detail && (ev.detail.tg_id || ev.detail.tgId || ev.detail.username)) {
-      window.cnCloseAuthModal();
-    }
-    syncActivityAuthUI();
-  });
-
-  // Lewati pop-up 18+ kedua di /katalog jika sudah pernah konfirmasi di browser ini
-  function autoSkipDuplicateAgeGate() {
-    if (localStorage.getItem("cn_age_verified_v1") === "1" || sessionStorage.getItem("cn_age_verified") === "1") {
-      document.querySelectorAll("button").forEach(function(btn) {
-        if ((btn.textContent || "").indexOf("Saya Berusia 18+") !== -1) {
-          btn.click();
-        }
-      });
-    } else {
-      document.addEventListener("click", function(e) {
-        var btn = e.target && e.target.closest ? e.target.closest("button") : null;
-        if (btn && (btn.textContent || "").indexOf("Saya Berusia 18+") !== -1) {
-          localStorage.setItem("cn_age_verified_v1", "1");
-        }
-      });
-    }
-  }
-
-  function initSmoothAuth() {
-    ensureCloseButton();
-    // Mulai dalam keadaan bersih (tidak blur kosong)
-    if (getSession()) {
-      window.cnCloseAuthModal();
-    } else {
-      // Pastikan kalau Hard Gate sedang terbuka di awal, tampil dengan bersih
-      var gate = getGateEl();
-      if (gate && gate.style.display !== "none") {
-        window.cnOpenAuthModal();
-      } else {
-        window.cnCloseAuthModal();
+    // Jika klik Masuk / Daftar -> langsung ke /login.html
+    if (txt.includes("masuk / daftar") || txt === "masuk" || txt === "login") {
+      if (!getSession()) {
+        e.preventDefault();
+        e.stopPropagation();
+        goToLogin();
+        return;
       }
     }
-    syncActivityAuthUI();
-    setTimeout(autoSkipDuplicateAgeGate, 150);
-  }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initSmoothAuth);
-  } else {
-    initSmoothAuth();
-  }
+    // Jika klik Order / Booking / Pesan / Sewa / Reservasi tanpa akun -> wajib login
+    var isOrderAction = /(order|booking|pesan sekarang|sewa|reservasi|checkout|pilih layanan|lanjut bayar)/i.test(txt);
+    if (isOrderAction && !getSession()) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.cnToast) window.cnToast("Silakan masuk/daftar akun dulu untuk memesan layanan.", "warn");
+      setTimeout(goToLogin, 350);
+    }
+  }, true);
 })();
 </script>
 

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Masuk & Daftar — Clubs' Night</title>
+  <link rel="icon" type="image/svg+xml" href="/cn-icon.svg" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      background: radial-gradient(circle at top, #2a0d18 0%, #0d0912 60%, #07050a 100%);
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+    }
+    .back-link {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      color: rgba(255,255,255,0.75);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: #140f1c;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 26px 22px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+      text-align: center;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #fb7185;
+      background: rgba(225, 29, 72, 0.14);
+      border: 1px solid rgba(225, 29, 72, 0.3);
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.5; margin-bottom: 18px; }
+    .tabs {
+      display: flex;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: rgba(255,255,255,0.6);
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #e11d48, #9f1239);
+      color: #fff;
+    }
+    form { display: flex; flex-direction: column; gap: 11px; text-align: left; }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 11px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #0c0812;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus { border-color: #e11d48; }
+    .submit-btn {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 2px;
+    }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .msg {
+      display: none;
+      font-size: 12.5px;
+      padding: 9px 11px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .msg.error { display: block; color: #ff6b81; background: rgba(255,107,129,0.12); border: 1px solid rgba(255,107,129,0.28); }
+    .msg.success { display: block; color: #34d399; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.28); }
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 18px 0 14px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+    #tgWidgetWrap { min-height: 46px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; }
+    .foot { margin-top: 16px; font-size: 11.5px; color: rgba(255,255,255,0.45); }
+  </style>
+</head>
+<body>
+  <a href="/katalog" class="back-link">← Kembali ke Katalog</a>
+
+  <main class="card">
+    <div class="badge">EXCLUSIVE ACCESS</div>
+    <h1>Clubs' Night</h1>
+    <p class="subtitle">Masuk atau daftar akun untuk memesan layanan talent, mengakses Lounge, dan menyimpan riwayat order.</p>
+
+    <div class="tabs">
+      <button type="button" id="tabLogin" class="tab-btn active">Masuk</button>
+      <button type="button" id="tabRegister" class="tab-btn">Daftar Baru</button>
+    </div>
+
+    <form id="authForm">
+      <input type="text" id="inputName" placeholder="Nama Panggilan (opsional)" maxlength="40" style="display:none;" autocomplete="nickname" />
+      <input type="text" id="inputUser" placeholder="Username (huruf, angka, _)" minlength="3" maxlength="24" required autocomplete="username" />
+      <input type="password" id="inputPass" placeholder="Password (min. 6 karakter)" minlength="6" required autocomplete="current-password" />
+      <div id="statusMsg" class="msg"></div>
+      <button type="submit" id="submitBtn" class="submit-btn">Masuk Akun Clubs' Night</button>
+    </form>
+
+    <div class="divider">atau masuk via Telegram</div>
+    <div id="tgWidgetWrap">
+      <span style="font-size:12px;color:rgba(255,255,255,0.5);">Memuat tombol Telegram...</span>
+    </div>
+
+    <div class="foot">🔒 Terenkripsi • Tanpa Email/No HP • Anti-Doxxing</div>
+  </main>
+
+  <script>
+    (function() {
+      var API_BASE = "https://clubsnight-api.onrender.com";
+      var SESSION_KEY = "cn_auth_session_v1";
+      var BOT_USERNAME = "NightyTelegramLoginAccess_bot";
+      var mode = "login";
+
+      var params = new URLSearchParams(window.location.search);
+      var nextUrl = params.get("next") || "/katalog";
+      if (!nextUrl.startsWith("/")) nextUrl = "/katalog";
+
+      var tabLogin = document.getElementById("tabLogin");
+      var tabReg = document.getElementById("tabRegister");
+      var inputName = document.getElementById("inputName");
+      var inputUser = document.getElementById("inputUser");
+      var inputPass = document.getElementById("inputPass");
+      var statusMsg = document.getElementById("statusMsg");
+      var submitBtn = document.getElementById("submitBtn");
+
+      function showMsg(text, type) {
+        statusMsg.textContent = text;
+        statusMsg.className = "msg " + (type || "error");
+      }
+
+      function completeLogin(userObj, provider) {
+        var u = Object.assign({ provider: provider, tgId: userObj.tg_id }, userObj);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+        showMsg("Berhasil masuk! Mengalihkan...", "success");
+        setTimeout(function() {
+          window.location.replace(nextUrl);
+        }, 350);
+      }
+
+      function setMode(nextMode) {
+        mode = nextMode;
+        var isReg = mode === "register";
+        tabLogin.classList.toggle("active", !isReg);
+        tabReg.classList.toggle("active", isReg);
+        inputName.style.display = isReg ? "block" : "none";
+        inputPass.setAttribute("autocomplete", isReg ? "new-password" : "current-password");
+        submitBtn.textContent = isReg ? "Daftar Akun Clubs' Night" : "Masuk Akun Clubs' Night";
+        statusMsg.className = "msg";
+      }
+
+      tabLogin.addEventListener("click", function() { setMode("login"); });
+      tabReg.addEventListener("click", function() { setMode("register"); });
+
+      document.getElementById("authForm").addEventListener("submit", async function(e) {
+        e.preventDefault();
+        var isReg = mode === "register";
+        submitBtn.disabled = true;
+        submitBtn.textContent = isReg ? "Mendaftarkan..." : "Memverifikasi...";
+        statusMsg.className = "msg";
+
+        try {
+          var endpoint = isReg ? "/api/auth/register" : "/api/auth/login";
+          var payload = isReg
+            ? { username: inputUser.value.trim(), password: inputPass.value, name: inputName.value.trim() }
+            : { username: inputUser.value.trim(), password: inputPass.value };
+
+          var res = await fetch(API_BASE + endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload)
+          });
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.user) throw new Error(data.error || "Username atau password salah.");
+          completeLogin(data.user, "clubsnight");
+        } catch (err) {
+          showMsg(err.message || "Gagal terhubung ke server.", "error");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = isReg ? "Daftar Akun Clubs' Night" : "Masuk Akun Clubs' Night";
+        }
+      });
+
+      // Callback resmi Telegram Login Widget
+      window.onTelegramAuth = async function(tgUser) {
+        showMsg("Memverifikasi akun Telegram...", "success");
+        try {
+          var res = await fetch(API_BASE + "/api/auth/telegram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(tgUser)
+          });
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.user) throw new Error(data.error || "Verifikasi Telegram gagal.");
+          completeLogin(data.user, "telegram");
+        } catch (err) {
+          showMsg(err.message || "Gagal verifikasi Telegram.", "error");
+        }
+      };
+
+      // Muat Widget Resmi Telegram
+      var wrap = document.getElementById("tgWidgetWrap");
+      var sc = document.createElement("script");
+      sc.async = true;
+      sc.src = "https://telegram.org/js/telegram-widget.js?22";
+      sc.setAttribute("data-telegram-login", BOT_USERNAME);
+      sc.setAttribute("data-size", "large");
+      sc.setAttribute("data-radius", "12");
+      sc.setAttribute("data-onauth", "onTelegramAuth(user)");
+      sc.setAttribute("data-request-access", "write");
+      sc.onload = function() {
+        var span = wrap.querySelector("span");
+        if (span) span.remove();
+      };
+      sc.onerror = function() {
+        wrap.innerHTML = '<span style="font-size:12px;color:#ff6b81;">Widget Telegram gagal dimuat (gunakan Akun Clubs\' Night di atas).</span>';
+      };
+      wrap.appendChild(sc);
+    })();
+  </script>
+</body>
+</html>
