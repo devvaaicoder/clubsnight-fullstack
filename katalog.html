@@ -7487,7 +7487,7 @@ window.addEventListener("storage", function(e) {
   var origSet = Storage.prototype.setItem;
   Storage.prototype.setItem = function(key, val) {
     origSet.apply(this, arguments);
-    if (this === window.localStorage && typeof key === "string" && (key.indexOf("cn_my_orders") === 0 || key.indexOf("cn_global_orders") === 0)) {
+    if (this === window.localStorage && typeof key === "string" && (key.indexOf("cn_orders_") === 0 || key.indexOf("cn_my_orders") === 0 || key.indexOf("cn_global_orders") === 0)) {
       try {
         var list = JSON.parse(val || "[]");
         if (Array.isArray(list) && list.length > 0) {
@@ -8017,6 +8017,52 @@ window.addEventListener("storage", function(e) {
   window.addEventListener("cn:session-changed", function() {
     setTimeout(refreshOrdersIfOpen, 60);
   });
+})();
+</script>
+
+
+<script id="cnBookingOrderRecorderJs">
+(function() {
+  var origCopyAndRedirect = window.copyAndRedirectToBot;
+  if (typeof origCopyAndRedirect === "function") {
+    window.copyAndRedirectToBot = function(ev) {
+      try {
+        var s = (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession()) || null;
+        var uname = (s && s.username) ? String(s.username).toLowerCase() : "vip_member";
+        var talentEl = document.getElementById("calcTalent") || document.getElementById("detailName");
+        var catEl = document.getElementById("calcCategory") || document.getElementById("detailBagianOption");
+        var priceEl = document.getElementById("detailPriceDisplay");
+        var noteEl = document.getElementById("clientNote");
+
+        var tName = talentEl ? (talentEl.value || talentEl.textContent || "Talent").trim() : "Talent";
+        var catName = catEl ? (catEl.value || (catEl.options && catEl.selectedIndex >= 0 ? catEl.options[catEl.selectedIndex].text : "") || "Private Service").trim() : "Private Service";
+        var priceText = priceEl ? (priceEl.value || "Rp 0") : "Rp 0";
+        var numAmount = Number(String(priceText).replace(/[^0-9]/g, "")) || 0;
+
+        var newOrder = {
+          id: "ORD-" + Date.now(),
+          user: "@" + uname,
+          service: tName + " • " + catName + " (" + priceText + ")",
+          amount: numAmount,
+          note: noteEl ? noteEl.value : "",
+          status: "Menunggu Konfirmasi",
+          time: new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+        };
+
+        var storeKey = "cn_orders_" + uname;
+        var existing = [];
+        try { existing = JSON.parse(localStorage.getItem(storeKey) || "[]"); } catch (_) {}
+        existing.unshift(newOrder);
+        localStorage.setItem(storeKey, JSON.stringify(existing.slice(0, 50)));
+
+        if (typeof window.sendCnOrderToCloud === "function") {
+          window.sendCnOrderToCloud(newOrder);
+        }
+      } catch (_) {}
+
+      return origCopyAndRedirect.apply(this, arguments);
+    };
+  }
 })();
 </script>
 
