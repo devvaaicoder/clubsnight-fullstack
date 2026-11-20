@@ -272,6 +272,47 @@
   }
 </style>
 
+
+<style id="cnSmoothAuthCss">
+  #cnHardAuthGate {
+    transition: opacity 0.22s ease, visibility 0.22s ease;
+  }
+  #cnHardAuthGate.cn-gate-hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    display: none !important;
+  }
+  #cnHardAuthGate.cn-gate-visible {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    display: flex !important;
+  }
+  .cn-gate-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.75);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+  }
+  .cn-gate-close-btn:hover {
+    background: rgba(225,29,72,0.25);
+    color: #fff;
+  }
+</style>
+
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
   <!-- CN-SPLASH-BODY-START -->
@@ -6604,35 +6645,168 @@
 </script>
 
 
-<script id="cnGateAutoUnlock">
+
+<script id="cnUnifiedAuthController">
 (function() {
-  function unlockHardGate() {
-    var gate = document.getElementById("cnHardAuthGate") || document.querySelector(".cn-hard-gate, .cn-auth-gate-overlay");
-    if (gate) {
-      gate.style.setProperty("display", "none", "important");
-      gate.style.setProperty("visibility", "hidden", "important");
-      gate.style.setProperty("pointer-events", "none", "important");
-      gate.classList.remove("active", "open", "is-open");
+  var SESSION_KEY = "cn_auth_session_v1";
+
+  function getGateEl() {
+    return document.getElementById("cnHardAuthGate") || document.querySelector(".cn-hard-gate, .cn-auth-gate-overlay");
+  }
+
+  function getSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var u = JSON.parse(raw);
+      return (u && (u.tg_id || u.tgId || u.username)) ? u : null;
+    } catch (_) {
+      return null;
     }
+  }
+
+  // Pastikan tombol close (✕) ada di dalam kartu login
+  function ensureCloseButton() {
+    var gate = getGateEl();
+    if (!gate) return;
+    var card = gate.querySelector(".cn-hard-gate-card, .cn-auth-card") || gate.firstElementChild;
+    if (!card || card.querySelector(".cn-gate-close-btn")) return;
+    card.style.position = "relative";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cn-gate-close-btn";
+    btn.setAttribute("aria-label", "Tutup");
+    btn.innerHTML = "&times;";
+    btn.addEventListener("click", function() {
+      window.cnCloseAuthModal();
+    });
+    card.appendChild(btn);
+  }
+
+  window.cnOpenAuthModal = function() {
+    var gate = getGateEl();
+    if (!gate) return;
+    ensureCloseButton();
+    // Bersihkan inline style lama yang mungkin mengganggu
+    gate.style.removeProperty("display");
+    gate.style.removeProperty("visibility");
+    gate.style.removeProperty("pointer-events");
+    gate.classList.remove("cn-gate-hidden");
+    gate.classList.add("cn-gate-visible");
+    document.body.style.overflow = "hidden";
+    if (typeof window.cnTriggerTelegramAuth === "function") {
+      window.cnTriggerTelegramAuth();
+    }
+  };
+
+  window.cnCloseAuthModal = function() {
+    var gate = getGateEl();
+    if (gate) {
+      gate.classList.remove("cn-gate-visible", "active", "open", "is-open");
+      gate.classList.add("cn-gate-hidden");
+    }
+    // Pastikan layar tidak pernah tertinggal dalam kondisi blur/terkunci
     document.documentElement.classList.remove("cn-auth-locked");
     document.body.classList.remove("cn-auth-locked");
     document.body.style.overflow = "";
+  };
+
+  // Sinkronkan tampilan baris "Masuk / Daftar" di tab Aktivitas
+  function syncActivityAuthUI() {
+    var u = getSession();
+    var allItems = document.querySelectorAll("button, a, div[onclick], li");
+    allItems.forEach(function(el) {
+      if (el.children.length > 4) return;
+      var txt = (el.textContent || "").trim();
+      if (txt.indexOf("Masuk / Daftar") !== -1 || el.dataset.cnAuthRow === "1") {
+        el.dataset.cnAuthRow = "1";
+        if (u) {
+          var badge = (u.role && u.role !== "user") ? " • " + String(u.role).toUpperCase() : "";
+          el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;">' +
+            '<div style="text-align:left;">' +
+              '<div style="font-weight:700;color:#fff;font-size:14px;">' + (u.name || u.username) + '</div>' +
+              '<div style="font-size:12px;color:#fb7185;">@' + (u.username || "member") + badge + '</div>' +
+            '</div>' +
+            '<span style="font-size:12px;font-weight:600;color:#ff6b81;padding:6px 10px;border-radius:8px;background:rgba(255,107,129,0.12);">Keluar</span>' +
+          '</div>';
+          el.onclick = async function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            try {
+              var apiBase = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.phoenixApi) || "https://clubsnight-api.onrender.com";
+              await fetch(apiBase + "/api/auth/logout", { method: "POST", credentials: "include" });
+            } catch (_) {}
+            localStorage.removeItem(SESSION_KEY);
+            window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: null }));
+            if (window.cnToast) window.cnToast("Berhasil keluar dari akun.", "info");
+          };
+        } else {
+          el.onclick = function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            window.cnOpenAuthModal();
+          };
+        }
+      }
+    });
   }
+
+  // Override enforceHardGate agar tidak memblokir dengan layar blur kosong
+  window.enforceHardGate = function() {
+    if (getSession()) {
+      window.cnCloseAuthModal();
+    }
+    syncActivityAuthUI();
+  };
 
   window.addEventListener("cn:session-changed", function(ev) {
     if (ev && ev.detail && (ev.detail.tg_id || ev.detail.tgId || ev.detail.username)) {
-      unlockHardGate();
+      window.cnCloseAuthModal();
     }
+    syncActivityAuthUI();
   });
 
-  // Cek jika sesi sudah tersimpan di localStorage saat halaman baru dibuka
-  try {
-    var raw = localStorage.getItem("cn_auth_session_v1");
-    if (raw) {
-      var u = JSON.parse(raw);
-      if (u && (u.tg_id || u.tgId || u.username)) unlockHardGate();
+  // Lewati pop-up 18+ kedua di /katalog jika sudah pernah konfirmasi di browser ini
+  function autoSkipDuplicateAgeGate() {
+    if (localStorage.getItem("cn_age_verified_v1") === "1" || sessionStorage.getItem("cn_age_verified") === "1") {
+      document.querySelectorAll("button").forEach(function(btn) {
+        if ((btn.textContent || "").indexOf("Saya Berusia 18+") !== -1) {
+          btn.click();
+        }
+      });
+    } else {
+      document.addEventListener("click", function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest("button") : null;
+        if (btn && (btn.textContent || "").indexOf("Saya Berusia 18+") !== -1) {
+          localStorage.setItem("cn_age_verified_v1", "1");
+        }
+      });
     }
-  } catch (_) {}
+  }
+
+  function initSmoothAuth() {
+    ensureCloseButton();
+    // Mulai dalam keadaan bersih (tidak blur kosong)
+    if (getSession()) {
+      window.cnCloseAuthModal();
+    } else {
+      // Pastikan kalau Hard Gate sedang terbuka di awal, tampil dengan bersih
+      var gate = getGateEl();
+      if (gate && gate.style.display !== "none") {
+        window.cnOpenAuthModal();
+      } else {
+        window.cnCloseAuthModal();
+      }
+    }
+    syncActivityAuthUI();
+    setTimeout(autoSkipDuplicateAgeGate, 150);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initSmoothAuth);
+  } else {
+    initSmoothAuth();
+  }
 })();
 </script>
 

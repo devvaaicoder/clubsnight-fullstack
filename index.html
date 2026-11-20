@@ -1465,5 +1465,6 @@
   </div>
 
   <script type="module" src="/src/main.js"></script>
- </body>
+ <script id="cnAgeSync">document.addEventListener("click",function(e){var b=e.target&&e.target.closest?e.target.closest("button"):null;if(b&&(b.textContent||"").indexOf("18 Tahun")!==-1){localStorage.setItem("cn_age_verified_v1","1");}});</script>
+</body>
 </html>
