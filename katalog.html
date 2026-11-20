@@ -1,6 +1,20 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<script id="cnImmediateAuthGuard">
+(function() {
+  try {
+    var raw = localStorage.getItem("cn_auth_session_v1");
+    var u = raw ? JSON.parse(raw) : null;
+    if (!u || !(u.tg_id || u.tgId || u.username)) {
+      var next = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
+      window.location.replace("/login.html?next=" + next);
+    }
+  } catch (_) {
+    window.location.replace("/login.html?next=%2Fkatalog");
+  }
+})();
+</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   
