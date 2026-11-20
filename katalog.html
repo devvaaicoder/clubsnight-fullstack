@@ -8609,5 +8609,220 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
 })();
 </script>
 
+
+<script id="cnAutoQrisWebhookClientJs">
+(function() {
+  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WALLET_PREFIX = "cn_wallet_bal_";
+  var activeIntent = null;
+  var pollTimer = null;
+
+  function getActiveUser() {
+    try { return (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession()) || null; } catch (_) { return null; }
+  }
+
+  function formatRp(n) {
+    return "Rp " + (Math.round(Number(n) || 0)).toLocaleString("id-ID");
+  }
+
+  window.syncWalletBalanceFromServer = async function() {
+    var u = getActiveUser();
+    if (!u || !u.username) return 0;
+    try {
+      var res = await fetch(WORKER_API + "/api/wallet/balance?username=" + encodeURIComponent(u.username), { cache: "no-store" });
+      var data = await res.json();
+      if (res.ok && data && data.success) {
+        localStorage.setItem(WALLET_PREFIX + u.username.toLowerCase(), String(data.balance || 0));
+        var balEl = document.querySelector("#cnWalletActivityWrap .cn-wallet-balance");
+        if (balEl) balEl.textContent = formatRp(data.balance || 0);
+        return Number(data.balance || 0);
+      }
+    } catch (_) {}
+    return Number(localStorage.getItem(WALLET_PREFIX + u.username.toLowerCase()) || "0") || 0;
+  };
+
+  var origOpenModal = window.openCnQrisTopupModal;
+  window.openCnQrisTopupModal = async function(presetAmount, bookingCtx) {
+    if (typeof origOpenModal === "function") {
+      origOpenModal.apply(this, arguments);
+    }
+    var u = getActiveUser();
+    if (!u || !u.username) return;
+
+    var baseNominal = bookingCtx ? Number(bookingCtx.amount || 100000) : Number(presetAmount || 100000);
+    await requestUniqueQrisIntent(baseNominal, bookingCtx);
+  };
+
+  async function requestUniqueQrisIntent(baseNominal, bookingCtx) {
+    var u = getActiveUser();
+    if (!u || !u.username) return;
+
+    var noteEl = document.getElementById("cnQrisStatusNote");
+    if (noteEl) {
+      noteEl.style.color = "#38bdf8";
+      noteEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan kode unik otomatis (1–499 rupiah)...';
+      noteEl.style.display = "block";
+    }
+
+    try {
+      var res = await fetch(WORKER_API + "/api/wallet/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: u.username,
+          baseAmount: baseNominal,
+          mode: bookingCtx ? "booking" : "topup",
+          service: bookingCtx ? bookingCtx.service : ("Top-Up Saldo CN Wallet (" + formatRp(baseNominal) + ")")
+        })
+      });
+      var data = await res.json();
+      if (res.ok && data && data.success && data.intent) {
+        activeIntent = data.intent;
+        if (typeof window.setCnQrisAmount === "function") {
+          window.setCnQrisAmount(activeIntent.totalAmount);
+        }
+        var refEl = document.getElementById("cnQrisRefCode");
+        if (refEl) {
+          refEl.innerHTML = "ID: <b>" + activeIntent.id + "</b> • Kode Unik: <b>+" + formatRp(activeIntent.uniqueCode) + "</b>";
+        }
+        if (noteEl) {
+          noteEl.style.color = "#fbbf24";
+          noteEl.innerHTML = "Scan & bayar sesuai nominal unik <b>" + formatRp(activeIntent.totalAmount) + "</b>. Saldo otomatis masuk dalam 3–10 detik setelah transfer.";
+          noteEl.style.display = "block";
+        }
+        startAutoBalancePolling();
+      }
+    } catch (_) {
+      var localCode = Math.floor(Math.random() * 499) + 1;
+      if (typeof window.setCnQrisAmount === "function") {
+        window.setCnQrisAmount(baseNominal + localCode);
+      }
+    }
+  }
+
+  var origSetAmount = window.setCnQrisAmount;
+  var debounceIntentTimer = null;
+  window.setCnQrisAmount = function(val, btnEl) {
+    if (typeof origSetAmount === "function") {
+      origSetAmount.apply(this, arguments);
+    }
+    if (btnEl || (document.activeElement && document.activeElement.id === "cnQrisCustomAmountInput")) {
+      clearTimeout(debounceIntentTimer);
+      debounceIntentTimer = setTimeout(function() {
+        var cleanBase = Math.max(1000, Math.round(Number(val) || 100000));
+        requestUniqueQrisIntent(cleanBase, null);
+      }, 650);
+    }
+  };
+
+  function startAutoBalancePolling() {
+    clearInterval(pollTimer);
+    var u = getActiveUser();
+    if (!u || !u.username) return;
+
+    var initialBal = Number(localStorage.getItem(WALLET_PREFIX + u.username.toLowerCase()) || "0") || 0;
+    pollTimer = setInterval(async function() {
+      var modal = document.getElementById("cnQrisPayModal");
+      if (!modal || !modal.classList.contains("open")) {
+        clearInterval(pollTimer);
+        return;
+      }
+      var latestBal = await window.syncWalletBalanceFromServer();
+      if (latestBal > initialBal) {
+        clearInterval(pollTimer);
+        var noteEl = document.getElementById("cnQrisStatusNote");
+        if (noteEl) {
+          noteEl.style.color = "#34d399";
+          noteEl.innerHTML = "✅ <b>PEMBAYARAN OTOMATIS TERVERIFIKASI!</b> Saldo terbaru Anda: <b>" + formatRp(latestBal) + "</b>.";
+          noteEl.style.display = "block";
+        }
+      }
+    }, 4000);
+  }
+
+  function injectBackupApprovalPanel() {
+    var devModalBody = document.querySelector("#cnDevCenterModal .cn-dev-body, #cnDevCenterModal .cn-auth-card");
+    if (!devModalBody || document.getElementById("cnBackupQrisPanel")) return;
+
+    var panel = document.createElement("div");
+    panel.id = "cnBackupQrisPanel";
+    panel.style.cssText = "margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(52,211,153,0.35);background:rgba(16,185,129,0.08);";
+    panel.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+        '<b style="font-size:13px;color:#34d399;"><i class="fa-solid fa-shield-check"></i> Backup Verifikasi QRIS (Manual Override)</b>' +
+        '<button type="button" id="cnRefreshBackupQrisBtn" style="padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:11px;cursor:pointer;">Muat Antrean</button>' +
+      '</div>' +
+      '<div style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:8px;">Gunakan tombol Approve di bawah hanya jika webhook Saweria tertunda atau nominal transfer berbeda.</div>' +
+      '<div id="cnBackupQrisList" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;"></div>';
+
+    devModalBody.appendChild(panel);
+
+    async function loadPendingIntents() {
+      var listEl = document.getElementById("cnBackupQrisList");
+      if (!listEl) return;
+      listEl.innerHTML = '<div style="font-size:11.5px;color:#94a3b8;">Memuat data transaksi QRIS...</div>';
+      try {
+        var tok = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.adminToken) || localStorage.getItem("cn_admin_token") || "";
+        var res = await fetch(WORKER_API + "/api/wallet/pending", {
+          headers: { "Authorization": "Bearer " + tok }
+        });
+        var data = await res.json();
+        var items = (data && data.intents) || [];
+        if (items.length === 0) {
+          listEl.innerHTML = '<div style="font-size:11.5px;color:#94a3b8;">Belum ada riwayat transaksi QRIS.</div>';
+          return;
+        }
+        listEl.innerHTML = items.map(function(it) {
+          var isPaid = it.status === "PAID_AUTO" || it.status === "PAID_MANUAL";
+          return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,0.35);font-size:11.5px;">' +
+            '<div>' +
+              '<b>@' + it.username + '</b> • <span style="color:#fbbf24;">' + formatRp(it.total_amount) + '</span><br/>' +
+              '<span style="color:#94a3b8;font-size:10.5px;">' + it.id + ' • ' + it.status + '</span>' +
+            '</div>' +
+            (isPaid
+              ? '<span style="color:#34d399;font-weight:700;">✔ Lunas</span>'
+              : '<button type="button" onclick="window.approveBackupQrisIntent('' + it.id + '')" style="padding:6px 10px;border-radius:8px;border:none;background:#10b981;color:#fff;font-weight:700;font-size:11px;cursor:pointer;">Approve</button>') +
+          '</div>';
+        }).join("");
+      } catch (_) {
+        listEl.innerHTML = '<div style="font-size:11.5px;color:#f87171;">Gagal memuat antrean D1.</div>';
+      }
+    }
+
+    window.approveBackupQrisIntent = async function(intentId) {
+      var tok = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.adminToken) || localStorage.getItem("cn_admin_token") || "";
+      var res = await fetch(WORKER_API + "/api/wallet/approve-backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + tok },
+        body: JSON.stringify({ intentId: intentId })
+      });
+      var data = await res.json();
+      if (data && data.success) {
+        loadPendingIntents();
+        window.syncWalletBalanceFromServer();
+      }
+    };
+
+    document.getElementById("cnRefreshBackupQrisBtn").onclick = loadPendingIntents;
+    loadPendingIntents();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function() {
+      window.syncWalletBalanceFromServer();
+      injectBackupApprovalPanel();
+    });
+  } else {
+    window.syncWalletBalanceFromServer();
+    injectBackupApprovalPanel();
+  }
+  setTimeout(function() {
+    window.syncWalletBalanceFromServer();
+    injectBackupApprovalPanel();
+  }, 600);
+  window.addEventListener("cn:session-changed", window.syncWalletBalanceFromServer);
+})();
+</script>
+
 </body>
 </html>

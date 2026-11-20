@@ -219,6 +219,12 @@ export default {
           "CREATE TABLE IF NOT EXISTS orders_store (id TEXT PRIMARY KEY, customer_username TEXT, customer_name TEXT, service TEXT, amount INTEGER, voucher TEXT, note TEXT, status TEXT, created_at TEXT)"
         ).run();
         await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS wallet_balances (username TEXT PRIMARY KEY, balance INTEGER DEFAULT 0, updated_at TEXT)"
+        ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS qris_intents (id TEXT PRIMARY KEY, username TEXT NOT NULL, base_amount INTEGER NOT NULL, unique_code INTEGER NOT NULL, total_amount INTEGER NOT NULL, mode TEXT, service TEXT, status TEXT DEFAULT 'PENDING', expires_at INTEGER, created_at TEXT)"
+        ).run();
+        await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS auth_lockouts (ip_key TEXT PRIMARY KEY, fails INTEGER DEFAULT 0, locked_until INTEGER DEFAULT 0)"
         ).run();
         try {
@@ -808,6 +814,259 @@ export default {
         return new Response(JSON.stringify({
           success: true,
           orders: (res && res.results) ? res.results : []
+        }), {
+          headers: { ...securityHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      
+      // 12. Cek Saldo CN Wallet Pengguna
+      if (url.pathname === "/api/wallet/balance" && request.method === "GET") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const uname = String(url.searchParams.get("username") || "").replace(/^@/, "").trim().toLowerCase();
+        if (!uname) {
+          return new Response(JSON.stringify({ success: false, error: "Username wajib diisi" }), {
+            status: 400, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const row = await env.DB.prepare("SELECT balance, updated_at FROM wallet_balances WHERE username = ?").bind(uname).first();
+        return new Response(JSON.stringify({
+          success: true,
+          username: uname,
+          balance: row ? Number(row.balance || 0) : 0,
+          updatedAt: row ? row.updated_at : null
+        }), {
+          headers: { ...securityHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // 13. Buat Intent QRIS Dinamis dengan Kode Unik 3 Digit (1 - 499 Rupiah, tidak pernah >= 500)
+      if (url.pathname === "/api/wallet/intent" && request.method === "POST") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json().catch(() => ({}));
+        const uname = String(body.username || "").replace(/^@/, "").trim().toLowerCase();
+        const baseAmount = Math.max(1000, Math.round(Number(body.baseAmount || 0)));
+        const mode = String(body.mode || "topup");
+        const service = String(body.service || "Top-Up Saldo CN Wallet").slice(0, 180);
+
+        if (!uname) {
+          return new Response(JSON.stringify({ success: false, error: "Username tidak valid" }), {
+            status: 400, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        const now = Date.now();
+        // Bersihkan intent kedaluwarsa (> 60 menit)
+        await env.DB.prepare("UPDATE qris_intents SET status = 'EXPIRED' WHERE status = 'PENDING' AND expires_at < ?").bind(now).run();
+
+        // Cari kode unik 1..499 yang belum dipakai untuk baseAmount yang sama
+        const activeRows = await env.DB.prepare(
+          "SELECT unique_code FROM qris_intents WHERE status = 'PENDING' AND base_amount = ?"
+        ).bind(baseAmount).all();
+        const usedCodes = new Set(((activeRows && activeRows.results) || []).map(r => Number(r.unique_code)));
+
+        let uniqueCode = 1;
+        for (let attempt = 0; attempt < 150; attempt++) {
+          const candidate = Math.floor(Math.random() * 499) + 1; // Dijamin 1 s/d 499 (< 500)
+          if (!usedCodes.has(candidate)) {
+            uniqueCode = candidate;
+            break;
+          }
+        }
+
+        const totalAmount = baseAmount + uniqueCode;
+        const intentId = "QRS-" + now + "-" + String(uniqueCode).padStart(3, "0");
+        const expiresAt = now + (45 * 60 * 1000); // Berlaku 45 menit
+
+        await env.DB.prepare(
+          "INSERT INTO qris_intents (id, username, base_amount, unique_code, total_amount, mode, service, status, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)"
+        ).bind(intentId, uname, baseAmount, uniqueCode, totalAmount, mode, service, expiresAt, new Date(now).toISOString()).run();
+
+        return new Response(JSON.stringify({
+          success: true,
+          intent: {
+            id: intentId,
+            username: uname,
+            baseAmount,
+            uniqueCode,
+            totalAmount,
+            mode,
+            service,
+            expiresAt
+          }
+        }), {
+          headers: { ...securityHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // 14. Potong Saldo Wallet untuk Pembayaran Instan Booking/Merch
+      if (url.pathname === "/api/wallet/spend" && request.method === "POST") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json().catch(() => ({}));
+        const uname = String(body.username || "").replace(/^@/, "").trim().toLowerCase();
+        const amount = Math.max(1, Math.round(Number(body.amount || 0)));
+        if (!uname || amount <= 0) {
+          return new Response(JSON.stringify({ success: false, error: "Data transaksi tidak valid" }), {
+            status: 400, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const row = await env.DB.prepare("SELECT balance FROM wallet_balances WHERE username = ?").bind(uname).first();
+        const curBal = row ? Number(row.balance || 0) : 0;
+        if (curBal < amount) {
+          return new Response(JSON.stringify({ success: false, error: "Saldo tidak mencukupi", balance: curBal }), {
+            status: 402, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const nextBal = curBal - amount;
+        await env.DB.prepare(
+          "UPDATE wallet_balances SET balance = ?, updated_at = ? WHERE username = ?"
+        ).bind(nextBal, new Date().toISOString(), uname).run();
+
+        return new Response(JSON.stringify({ success: true, balance: nextBal }), {
+          headers: { ...securityHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // 15. WEBHOOK OTOMATIS SAWERIA (Zero-Touch Verification)
+      if (url.pathname === "/api/webhook/saweria" && request.method === "POST") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+
+        // Opsional: Validasi token rahasia jika diset di query ?token=... atau env.SAWERIA_WEBHOOK_TOKEN
+        const queryToken = url.searchParams.get("token") || "";
+        if (env.SAWERIA_WEBHOOK_TOKEN && queryToken !== env.SAWERIA_WEBHOOK_TOKEN) {
+          return new Response(JSON.stringify({ success: false, error: "Invalid webhook token" }), {
+            status: 401, headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        const payload = await request.json().catch(() => ({}));
+        const paidAmount = Math.round(Number(payload.amount_raw || payload.amount || 0));
+        const rawMsg = String(payload.message || payload.donator_name || "").toLowerCase();
+
+        if (paidAmount <= 0) {
+          return new Response(JSON.stringify({ success: false, error: "Nominal kosong" }), {
+            status: 400, headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        const now = Date.now();
+        // Cari intent PENDING berdasarkan nominal persis (base_amount + unique_code 1..499)
+        let matched = await env.DB.prepare(
+          "SELECT * FROM qris_intents WHERE status = 'PENDING' AND total_amount = ? AND expires_at >= ? ORDER BY created_at DESC LIMIT 1"
+        ).bind(paidAmount, now).first();
+
+        // Fallback: jika di pesan Saweria tertulis @username, cocokkan user tersebut
+        if (!matched) {
+          const userMatch = rawMsg.match(/@([a-z0-9_]{2,30})/);
+          if (userMatch && userMatch[1]) {
+            matched = await env.DB.prepare(
+              "SELECT * FROM qris_intents WHERE status = 'PENDING' AND username = ? ORDER BY created_at DESC LIMIT 1"
+            ).bind(userMatch[1]).first();
+          }
+        }
+
+        if (!matched) {
+          return new Response(JSON.stringify({
+            success: true,
+            matched: false,
+            note: "Tidak ada intent pending yang cocok; masuk log untuk verifikasi backup admin."
+          }), {
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        // Tandai intent lunas otomatis & tambahkan saldo bersih (base_amount + unique_code) ke wallet user
+        await env.DB.prepare("UPDATE qris_intents SET status = 'PAID_AUTO' WHERE id = ?").bind(matched.id).run();
+
+        const creditAmount = Number(matched.total_amount || paidAmount);
+        const existingBal = await env.DB.prepare("SELECT balance FROM wallet_balances WHERE username = ?").bind(matched.username).first();
+        const newBal = (existingBal ? Number(existingBal.balance || 0) : 0) + creditAmount;
+
+        await env.DB.prepare(
+          "INSERT INTO wallet_balances (username, balance, updated_at) VALUES (?, ?, ?) ON CONFLICT(username) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at"
+        ).bind(matched.username, newBal, new Date().toISOString()).run();
+
+        // Catat di orders_store sebagai Lunas Otomatis QRIS
+        await env.DB.prepare(
+          "INSERT OR REPLACE INTO orders_store (id, customer_username, customer_name, service, amount, voucher, note, status, created_at) VALUES (?, ?, ?, ?, ?, '-', 'Auto-Verified via Saweria Webhook', 'Lunas (Auto QRIS)', ?)"
+        ).bind(matched.id, matched.username, "@" + matched.username, matched.service, creditAmount, new Date().toISOString()).run();
+
+        return new Response(JSON.stringify({
+          success: true,
+          matched: true,
+          intentId: matched.id,
+          username: matched.username,
+          credited: creditAmount,
+          newBalance: newBal
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      // 16. BACKUP MANUAL: Daftar Intent Pending & Approval SuperAdmin
+      if (url.pathname === "/api/wallet/pending" && request.method === "GET") {
+        if (!isAuthorized()) {
+          return new Response(JSON.stringify({ success: false, error: "Akses ditolak" }), {
+            status: 401, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const res = await env.DB.prepare(
+          "SELECT * FROM qris_intents ORDER BY created_at DESC LIMIT 50"
+        ).all();
+        return new Response(JSON.stringify({
+          success: true,
+          intents: (res && res.results) ? res.results : []
+        }), {
+          headers: { ...securityHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.pathname === "/api/wallet/approve-backup" && request.method === "POST") {
+        if (!isAuthorized()) {
+          return new Response(JSON.stringify({ success: false, error: "Akses ditolak" }), {
+            status: 401, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json().catch(() => ({}));
+        const intentId = String(body.intentId || "").trim();
+        const intent = await env.DB.prepare("SELECT * FROM qris_intents WHERE id = ?").bind(intentId).first();
+        if (!intent) {
+          return new Response(JSON.stringify({ success: false, error: "Intent tidak ditemukan" }), {
+            status: 404, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        if (intent.status === "PAID_AUTO" || intent.status === "PAID_MANUAL") {
+          return new Response(JSON.stringify({ success: true, alreadyPaid: true }), {
+            headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        await env.DB.prepare("UPDATE qris_intents SET status = 'PAID_MANUAL' WHERE id = ?").bind(intentId).run();
+        const creditAmount = Number(intent.total_amount || intent.base_amount || 0);
+        const existingBal = await env.DB.prepare("SELECT balance FROM wallet_balances WHERE username = ?").bind(intent.username).first();
+        const newBal = (existingBal ? Number(existingBal.balance || 0) : 0) + creditAmount;
+
+        await env.DB.prepare(
+          "INSERT INTO wallet_balances (username, balance, updated_at) VALUES (?, ?, ?) ON CONFLICT(username) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at"
+        ).bind(intent.username, newBal, new Date().toISOString()).run();
+
+        await env.DB.prepare(
+          "INSERT OR REPLACE INTO orders_store (id, customer_username, customer_name, service, amount, voucher, note, status, created_at) VALUES (?, ?, ?, ?, ?, '-', 'Approved via Backup Admin', 'Lunas (Verified Admin)', ?)"
+        ).bind(intent.id, intent.username, "@" + intent.username, intent.service, creditAmount, new Date().toISOString()).run();
+
+        return new Response(JSON.stringify({
+          success: true,
+          username: intent.username,
+          credited: creditAmount,
+          newBalance: newBal
         }), {
           headers: { ...securityHeaders, "Content-Type": "application/json" }
         });
