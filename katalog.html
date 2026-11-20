@@ -6273,10 +6273,10 @@
       
       <div id="cnLocalAuthBox">
         <div class="cn-auth-tabs">
-          <button type="button" id="cnTabLogin" class="cn-auth-tab active" onclick="window.cnSwitchAuthTab('login')">Masuk</button>
-          <button type="button" id="cnTabRegister" class="cn-auth-tab" onclick="window.cnSwitchAuthTab('register')">Daftar Baru</button>
+          <button type="button" id="cnTabLogin" class="cn-auth-tab active" >Masuk</button>
+          <button type="button" id="cnTabRegister" class="cn-auth-tab" >Daftar Baru</button>
         </div>
-        <form id="cnLocalAuthForm" class="cn-local-form" onsubmit="window.cnSubmitLocalAuth(event)">
+        <form id="cnLocalAuthForm" class="cn-local-form" >
           <input type="text" id="cnLocalName" class="cn-local-input" placeholder="Nama Panggilan (opsional)" maxlength="40" style="display:none;" autocomplete="nickname" />
           <input type="text" id="cnLocalUser" class="cn-local-input" placeholder="Username (huruf, angka, _)" minlength="3" maxlength="24" required autocomplete="username" />
           <input type="password" id="cnLocalPass" class="cn-local-input" placeholder="Password (min. 6 karakter)" minlength="6" required autocomplete="current-password" />
@@ -6497,5 +6497,111 @@
       }
     })();
   </script>
+
+<script id="cnDualAuthRuntime">
+(function() {
+  var mode = "login";
+  var SESSION_KEY = "cn_auth_session_v1";
+
+  function switchTab(nextMode) {
+    mode = nextMode === "register" ? "register" : "login";
+    var isReg = mode === "register";
+    var tabLogin = document.getElementById("cnTabLogin");
+    var tabReg = document.getElementById("cnTabRegister");
+    var nameInput = document.getElementById("cnLocalName");
+    var passInput = document.getElementById("cnLocalPass");
+    var btn = document.getElementById("cnLocalSubmitBtn");
+    var err = document.getElementById("cnLocalErr");
+
+    if (tabLogin) tabLogin.classList.toggle("active", !isReg);
+    if (tabReg) tabReg.classList.toggle("active", isReg);
+    if (nameInput) nameInput.style.display = isReg ? "block" : "none";
+    if (passInput) passInput.setAttribute("autocomplete", isReg ? "new-password" : "current-password");
+    if (btn) btn.textContent = isReg ? "Daftar Akun Clubs' Night" : "Masuk Akun Clubs' Night";
+    if (err) { err.style.display = "none"; err.textContent = ""; }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    var isReg = mode === "register";
+    var uEl = document.getElementById("cnLocalUser");
+    var pEl = document.getElementById("cnLocalPass");
+    var nEl = document.getElementById("cnLocalName");
+    var btn = document.getElementById("cnLocalSubmitBtn");
+    var err = document.getElementById("cnLocalErr");
+
+    var username = uEl ? uEl.value.trim() : "";
+    var password = pEl ? pEl.value : "";
+    var name = nEl ? nEl.value.trim() : "";
+
+    if (err) { err.style.display = "none"; err.textContent = ""; }
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = isReg ? "Mendaftarkan..." : "Memverifikasi...";
+    }
+
+    try {
+      var apiBase = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.phoenixApi) || "https://clubsnight-api.onrender.com";
+      var endpoint = isReg ? "/api/auth/register" : "/api/auth/login";
+      var payload = isReg ? { username: username, password: password, name: name } : { username: username, password: password };
+
+      var res = await fetch(apiBase + endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+
+      var data = await res.json().catch(function() { return {}; });
+      if (!res.ok || !data.user) {
+        throw new Error(data.error || "Gagal memproses akun. Coba lagi.");
+      }
+
+      var u = Object.assign({ provider: "clubsnight", tgId: data.user.tg_id }, data.user);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+      window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: u }));
+      var gate = document.getElementById("cnHardAuthGate");
+      if (gate) gate.style.display = "none";
+      document.body.classList.remove("cn-auth-locked");
+      if (window.cnToast) window.cnToast(isReg ? "Akun berhasil dibuat!" : "Selamat datang kembali!", "success");
+    } catch (ex) {
+      if (err) {
+        err.textContent = ex.message || "Gagal terhubung ke server.";
+        err.style.display = "block";
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = isReg ? "Daftar Akun Clubs' Night" : "Masuk Akun Clubs' Night";
+      }
+    }
+  }
+
+  function bindDualAuth() {
+    var tabLogin = document.getElementById("cnTabLogin");
+    var tabReg = document.getElementById("cnTabRegister");
+    var form = document.getElementById("cnLocalAuthForm");
+    if (tabLogin && !tabLogin.dataset.bound) {
+      tabLogin.dataset.bound = "1";
+      tabLogin.addEventListener("click", function() { switchTab("login"); });
+    }
+    if (tabReg && !tabReg.dataset.bound) {
+      tabReg.dataset.bound = "1";
+      tabReg.addEventListener("click", function() { switchTab("register"); });
+    }
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = "1";
+      form.addEventListener("submit", handleSubmit);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindDualAuth);
+  } else {
+    bindDualAuth();
+  }
+})();
+</script>
+
 </body>
 </html>
