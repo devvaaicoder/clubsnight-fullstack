@@ -7186,5 +7186,212 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<script id="cnTalentSelfServiceScript">
+(function() {
+  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var MOOD_OPTIONS = ["GFE", "Manja", "Cosplay", "Deep Talk"];
+
+  function getActiveTalentSession() {
+    try {
+      var s = (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession())
+        || JSON.parse(localStorage.getItem("cn_pwa_session_v1") || "null")
+        || JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
+      if (s && String(s.role || "").toLowerCase() === "talent") return s;
+    } catch (_) {}
+    return null;
+  }
+
+  function injectActivityTalentCard() {
+    var page = document.getElementById("cnPageActivity");
+    if (!page) return;
+    var existing = document.getElementById("cnTalentSelfServiceWrap");
+    var talent = getActiveTalentSession();
+
+    if (!talent) {
+      if (existing) existing.style.display = "none";
+      return;
+    }
+
+    if (!existing) {
+      existing = document.createElement("div");
+      existing.id = "cnTalentSelfServiceWrap";
+      var firstGroup = page.querySelector(".cn-activity-group-label");
+      if (firstGroup && firstGroup.parentNode) {
+        firstGroup.parentNode.insertBefore(existing, firstGroup);
+      } else {
+        page.appendChild(existing);
+      }
+    }
+
+    existing.style.display = "block";
+    var st = String(talent.status || "READY").toUpperCase();
+    var stColor = st === "READY" ? "#22c55e" : (st === "BUSY" ? "#f59e0b" : "#94a3b8");
+
+    existing.innerHTML =
+      '<div class="cn-activity-group-label" style="color:#ff2a5f;">PANEL KONTROL TALENT (@' + talent.username + ')</div>' +
+      '<div class="cn-activity-card" style="border:1px solid rgba(255,42,95,0.32);margin-bottom:14px;">' +
+        '<button type="button" id="cnOpenTalentSettingsBtn" class="cn-activity-row">' +
+          '<span style="display:flex;align-items:center;gap:10px;">' +
+            '<i class="fa-solid fa-sliders" style="color:#ff2a5f;"></i>' +
+            '<span>Status Live (<strong style="color:' + stColor + ';">' + st + '</strong>) & Ganti Password</span>' +
+          '</span>' +
+          '<i class="fa-solid fa-chevron-right"></i>' +
+        '</button>' +
+      '</div>';
+
+    var btn = document.getElementById("cnOpenTalentSettingsBtn");
+    if (btn) btn.onclick = openTalentSettingsModal;
+  }
+
+  function openTalentSettingsModal() {
+    var talent = getActiveTalentSession();
+    if (!talent) return;
+
+    var oldModal = document.getElementById("cnTalentSettingsModal");
+    if (oldModal) oldModal.remove();
+
+    var curStatus = String(talent.status || "READY").toUpperCase();
+    var curMoods = Array.isArray(talent.moods) ? talent.moods : ["GFE"];
+
+    var modal = document.createElement("div");
+    modal.id = "cnTalentSettingsModal";
+    modal.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(5,3,10,0.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;";
+
+    var moodChipsHtml = MOOD_OPTIONS.map(function(m) {
+      var active = curMoods.indexOf(m) !== -1;
+      return '<button type="button" class="cn-tmood-chip" data-mood="' + m + '" style="padding:7px 13px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid ' +
+        (active ? '#ff2a5f' : 'rgba(255,255,255,0.16)') + ';background:' + (active ? 'rgba(255,42,95,0.22)' : 'rgba(255,255,255,0.04)') +
+        ';color:' + (active ? '#fff' : 'rgba(255,255,255,0.72)') + ';">' + m + '</button>';
+    }).join("");
+
+    modal.innerHTML =
+      '<div style="width:100%;max-width:420px;background:#130d1d;border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:20px;color:#fff;box-shadow:0 24px 60px rgba(0,0,0,0.75);max-height:90vh;overflow-y:auto;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
+          '<div>' +
+            '<div style="font-size:11px;letter-spacing:1.2px;color:#ff2a5f;font-weight:700;">PENGATURAN TALENT</div>' +
+            '<h3 style="margin:2px 0 0;font-size:18px;">' + talent.name + ' (@' + talent.username + ')</h3>' +
+          '</div>' +
+          '<button type="button" id="cnCloseTalentModal" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;cursor:pointer;">✕</button>' +
+        '</div>' +
+
+        '<form id="cnTalentUpdateForm" style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div>' +
+            '<label style="display:block;font-size:12px;color:rgba(255,255,255,0.75);margin-bottom:6px;font-weight:600;">Status Ketersediaan Live</label>' +
+            '<select id="cnTalentStatusSel" style="width:100%;padding:11px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.16);background:#1b1328;color:#fff;font-size:14px;">' +
+              '<option value="READY"' + (curStatus === "READY" ? " selected" : "") + '>🟢 READY (Siap Terima Order)</option>' +
+              '<option value="BUSY"' + (curStatus === "BUSY" ? " selected" : "") + '>🟡 BUSY (Sedang Sesi / Antri)</option>' +
+              '<option value="OFFLINE"' + (curStatus === "OFFLINE" ? " selected" : "") + '>⚫ OFFLINE (Istirahat)</option>' +
+            '</select>' +
+          '</div>' +
+
+          '<div>' +
+            '<label style="display:block;font-size:12px;color:rgba(255,255,255,0.75);margin-bottom:6px;font-weight:600;">Vibe / Mood Layanan</label>' +
+            '<div id="cnTalentMoodWrap" style="display:flex;flex-wrap:wrap;gap:8px;">' + moodChipsHtml + '</div>' +
+          '</div>' +
+
+          '<div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;">' +
+            '<label style="display:block;font-size:12px;color:rgba(255,255,255,0.75);margin-bottom:6px;font-weight:600;">Ganti Password Baru (Opsional, min. 6 karakter)</label>' +
+            '<input type="password" id="cnTalentNewPass" placeholder="Kosongkan jika tidak ingin ganti password" minlength="6" style="width:100%;padding:11px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.16);background:#1b1328;color:#fff;font-size:14px;box-sizing:border-box;" />' +
+          '</div>' +
+
+          '<div>' +
+            '<label style="display:block;font-size:12px;color:#ffb4c2;margin-bottom:6px;font-weight:600;">Verifikasi Password Saat Ini (Wajib) *</label>' +
+            '<input type="password" id="cnTalentCurPass" placeholder="Masukkan password Anda saat ini" required style="width:100%;padding:11px 12px;border-radius:12px;border:1px solid rgba(255,42,95,0.4);background:#1b1328;color:#fff;font-size:14px;box-sizing:border-box;" />' +
+          '</div>' +
+
+          '<div id="cnTalentSaveMsg" style="font-size:12px;min-height:18px;"></div>' +
+
+          '<button type="submit" id="cnTalentSaveBtn" style="width:100%;padding:13px;border:0;border-radius:12px;background:linear-gradient(135deg,#ff2a5f,#c084fc);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">Simpan Perubahan ke Server</button>' +
+        '</form>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    document.getElementById("cnCloseTalentModal").onclick = function() { modal.remove(); };
+    modal.addEventListener("click", function(e) { if (e.target === modal) modal.remove(); });
+
+    modal.querySelectorAll(".cn-tmood-chip").forEach(function(chip) {
+      chip.addEventListener("click", function() {
+        var m = chip.getAttribute("data-mood");
+        var idx = curMoods.indexOf(m);
+        if (idx === -1) {
+          curMoods.push(m);
+          chip.style.borderColor = "#ff2a5f";
+          chip.style.background = "rgba(255,42,95,0.22)";
+          chip.style.color = "#fff";
+        } else if (curMoods.length > 1) {
+          curMoods.splice(idx, 1);
+          chip.style.borderColor = "rgba(255,255,255,0.16)";
+          chip.style.background = "rgba(255,255,255,0.04)";
+          chip.style.color = "rgba(255,255,255,0.72)";
+        }
+      });
+    });
+
+    document.getElementById("cnTalentUpdateForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      var saveBtn = document.getElementById("cnTalentSaveBtn");
+      var msgEl = document.getElementById("cnTalentSaveMsg");
+      var statusVal = document.getElementById("cnTalentStatusSel").value;
+      var newPassVal = document.getElementById("cnTalentNewPass").value.trim();
+      var curPassVal = document.getElementById("cnTalentCurPass").value.trim();
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Menyimpan ke D1...";
+      msgEl.style.color = "#cbd5e1";
+      msgEl.textContent = "Memverifikasi kredensial...";
+
+      try {
+        var res = await fetch(WORKER_API + "/api/talent/update-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: talent.username,
+            currentPassword: curPassVal,
+            newPassword: newPassVal,
+            status: statusVal,
+            moods: curMoods
+          })
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Gagal memperbarui profil.");
+        }
+
+        // Perbarui sesi lokal agar langsung sinkron tanpa perlu relogin
+        if (data.user) {
+          var updatedSess = Object.assign({}, talent, data.user);
+          localStorage.setItem("cn_pwa_session_v1", JSON.stringify(updatedSess));
+          localStorage.setItem("cn_auth_session_v1", JSON.stringify(updatedSess));
+        }
+
+        msgEl.style.color = "#4ade80";
+        msgEl.textContent = "✅ " + (data.message || "Tersimpan!");
+        injectActivityTalentCard();
+
+        setTimeout(function() {
+          modal.remove();
+          if (typeof window.cnToast === "function") {
+            window.cnToast(data.message || "Profil & status live diperbarui!", "success");
+          }
+          // Muat ulang data katalog dari D1 bila tersedia
+          if (typeof window.loadCloudCatalog === "function") window.loadCloudCatalog();
+        }, 750);
+      } catch (err) {
+        msgEl.style.color = "#fb7185";
+        msgEl.textContent = "❌ " + (err.message || "Terjadi kesalahan.");
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Simpan Perubahan ke Server";
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", injectActivityTalentCard);
+  setInterval(injectActivityTalentCard, 2500);
+})();
+</script>
+
 </body>
 </html>

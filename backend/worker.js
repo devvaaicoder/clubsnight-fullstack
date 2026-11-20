@@ -249,6 +249,110 @@ export default {
         });
       }
 
+      
+      // 7. Update Profil, Status & Password Mandiri Talent (Wajib Verifikasi Password Lama via SHA-256)
+      if (url.pathname === "/api/talent/update-profile" && request.method === "POST") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json().catch(() => ({}));
+        const uname = String(body.username || "").trim().toLowerCase().replace(/^@/, "");
+        const currentPass = String(body.currentPassword || "").trim();
+        const newPass = String(body.newPassword || "").trim();
+        const nextStatus = String(body.status || "").trim().toUpperCase();
+        const nextMoods = Array.isArray(body.moods) ? body.moods.map(m => String(m).trim()).filter(Boolean) : null;
+
+        if (!uname || !currentPass) {
+          return new Response(JSON.stringify({ success: false, error: "Username dan password saat ini wajib diisi." }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        const row = await env.DB.prepare(
+          "SELECT username, password_hash, name, agency, status, moods, avatar FROM talent_accounts WHERE username = ?"
+        ).bind(uname).first();
+
+        if (!row) {
+          return new Response(JSON.stringify({ success: false, error: "Akun talent tidak ditemukan." }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        const curHash = await hashPassword(currentPass);
+        if (curHash !== row.password_hash) {
+          await new Promise(r => setTimeout(r, 800));
+          return new Response(JSON.stringify({ success: false, error: "Password saat ini salah." }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        if (newPass && newPass.length < 6) {
+          return new Response(JSON.stringify({ success: false, error: "Password baru minimal 6 karakter." }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        const validStatuses = ["READY", "BUSY", "OFFLINE"];
+        const finalStatus = validStatuses.includes(nextStatus) ? nextStatus : (row.status || "READY");
+        const finalHash = newPass ? await hashPassword(newPass) : row.password_hash;
+
+        let parsedMoods = ["GFE"];
+        try { parsedMoods = JSON.parse(row.moods || "[]"); } catch (_) {}
+        const finalMoods = (nextMoods && nextMoods.length) ? nextMoods : parsedMoods;
+
+        await env.DB.prepare(
+          "UPDATE talent_accounts SET password_hash = ?, status = ?, moods = ?, updated_at = ? WHERE username = ?"
+        ).bind(finalHash, finalStatus, JSON.stringify(finalMoods), new Date().toISOString(), uname).run();
+
+        // Sinkronkan status & vibe talent ke catalog_store D1 agar langsung live di katalog utama
+        try {
+          const catRow = await env.DB.prepare("SELECT data FROM catalog_store WHERE id = 1").first();
+          if (catRow && catRow.data) {
+            const storeData = JSON.parse(catRow.data);
+            if (Array.isArray(storeData.talents)) {
+              let changed = false;
+              storeData.talents = storeData.talents.map(t => {
+                const tSlug = String(t.name || "").toLowerCase().replace(/[^\w\s]/g, "").trim().replace(/\s+/g, "_");
+                if (tSlug === uname || String(t.name || "").toLowerCase() === String(row.name || "").toLowerCase()) {
+                  changed = true;
+                  return {
+                    ...t,
+                    status: finalStatus.toLowerCase(),
+                    vibe: finalMoods
+                  };
+                }
+                return t;
+              });
+              if (changed) {
+                await env.DB.prepare(
+                  "UPDATE catalog_store SET data = ?, updated_at = ? WHERE id = 1"
+                ).bind(JSON.stringify(storeData), new Date().toISOString()).run();
+              }
+            }
+          }
+        } catch (_) {}
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: newPass ? "Password & profil talent berhasil diperbarui!" : "Status & profil talent berhasil diperbarui!",
+          user: {
+            username: row.username,
+            name: row.name,
+            role: "talent",
+            approved: true,
+            agency: row.agency || "Clubs'Night",
+            status: finalStatus,
+            moods: finalMoods,
+            avatar: row.avatar || ""
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
       return new Response("Not Found", { status: 404, headers: corsHeaders });
 
     } catch (err) {
