@@ -1445,16 +1445,22 @@ async function deleteTalent(id) {
 }
 
 function confirmAge() {
-  localStorage.setItem('cn_age_verified', 'true');
-  const ageModal = document.getElementById('ageGateModal');
-  if (ageModal) ageModal.style.display = 'none';
-
-  const hasSeenTour = localStorage.getItem(TOUR_STORAGE_KEY);
-  if (!hasSeenTour) {
-    setTimeout(() => {
-      startWebsiteTour();
-    }, 600);
+  try {
+    localStorage.setItem("cn_age_verified", "true");
+    localStorage.setItem("cn_age_verified_v1", "true");
+    sessionStorage.setItem("cn_age_verified", "true");
+  } catch (_) {}
+  const ageModal = document.getElementById("ageGateModal");
+  if (ageModal) {
+    ageModal.style.setProperty("display", "none", "important");
+    ageModal.classList.remove("open", "active", "show");
   }
+  document.body.style.overflow = "";
+  try {
+    if (!localStorage.getItem(TOUR_STORAGE_KEY)) {
+      setTimeout(() => { startWebsiteTour(); }, 600);
+    }
+  } catch (_) {}
 }
 
 // ==================== FILTER TALENTS ====================

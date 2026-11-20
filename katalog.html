@@ -416,7 +416,7 @@
       <div class="modal-icon-badge">18+</div>
       <h2 class="modal-title">AREA KHUSUS DEWASA</h2>
       <p class="modal-desc">Platform katalog eksklusif ini memuat konten layanan pendampingan & panggilan virtual privat khusus dewasa. Pastikan Anda berusia minimal 18 tahun.</p>
-      <button class="btn-neon" onclick="confirmAge()">
+      <button type="button" id="btnConfirmAge18" class="btn-neon" style="position:relative;z-index:20;pointer-events:auto;cursor:pointer;" onclick="window.confirmAge && window.confirmAge()">
         <i class="fa-solid fa-shield-heart"></i> Saya Berusia 18+ (Masuk)
       </button>
     </div>
@@ -7563,27 +7563,42 @@ window.addEventListener("storage", function(e) {
 </script>
 
 
+
 <script id="cnAgeGateFixScript">
-window.confirmAge = function() {
-  try {
-    localStorage.setItem("cn_age_verified_v1", "true");
-    localStorage.setItem("ageVerified", "true");
-    localStorage.setItem("cn_18_verified", "true");
-    sessionStorage.setItem("cn_age_verified_v1", "true");
-  } catch (_) {}
-
-  var modal = document.getElementById("ageGateModal");
-  if (modal) {
-    modal.style.display = "none";
-    modal.classList.remove("open", "active", "show");
-    modal.setAttribute("aria-hidden", "true");
+(function() {
+  function handleUnlockAge(ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    try {
+      localStorage.setItem("cn_age_verified", "true");
+      localStorage.setItem("cn_age_verified_v1", "true");
+      sessionStorage.setItem("cn_age_verified", "true");
+    } catch (_) {}
+    var modal = document.getElementById("ageGateModal");
+    if (modal) {
+      modal.style.setProperty("display", "none", "important");
+      modal.classList.remove("open", "active", "show");
+      modal.setAttribute("aria-hidden", "true");
+    }
+    document.body.style.overflow = "";
   }
-  document.body.style.overflow = "";
+  window.confirmAge = handleUnlockAge;
 
-  if (typeof window.startTourIfNeeded === "function") {
-    try { window.startTourIfNeeded(); } catch (_) {}
+  function bindBtn() {
+    var btn = document.getElementById("btnConfirmAge18") || document.querySelector("#ageGateModal .btn-neon");
+    if (btn && !btn._cnBound) {
+      btn._cnBound = true;
+      btn.addEventListener("click", handleUnlockAge, true);
+      btn.addEventListener("touchend", handleUnlockAge, { capture: true, passive: false });
+    }
   }
-};
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindBtn);
+  } else {
+    bindBtn();
+  }
+  setTimeout(bindBtn, 300);
+  setTimeout(bindBtn, 1200);
+})();
 </script>
 
 </body>
