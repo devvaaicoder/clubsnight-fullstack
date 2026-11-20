@@ -8,8 +8,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
-        katalog: resolve(import.meta.dirname,
-        login: resolve(__dirname, 'login.html'), 'katalog.html'),
+        katalog: resolve(import.meta.dirname, 'katalog.html'),
+        login: resolve(import.meta.dirname, 'login.html'),
       },
     },
   },
