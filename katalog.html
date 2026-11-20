@@ -7420,9 +7420,10 @@ window.addEventListener("storage", function(e) {
       try {
         var posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]");
         var stories = JSON.parse(localStorage.getItem(STORY_KEY) || "[]");
+        var hTok = actor.sessionToken || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
         await fetch(WORKER_API + "/api/lounge/save", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Session-Token": actor.sessionToken || "" },
+          headers: { "Content-Type": "application/json", "X-Session-Token": hTok },
           body: JSON.stringify({
             actor: { username: actor.username, name: actor.name, role: actor.role, sessionToken: actor.sessionToken || "" },
             posts: posts,
@@ -7497,9 +7498,10 @@ window.addEventListener("storage", function(e) {
 
     var sess = getMemberSession();
     try {
+      var hTok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
       await fetch(WORKER_API + "/api/orders/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Session-Token": hTok },
         body: JSON.stringify({
           id: oid,
           customerUsername: (sess && sess.username) || orderObj.user || "vip_member",
@@ -7526,6 +7528,36 @@ window.addEventListener("storage", function(e) {
         }
       } catch (_) {}
     }
+  };
+})();
+</script>
+
+
+<script id="cnHmacSessionClient">
+(function() {
+  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  window.getCnHmacSessionToken = async function() {
+    try {
+      var s = (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession())
+        || JSON.parse(localStorage.getItem("cn_pwa_session_v1") || "null")
+        || JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
+      if (s && s.sessionToken) return s.sessionToken;
+
+      var cachedGuest = sessionStorage.getItem("cn_guest_hmac_v1");
+      if (cachedGuest) return cachedGuest;
+
+      var res = await fetch(WORKER_API + "/api/session/guest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: (s && s.username) || "vip_member" })
+      });
+      var data = await res.json().catch(function() { return {}; });
+      if (res.ok && data.sessionToken) {
+        sessionStorage.setItem("cn_guest_hmac_v1", data.sessionToken);
+        return data.sessionToken;
+      }
+    } catch (_) {}
+    return "";
   };
 })();
 </script>
