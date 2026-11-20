@@ -6415,6 +6415,7 @@
             window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: data.user }));
             enforceHardGate();
             if (window.cnToast) window.cnToast("Login Telegram berhasil!", "info");
+            window.location.replace("/katalog");
             return;
           } catch (err) {
             if (window.cnToast) window.cnToast("Gagal terhubung ke server verifikasi.", "error");
@@ -6579,6 +6580,30 @@
       setTimeout(goToLogin, 350);
     }
   }, true);
+})();
+</script>
+
+
+<script id="cnKillOldModal">
+(function() {
+  function kill() {
+    var inner = document.getElementById("cnLocalAuthBox") || document.getElementById("cnTgWidgetContainer");
+    if (inner) {
+      var overlay = inner.closest('[style*="fixed"], [class*="gate"], [class*="modal"], [class*="overlay"]') || inner.parentElement;
+      if (overlay && overlay !== document.body) {
+        overlay.remove();
+      }
+    }
+    document.documentElement.classList.remove("cn-auth-locked");
+    document.body.classList.remove("cn-auth-locked");
+    document.body.style.overflow = "";
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", kill);
+  } else {
+    kill();
+  }
+  setTimeout(kill, 200);
 })();
 </script>
 
