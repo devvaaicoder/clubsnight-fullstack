@@ -34,12 +34,15 @@ export default {
 
     try {
       const ensureTableExists = async () => {
-        if (env.DB) {
-          await env.DB.prepare(
-            "CREATE TABLE IF NOT EXISTS catalog_store (id INTEGER PRIMARY KEY, data TEXT, updated_at TEXT)"
-          ).run();
-        }
-      };
+      if (env.DB) {
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS catalog_store (id INTEGER PRIMARY KEY, data TEXT, updated_at TEXT)"
+        ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS talent_accounts (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, name TEXT NOT NULL, agency TEXT, status TEXT, moods TEXT, avatar TEXT, updated_at TEXT)"
+        ).run();
+      }
+    };
 
       // 1. Verifikasi Login Admin / PIN Menu Developer
       if (url.pathname === "/api/verify-auth" && request.method === "POST") {
