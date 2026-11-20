@@ -275,6 +275,18 @@
 
 
 <style id="cnPerfAndAuthCss">
+  
+  body, html, body > *, #app, main {
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+  body.cn-auth-locked, html.cn-auth-locked, body.cn-auth-locked * {
+    filter: none !important;
+    -webkit-filter: none !important;
+    pointer-events: auto !important;
+    user-select: auto !important;
+  }
+
   /* Matikan modal Hard Auth Gate lama sepenuhnya (pindah ke /login.html) */
   #cnHardAuthGate, .cn-hard-gate, .cn-auth-gate-overlay {
     display: none !important;
@@ -286,10 +298,7 @@
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-  body.cn-auth-locked, html.cn-auth-locked {
-    overflow: auto !important;
-    filter: none !important;
-  }
+
 </style>
 
 </head>
@@ -6540,12 +6549,7 @@
   // Override fungsi modal lama agar langsung menuju halaman mandiri /login.html
   window.cnOpenAuthModal = goToLogin;
   window.enforceHardGate = function() {
-    document.documentElement.classList.remove("cn-auth-locked");
-    document.body.classList.remove("cn-auth-locked");
-  };
-
-  // Sinkronkan sesi diam-diam dengan /api/me di background
-  fetch(API_BASE + "/api/me", { credentials: "include" })
+)
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
       if (data && data.user) {
@@ -6594,13 +6598,7 @@
         overlay.remove();
       }
     }
-    document.documentElement.classList.remove("cn-auth-locked");
-    document.body.classList.remove("cn-auth-locked");
-    document.body.style.overflow = "";
-  }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", kill);
-  } else {
+ else {
     kill();
   }
   setTimeout(kill, 200);
