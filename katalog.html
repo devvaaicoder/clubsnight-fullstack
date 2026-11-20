@@ -6201,7 +6201,40 @@
     (function() {
       var SESSION_KEY = "cn_pwa_session_v1";
       // Ganti dengan username bot dari @BotFather tanpa tanda @
-      window.CN_TG_BOT_USERNAME = window.CN_TG_BOT_USERNAME || "ClubsNightAuthBot";
+      window.CN_TG_BOT_USERNAME = "NightyTelegramLoginAccess_bot";
+
+      // Konfigurasi Produksi Backend Elixir (Render.com)
+      window.CN_DEV_CONFIG = Object.assign({}, window.CN_DEV_CONFIG || {}, {
+        phoenixApi: "https://clubsnight-api.onrender.com"
+      });
+
+      // Verifikasi sesi asli ke server (/api/me) saat di produksi (Anti-Inspect Element)
+      async function syncServerSession() {
+        var isLocal = ["localhost", "127.0.0.1"].indexOf(window.location.hostname) !== -1;
+        if (isLocal) return;
+        try {
+          var res = await fetch(window.CN_DEV_CONFIG.phoenixApi + "/api/me", { credentials: "include" });
+          if (res.ok) {
+            var data = await res.json();
+            if (data && data.user) {
+              var u = Object.assign({ provider: "telegram", tgId: data.user.tg_id }, data.user);
+              localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+              window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: u }));
+              enforceHardGate();
+              return;
+            }
+          }
+          // Jika cookie tidak sah/expired, paksa kunci ulang
+          localStorage.removeItem(SESSION_KEY);
+          enforceHardGate();
+          window.cnTriggerTelegramAuth();
+        } catch (e) {
+          // Saat Render cold-start, tetap tampilkan widget Telegram
+          window.cnTriggerTelegramAuth();
+        }
+      }
+      setTimeout(syncServerSession, 120);
+
 
       function getSession() {
         try {
