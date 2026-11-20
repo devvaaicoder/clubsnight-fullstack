@@ -7562,5 +7562,29 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<script id="cnAgeGateFixScript">
+window.confirmAge = function() {
+  try {
+    localStorage.setItem("cn_age_verified_v1", "true");
+    localStorage.setItem("ageVerified", "true");
+    localStorage.setItem("cn_18_verified", "true");
+    sessionStorage.setItem("cn_age_verified_v1", "true");
+  } catch (_) {}
+
+  var modal = document.getElementById("ageGateModal");
+  if (modal) {
+    modal.style.display = "none";
+    modal.classList.remove("open", "active", "show");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  document.body.style.overflow = "";
+
+  if (typeof window.startTourIfNeeded === "function") {
+    try { window.startTourIfNeeded(); } catch (_) {}
+  }
+};
+</script>
+
 </body>
 </html>
