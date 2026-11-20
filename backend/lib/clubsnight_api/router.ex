@@ -95,9 +95,23 @@ defmodule ClubsnightApi.Router do
   end
 
   defp cors(conn, _opts) do
-    origin = System.get_env("FRONTEND_ORIGIN") || "*"
+    allowed =
+      (System.get_env("FRONTEND_ORIGIN") || "")
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
+
+    req_origin = Plug.Conn.get_req_header(conn, "origin") |> List.first()
+
+    allow_origin =
+      cond do
+        req_origin in allowed -> req_origin
+        allowed != [] -> hd(allowed)
+        true -> "*"
+      end
+
     conn
-    |> put_resp_header("access-control-allow-origin", origin)
+    |> put_resp_header("access-control-allow-origin", allow_origin)
+    |> put_resp_header("vary", "Origin")
     |> put_resp_header("access-control-allow-credentials", "true")
     |> put_resp_header("access-control-allow-headers", "content-type")
     |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
