@@ -4,12 +4,23 @@
 <script id="cnImmediateAuthGuard">
 (function() {
   try {
-    var raw = localStorage.getItem("cn_auth_session_v1");
-    var u = raw ? JSON.parse(raw) : null;
-    if (!u || !(u.tg_id || u.tgId || u.username)) {
+    var rawPwa = localStorage.getItem("cn_pwa_session_v1");
+    var rawAuth = localStorage.getItem("cn_auth_session_v1");
+    var u = (rawPwa && JSON.parse(rawPwa)) || (rawAuth && JSON.parse(rawAuth)) || null;
+    if (!u || !(u.username || u.tg_id || u.tgId || u.name)) {
       var next = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
       window.location.replace("/login.html?next=" + next);
+      return;
     }
+    // Pastikan kedua key selalu sinkron agar UI langsung render kartu profil
+    var synced = Object.assign({
+      name: u.name || [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "VIP Member",
+      username: (u.username || ("tg_" + (u.tg_id || u.tgId || "vip"))).replace(/^@/, ""),
+      role: u.role || "user",
+      approved: u.approved !== false
+    }, u);
+    localStorage.setItem("cn_pwa_session_v1", JSON.stringify(synced));
+    localStorage.setItem("cn_auth_session_v1", JSON.stringify(synced));
   } catch (_) {
     window.location.replace("/login.html?next=%2Fkatalog");
   }
@@ -2305,9 +2316,12 @@
       }
 
       function clearSession() {
-        try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
-        renderSessionUI();
-        window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: null }));
+        try {
+          localStorage.removeItem("cn_pwa_session_v1");
+          localStorage.removeItem("cn_auth_session_v1");
+        } catch (e) {}
+        fetch("https://clubsnight-api.onrender.com/api/auth/logout", { method: "POST", credentials: "include" }).catch(function() {});
+        window.location.replace("/login.html?next=%2Fkatalog");
       }
 
       // API Global untuk dipakai Fase 4 (Lounge / Privilege Check)
@@ -2366,7 +2380,7 @@
           "</button>";
       }
 
-      window.openCnAuthModal = function(defaultMode) {
+      window.openCnAuthModal = function(defaultMode) { window.location.href = "/login.html?next=" + encodeURIComponent(window.location.pathname + window.location.hash); return;
         var modal = document.getElementById("cnAuthModal");
         if (!modal) return;
         if (defaultMode) window.switchCnAuthMode(defaultMode);

@@ -183,7 +183,21 @@
 
       function completeLogin(userObj, provider) {
         var u = Object.assign({ provider: provider, tgId: userObj.tg_id }, userObj);
-        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+        
+      function saveBothSessions(u) {
+        var displayName = u.name || [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "VIP Member";
+        var uname = (u.username || ("tg_" + (u.tg_id || u.tgId || "vip"))).replace(/^@/, "");
+        var pwaObj = Object.assign({}, u, {
+          name: displayName,
+          username: uname,
+          role: u.role || "user",
+          approved: u.approved !== false
+        });
+        localStorage.setItem("cn_auth_session_v1", JSON.stringify(pwaObj)); localStorage.setItem("cn_pwa_session_v1", JSON.stringify(Object.assign({ name: (pwaObj.name || pwaObj.first_name || pwaObj.username || "VIP Member"), username: ((pwaObj.username || ("tg_" + (pwaObj.tg_id || pwaObj.tgId || "vip")))).replace(/^@/, ""), role: (pwaObj.role || "user"), approved: true }, pwaObj)));
+        localStorage.setItem("cn_pwa_session_v1", JSON.stringify(pwaObj));
+      }
+
+        saveBothSessions(u);
         showMsg("Berhasil masuk! Mengalihkan...", "success");
         setTimeout(function() {
           window.location.replace(nextUrl);
