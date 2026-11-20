@@ -8066,5 +8066,548 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<style id="cnWalletQrisCss">
+  .cn-wallet-card {
+    background: linear-gradient(135deg, rgba(255, 23, 68, 0.16), rgba(156, 39, 176, 0.14));
+    border: 1px solid rgba(255, 64, 129, 0.35);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .cn-wallet-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .cn-wallet-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.68);
+    font-weight: 700;
+  }
+  .cn-wallet-balance {
+    font-size: 24px;
+    font-weight: 800;
+    color: #fff;
+    margin-top: 2px;
+  }
+  .cn-wallet-topup-btn {
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #ff1744, #d500f9);
+    color: #fff;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 6px 18px rgba(255, 23, 68, 0.35);
+  }
+  .cn-qris-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99998;
+    background: rgba(5, 3, 10, 0.88);
+    backdrop-filter: blur(12px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .cn-qris-modal-backdrop.open {
+    display: flex;
+  }
+  .cn-qris-box {
+    width: 100%;
+    max-width: 400px;
+    background: #120c1c;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 20px;
+    padding: 20px;
+    color: #fff;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75);
+  }
+  .cn-qris-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0 12px;
+  }
+  .cn-qris-preset-btn {
+    padding: 8px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .cn-qris-preset-btn.active {
+    border-color: #ff2a5f;
+    background: rgba(255, 42, 95, 0.24);
+  }
+  .cn-qris-frame {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 14px;
+    text-align: center;
+    margin: 14px 0;
+    color: #111;
+  }
+  .cn-qris-frame img {
+    width: 220px;
+    height: 220px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+  }
+  .cn-detail-pay-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+</style>
+
+<!-- Modal Top-Up & Pembayaran QRIS Dinamis -->
+<div id="cnQrisPayModal" class="cn-qris-modal-backdrop" aria-hidden="true">
+  <div class="cn-qris-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div>
+        <div style="font-size:16px;font-weight:800;" id="cnQrisModalTitle">Top-Up Saldo via QRIS</div>
+        <div style="font-size:11.5px;color:rgba(255,255,255,0.65);">QRIS Dinamis Otomatis (Indonesia &amp; Cross-Border)</div>
+      </div>
+      <button type="button" onclick="window.closeCnQrisModal()" style="background:rgba(255,255,255,0.08);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;">&times;</button>
+    </div>
+
+    <div id="cnQrisPresetWrap">
+      <div class="cn-qris-presets">
+        <button type="button" class="cn-qris-preset-btn" onclick="window.setCnQrisAmount(100000, this)">Rp 100rb</button>
+        <button type="button" class="cn-qris-preset-btn" onclick="window.setCnQrisAmount(250000, this)">Rp 250rb</button>
+        <button type="button" class="cn-qris-preset-btn" onclick="window.setCnQrisAmount(500000, this)">Rp 500rb</button>
+        <button type="button" class="cn-qris-preset-btn" onclick="window.setCnQrisAmount(1000000, this)">Rp 1 Jt</button>
+        <button type="button" class="cn-qris-preset-btn" onclick="window.setCnQrisAmount(2000000, this)">Rp 2 Jt</button>
+        <button type="button" class="cn-qris-preset-btn" onclick="window.setCnQrisAmount(5000000, this)">Rp 5 Jt</button>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11.5px;color:rgba(255,255,255,0.72);display:block;margin-bottom:4px;">Atau Masukkan Nominal (IDR):</label>
+        <input type="number" id="cnQrisCustomAmountInput" min="10000" step="1000" value="100000" oninput="window.setCnQrisAmount(this.value)" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#fff;font-weight:700;font-size:14px;" />
+      </div>
+    </div>
+
+    <div class="cn-qris-frame">
+      <div style="font-weight:800;font-size:13px;letter-spacing:0.04em;color:#e11d48;">QRIS DINAMIS • CLUBS' NIGHT</div>
+      <div style="font-size:11px;color:#555;margin-bottom:6px;">PT Harta Tahta Sukaria (Xendit Verified)</div>
+      <img id="cnQrisQrImg" alt="QRIS Dinamis" src="" />
+      <div id="cnQrisDisplayNominal" style="font-size:18px;font-weight:800;color:#111;margin-top:8px;">Rp 100.000</div>
+      <div id="cnQrisRefCode" style="font-size:10.5px;color:#666;margin-top:2px;">Ref: CN-TOPUP</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+      <button type="button" onclick="window.downloadCnQrisImage()" style="padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+        <i class="fa-solid fa-download"></i> Simpan QRIS
+      </button>
+      <button type="button" onclick="window.copyCnQrisPayload()" style="padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+        <i class="fa-regular fa-copy"></i> Salin Payload
+      </button>
+    </div>
+
+    <button type="button" id="cnQrisConfirmPaidBtn" onclick="window.confirmCnQrisPayment()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">
+      <i class="fa-solid fa-circle-check"></i> Saya Sudah Bayar via QRIS
+    </button>
+    <div id="cnQrisStatusNote" style="font-size:11.5px;color:#34d399;text-align:center;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<script id="cnWalletQrisEngineJs">
+(function() {
+  var DEFAULT_MASTER_QRIS = "00020101021226650013CO.XENDIT.WWW01189360084800000000020215WNtXtb6qmr4ZJBw0303UME51370014ID.CO.QRIS.WWW0215ID2025378199850520450995303360540450005802ID5922PT Harta Tahta Sukaria6013JAKARTA PUSAT61051034062290525xc1HtT9q1Z2vDEZ1VaKYuNbUm630499EB";
+  var MASTER_KEY = "cn_master_qris_payload_v1";
+  var WALLET_PREFIX = "cn_wallet_bal_";
+  var TOPUP_QUEUE_KEY = "cn_qris_topup_queue_v1";
+  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+
+  var currentAmount = 100000;
+  var currentMode = "topup"; // "topup" | "booking"
+  var currentBookingContext = null;
+  var currentGeneratedPayload = "";
+
+  // 1. Hitung Checksum CRC-16/CCITT-FALSE standar EMVCo QRIS
+  function crc16ccitt(str) {
+    var crc = 0xFFFF;
+    for (var i = 0; i < str.length; i++) {
+      crc ^= (str.charCodeAt(i) << 8);
+      for (var j = 0; j < 8; j++) {
+        if ((crc & 0x8000) !== 0) {
+          crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+        } else {
+          crc = (crc << 1) & 0xFFFF;
+        }
+      }
+    }
+    return crc.toString(16).toUpperCase().padStart(4, "0");
+  }
+
+  // 2. Parser & Regenerator EMVCo QRIS Dinamis (mengubah nominal Tag 54 & CRC Tag 63)
+  function parseTlv(payload) {
+    var tags = [];
+    var idx = 0;
+    while (idx + 4 <= payload.length) {
+      var id = payload.substr(idx, 2);
+      var len = parseInt(payload.substr(idx + 2, 2), 10);
+      if (isNaN(len) || idx + 4 + len > payload.length) break;
+      var val = payload.substr(idx + 4, len);
+      tags.push({ id: id, val: val });
+      idx += 4 + len;
+    }
+    return tags;
+  }
+
+  function formatTlv(id, val) {
+    var strVal = String(val);
+    var len = String(strVal.length).padStart(2, "0");
+    return id + len + strVal;
+  }
+
+  window.regenerateDynamicQris = function(amountIdr, customMaster) {
+    var raw = (customMaster || localStorage.getItem(MASTER_KEY) || DEFAULT_MASTER_QRIS).trim();
+    var cleanNominal = Math.max(1000, Math.round(Number(amountIdr) || 0));
+    var nominalStr = String(cleanNominal);
+
+    var tags = parseTlv(raw);
+    var rebuilt = "";
+    var hasTag54 = false;
+
+    tags.forEach(function(t) {
+      if (t.id === "63") return; // CRC dihitung ulang di akhir
+      if (t.id === "62") return; // Hapus reference sesi lama agar tidak bentrok dengan nominal baru
+      if (t.id === "01") {
+        rebuilt += formatTlv("01", "12"); // Paksa Dinamis (12)
+        return;
+      }
+      if (t.id === "54") {
+        rebuilt += formatTlv("54", nominalStr);
+        hasTag54 = true;
+        return;
+      }
+      if (t.id === "58" && !hasTag54) {
+        rebuilt += formatTlv("54", nominalStr);
+        hasTag54 = true;
+      }
+      rebuilt += formatTlv(t.id, t.val);
+    });
+
+    if (!hasTag54) {
+      rebuilt += formatTlv("54", nominalStr);
+    }
+
+    var payloadWithoutCrc = rebuilt + "6304";
+    var checksum = crc16ccitt(payloadWithoutCrc);
+    return payloadWithoutCrc + checksum;
+  };
+
+  function getActiveUser() {
+    try {
+      return (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession()) || null;
+    } catch (_) { return null; }
+  }
+
+  function getUserBalance(username) {
+    if (!username) return 0;
+    return Number(localStorage.getItem(WALLET_PREFIX + username.toLowerCase()) || "0") || 0;
+  }
+
+  function setUserBalance(username, amount) {
+    if (!username) return;
+    localStorage.setItem(WALLET_PREFIX + username.toLowerCase(), String(Math.max(0, Math.round(Number(amount) || 0))));
+    renderWalletCardInActivity();
+  }
+
+  function formatRupiah(num) {
+    return "Rp " + (Math.round(Number(num) || 0)).toLocaleString("id-ID");
+  }
+
+  // 3. Render Kartu Saldo di Tab Aktivitas & Akun
+  function renderWalletCardInActivity() {
+    var page = document.getElementById("cnPageActivity");
+    var user = getActiveUser();
+    if (!page || !user || !user.username) return;
+
+    var wrap = document.getElementById("cnWalletActivityWrap");
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.id = "cnWalletActivityWrap";
+      var header = page.querySelector(".cn-pwa-header");
+      if (header && header.nextSibling) {
+        header.parentNode.insertBefore(wrap, header.nextSibling);
+      } else {
+        page.insertBefore(wrap, page.firstChild);
+      }
+    }
+
+    var bal = getUserBalance(user.username);
+    wrap.innerHTML =
+      '<div class="cn-wallet-card">' +
+        '<div class="cn-wallet-top">' +
+          '<div>' +
+            '<div class="cn-wallet-label"><i class="fa-solid fa-wallet" style="color:#ff4081;margin-right:4px;"></i> Saldo CN Wallet (@' + user.username + ')</div>' +
+            '<div class="cn-wallet-balance">' + formatRupiah(bal) + '</div>' +
+          '</div>' +
+          '<button type="button" class="cn-wallet-topup-btn" onclick="window.openCnQrisTopupModal()">' +
+            '<i class="fa-solid fa-qrcode"></i> Top-Up QRIS' +
+          '</button>' +
+        '</div>' +
+        '<div style="font-size:11px;color:rgba(255,255,255,0.62);margin-top:8px;">' +
+          'Gunakan saldo untuk booking privat 1-klik tanpa nama layanan di mutasi bank.' +
+        '</div>' +
+      '</div>';
+  }
+
+  // 4. Kontrol Modal QRIS Dinamis
+  window.setCnQrisAmount = function(val, btnEl) {
+    currentAmount = Math.max(1000, Math.round(Number(val) || 100000));
+    var inp = document.getElementById("cnQrisCustomAmountInput");
+    if (inp && document.activeElement !== inp) inp.value = currentAmount;
+
+    if (btnEl) {
+      document.querySelectorAll(".cn-qris-preset-btn").forEach(function(b) { b.classList.remove("active"); });
+      btnEl.classList.add("active");
+    }
+
+    currentGeneratedPayload = window.regenerateDynamicQris(currentAmount);
+    var qrImg = document.getElementById("cnQrisQrImg");
+    if (qrImg) {
+      qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=6&data=" + encodeURIComponent(currentGeneratedPayload);
+    }
+    var nomEl = document.getElementById("cnQrisDisplayNominal");
+    if (nomEl) nomEl.textContent = formatRupiah(currentAmount);
+  };
+
+  window.openCnQrisTopupModal = function(presetAmount, bookingCtx) {
+    var user = getActiveUser();
+    if (!user) {
+      if (window.openCnAuthModal) window.openCnAuthModal("login");
+      return;
+    }
+
+    currentMode = bookingCtx ? "booking" : "topup";
+    currentBookingContext = bookingCtx || null;
+
+    var titleEl = document.getElementById("cnQrisModalTitle");
+    var presetWrap = document.getElementById("cnQrisPresetWrap");
+    var refEl = document.getElementById("cnQrisRefCode");
+    var noteEl = document.getElementById("cnQrisStatusNote");
+    if (noteEl) noteEl.style.display = "none";
+
+    if (currentMode === "booking" && bookingCtx) {
+      if (titleEl) titleEl.textContent = "Bayar Booking via QRIS Dinamis";
+      if (presetWrap) presetWrap.style.display = "none";
+      if (refEl) refEl.textContent = "Order: " + bookingCtx.service + " (@" + user.username + ")";
+      window.setCnQrisAmount(bookingCtx.amount || 100000);
+    } else {
+      if (titleEl) titleEl.textContent = "Top-Up Saldo via QRIS";
+      if (presetWrap) presetWrap.style.display = "block";
+      if (refEl) refEl.textContent = "Top-Up Akun: @" + user.username;
+      window.setCnQrisAmount(presetAmount || 100000);
+    }
+
+    var modal = document.getElementById("cnQrisPayModal");
+    if (modal) {
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+    }
+  };
+
+  window.closeCnQrisModal = function() {
+    var modal = document.getElementById("cnQrisPayModal");
+    if (modal) {
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  };
+
+  window.copyCnQrisPayload = function() {
+    if (!currentGeneratedPayload) return;
+    navigator.clipboard && navigator.clipboard.writeText(currentGeneratedPayload).catch(function() {});
+    var noteEl = document.getElementById("cnQrisStatusNote");
+    if (noteEl) {
+      noteEl.textContent = "Payload QRIS Dinamis disalin ke clipboard!";
+      noteEl.style.display = "block";
+    }
+  };
+
+  window.downloadCnQrisImage = function() {
+    var qrImg = document.getElementById("cnQrisQrImg");
+    if (!qrImg || !qrImg.src) return;
+    var a = document.createElement("a");
+    a.href = qrImg.src;
+    a.download = "QRIS-ClubsNight-" + currentAmount + ".png";
+    a.target = "_blank";
+    a.click();
+  };
+
+  window.confirmCnQrisPayment = function() {
+    var user = getActiveUser();
+    if (!user) return;
+    var uname = user.username.toLowerCase();
+    var reqId = "TOPUP-" + Date.now();
+
+    // Simpan ke antrean verifikasi SuperAdmin & kirim ke Worker
+    var queue = [];
+    try { queue = JSON.parse(localStorage.getItem(TOPUP_QUEUE_KEY) || "[]"); } catch (_) {}
+    queue.unshift({
+      id: reqId,
+      username: uname,
+      name: user.name,
+      amount: currentAmount,
+      mode: currentMode,
+      booking: currentBookingContext,
+      status: "Menunggu Verifikasi QRIS",
+      createdAt: new Date().toISOString()
+    });
+    localStorage.setItem(TOPUP_QUEUE_KEY, JSON.stringify(queue.slice(0, 100)));
+
+    fetch(WORKER_API + "/api/orders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: reqId,
+        customerUsername: uname,
+        customerName: user.name,
+        service: currentMode === "booking" && currentBookingContext
+          ? ("QRIS Booking: " + currentBookingContext.service)
+          : ("Top-Up Saldo CN Wallet (" + formatRupiah(currentAmount) + ")"),
+        amount: currentAmount,
+        status: "Menunggu Verifikasi QRIS"
+      })
+    }).catch(function() {});
+
+    var noteEl = document.getElementById("cnQrisStatusNote");
+    if (noteEl) {
+      noteEl.innerHTML = "✅ Konfirmasi pembayaran <b>" + formatRupiah(currentAmount) + "</b> terkirim! Saldo akan otomatis masuk setelah mutasi QRIS terverifikasi.";
+      noteEl.style.display = "block";
+    }
+  };
+
+  // 5. Suntikkan Tombol Pembayaran Saldo & QRIS Dinamis di Halaman Mandiri Booking Detail
+  function injectPaymentButtonsInBookingDetail() {
+    var calcCard = document.getElementById("calculatorCardInline");
+    if (!calcCard || document.getElementById("cnDetailWalletPayWrap")) return;
+
+    var wrap = document.createElement("div");
+    wrap.id = "cnDetailWalletPayWrap";
+    wrap.className = "cn-detail-pay-grid";
+    wrap.innerHTML =
+      '<button type="button" id="cnPayWithWalletBtn" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">' +
+        '<i class="fa-solid fa-wallet"></i> Bayar Instan dengan Saldo CN' +
+      '</button>' +
+      '<button type="button" id="cnPayWithDynamicQrisBtn" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,64,129,0.5);background:rgba(255,23,68,0.14);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">' +
+        '<i class="fa-solid fa-qrcode"></i> Bayar Langsung via QRIS Dinamis (Sesuai Harga)' +
+      '</button>';
+
+    calcCard.appendChild(wrap);
+
+    function readCalculatedBooking() {
+      var priceEl = document.getElementById("detailPriceDisplay");
+      var totalEl = document.getElementById("calcTotal") || priceEl;
+      var rawPrice = totalEl ? (totalEl.value || totalEl.textContent || "0") : "0";
+      var amount = Number(String(rawPrice).replace(/[^0-9]/g, "")) || 0;
+
+      var talentEl = document.getElementById("calcTalent") || document.getElementById("detailName");
+      var catEl = document.getElementById("calcCategory") || document.getElementById("detailBagianOption");
+      var tName = talentEl ? (talentEl.value || talentEl.textContent || "Talent").trim() : "Talent";
+      var cName = catEl ? (catEl.value || "Service").trim() : "Service";
+      return {
+        amount: amount,
+        service: tName + " • " + cName
+      };
+    }
+
+    document.getElementById("cnPayWithDynamicQrisBtn").onclick = function() {
+      var b = readCalculatedBooking();
+      if (b.amount <= 0) {
+        alert("Silakan pilih kategori & durasi layanan terlebih dahulu agar harga terhitung.");
+        return;
+      }
+      window.openCnQrisTopupModal(b.amount, b);
+    };
+
+    document.getElementById("cnPayWithWalletBtn").onclick = function() {
+      var user = getActiveUser();
+      if (!user) {
+        if (window.openCnAuthModal) window.openCnAuthModal("login");
+        return;
+      }
+      var b = readCalculatedBooking();
+      if (b.amount <= 0) {
+        alert("Silakan pilih kategori & durasi layanan terlebih dahulu.");
+        return;
+      }
+      var bal = getUserBalance(user.username);
+      if (bal < b.amount) {
+        if (confirm("Saldo CN Wallet Anda (" + formatRupiah(bal) + ") belum mencukupi untuk total " + formatRupiah(b.amount) + ".
+
+Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
+          window.openCnQrisTopupModal(b.amount, b);
+        }
+        return;
+      }
+      setUserBalance(user.username, bal - b.amount);
+      var orderId = "ORD-WALLET-" + Date.now();
+      var storeKey = "cn_orders_" + user.username.toLowerCase();
+      var list = [];
+      try { list = JSON.parse(localStorage.getItem(storeKey) || "[]"); } catch (_) {}
+      list.unshift({
+        id: orderId,
+        user: "@" + user.username,
+        service: b.service + " (" + formatRupiah(b.amount) + ")",
+        amount: b.amount,
+        status: "Lunas via Saldo CN",
+        time: new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+      });
+      localStorage.setItem(storeKey, JSON.stringify(list.slice(0, 50)));
+      if (typeof window.sendCnOrderToCloud === "function") {
+        window.sendCnOrderToCloud(list[0]);
+      }
+      alert("✅ Pembayaran berhasil! Saldo terpotong " + formatRupiah(b.amount) + ". Sisa saldo: " + formatRupiah(bal - b.amount));
+    };
+  }
+
+  // Expose helper untuk SuperAdmin menyetujui top-up QRIS
+  window.approveCnQrisTopup = function(reqId) {
+    var queue = [];
+    try { queue = JSON.parse(localStorage.getItem(TOPUP_QUEUE_KEY) || "[]"); } catch (_) {}
+    var item = queue.find(function(x) { return x.id === reqId; });
+    if (!item || item.status === "Disetujui") return;
+    item.status = "Disetujui";
+    localStorage.setItem(TOPUP_QUEUE_KEY, JSON.stringify(queue));
+    var cur = getUserBalance(item.username);
+    setUserBalance(item.username, cur + Number(item.amount || 0));
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function() {
+      renderWalletCardInActivity();
+      injectPaymentButtonsInBookingDetail();
+    });
+  } else {
+    renderWalletCardInActivity();
+    injectPaymentButtonsInBookingDetail();
+  }
+  setTimeout(function() {
+    renderWalletCardInActivity();
+    injectPaymentButtonsInBookingDetail();
+  }, 400);
+  window.addEventListener("cn:session-changed", renderWalletCardInActivity);
+})();
+</script>
+
 </body>
 </html>
