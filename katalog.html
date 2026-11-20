@@ -7570,90 +7570,28 @@ window.addEventListener("storage", function(e) {
 </script>
 
 
-<style id="cnBottomNavTouchFixCss">
-  /* Pastikan semua modal/overlay tertutup tidak mencegat sentuhan */
-  .overlay-modal[style*="display: none"],
-  .overlay-modal[style*="display:none"],
-  #cnTourSvgOverlay[style*="display: none"],
-  #cnTourSvgOverlay[style*="display:none"],
-  #cnSplashLoader.cn-hide {
-    pointer-events: none !important;
-  }
 
-  /* Kunci navigasi bawah di lapisan paling atas & pastikan seluruh area tombol responsif */
-  nav:has(.cn-bnav-item),
-  .cn-bottom-nav,
-  #cnBottomNav {
-    z-index: 2147483000 !important;
-    pointer-events: auto !important;
-  }
-  .cn-bnav-item {
-    position: relative !important;
-    z-index: 2147483001 !important;
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-    cursor: pointer !important;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .cn-bnav-item * {
-    pointer-events: none !important;
-  }
-</style>
-<script id="cnBottomNavTouchFixJs">
-(function() {
-  function triggerNavTab(ev) {
-    var target = ev.target && ev.target.closest ? ev.target.closest(".cn-bnav-item[data-pwa-tab]") : null;
-    if (!target) return;
-    var tab = target.getAttribute("data-pwa-tab");
-    if (!tab) return;
-    if (ev.type === "touchend") {
-      ev.preventDefault();
-    }
-    if (typeof window.switchPwaTab === "function") {
-      window.switchPwaTab(tab, target);
-    }
-  }
-  document.addEventListener("touchend", triggerNavTab, { capture: true, passive: false });
-  document.addEventListener("click", triggerNavTab, true);
-})();
-</script>
-
-
-<style id="cnActivityRowsTouchFixCss">
-  .cn-activity-card,
-  .cn-activity-row {
-    position: relative !important;
-    z-index: 20 !important;
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-    cursor: pointer !important;
-    -webkit-tap-highlight-color: rgba(255, 23, 68, 0.18);
-  }
-  .cn-activity-row > span,
-  .cn-activity-row > i,
-  .cn-activity-row svg {
-    pointer-events: none !important;
-  }
-</style>
-<script id="cnActivityRouterUpgradeJs">
+<script id="cnCleanSubpageRouterJs">
 (function() {
   var origSwitch = window.switchPwaTab;
-  var extraMap = {
+  var subPages = {
     orders: "cnPageOrders",
     support: "cnPageSupport",
     sop: "cnPageSop",
     articles: "cnPageArticles"
   };
 
-  window.switchPwaTab = function(tab, btnEl) {
-    // Sembunyikan semua halaman mandiri tambahan terlebih dahulu
-    Object.keys(extraMap).forEach(function(k) {
-      var sec = document.getElementById(extraMap[k]);
+  function hideAllSubPages() {
+    Object.keys(subPages).forEach(function(k) {
+      var sec = document.getElementById(subPages[k]);
       if (sec) sec.style.display = "none";
     });
+  }
 
-    if (extraMap[tab]) {
-      // Jalankan pembersihan tampilan Home & tab utama lewat router bawaan
+  window.switchPwaTab = function(tab, btnEl, fromPopState) {
+    hideAllSubPages();
+
+    if (subPages[tab]) {
       if (typeof origSwitch === "function") {
         origSwitch("__subpage__", null);
       } else {
@@ -7662,20 +7600,15 @@ window.addEventListener("storage", function(e) {
         });
       }
 
-      // Aktifkan indikator tab 'Aktivitas' di bottom nav saat membuka halaman mandiri
       document.querySelectorAll(".cn-bnav-item").forEach(function(b) {
         b.classList.remove("active");
       });
       var actBtn = document.querySelector('.cn-bnav-item[data-pwa-tab="activity"]');
       if (actBtn) actBtn.classList.add("active");
 
-      // Tampilkan halaman mandiri tujuan
-      var targetSec = document.getElementById(extraMap[tab]);
-      if (targetSec) {
-        targetSec.style.display = "block";
-      }
+      var targetSec = document.getElementById(subPages[tab]);
+      if (targetSec) targetSec.style.display = "block";
 
-      // Jalankan inisialisasi data halaman mandiri jika tersedia
       try {
         if (tab === "orders" && typeof window.switchCnOrderTab === "function") {
           window.switchCnOrderTab("personal");
@@ -7685,6 +7618,9 @@ window.addEventListener("storage", function(e) {
         }
       } catch (_) {}
 
+      if (!fromPopState && window.history && window.history.pushState) {
+        window.history.pushState({ cnTab: tab }, "", "#" + tab);
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -7692,24 +7628,24 @@ window.addEventListener("storage", function(e) {
     if (typeof origSwitch === "function") {
       origSwitch(tab, btnEl);
     }
+
+    if (!fromPopState && tab && tab !== "__subpage__" && window.history && window.history.pushState) {
+      window.history.pushState({ cnTab: tab }, "", tab === "home" ? window.location.pathname : "#" + tab);
+    }
   };
 
-  // Pastikan tap jari di perangkat mobile langsung mengeksekusi tombol .cn-activity-row tanpa delay
-  var touchStartY = 0;
-  document.addEventListener("touchstart", function(ev) {
-    if (ev.touches && ev.touches[0]) touchStartY = ev.touches[0].clientY;
-  }, { passive: true });
-
-  document.addEventListener("touchend", function(ev) {
-    var moved = ev.changedTouches && ev.changedTouches[0]
-      ? Math.abs(ev.changedTouches[0].clientY - touchStartY)
-      : 0;
-    if (moved > 12) return; // Abaikan jika pengguna sedang menggeser (scroll) halaman
-    var row = ev.target && ev.target.closest ? ev.target.closest(".cn-activity-row") : null;
-    if (!row) return;
-    ev.preventDefault();
-    row.click();
-  }, { capture: true, passive: false });
+  // Sinkronkan tombol Back fisik / gestur HP dengan navigasi tab & sub-halaman
+  window.addEventListener("popstate", function(ev) {
+    var st = ev.state;
+    if (st && st.cnTab) {
+      window.switchPwaTab(st.cnTab, null, true);
+    } else {
+      hideAllSubPages();
+      if (typeof origSwitch === "function") {
+        origSwitch("home", null);
+      }
+    }
+  });
 })();
 </script>
 
