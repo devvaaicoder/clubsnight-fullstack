@@ -171,6 +171,7 @@
   <script>
     (function() {
       var API_BASE = "https://clubsnight-api.onrender.com";
+      var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
 
       var SESSION_KEY = "cn_auth_session_v1";
       var BOT_USERNAME = "NightyTelegramLoginAccess_bot";
@@ -240,6 +241,28 @@
         try {
 
         
+
+          if (!isReg) {
+            var tRes = await fetch(WORKER_API + "/api/talent/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                username: inputUser.value.trim().toLowerCase().replace(/^@/, ""),
+                password: inputPass.value.trim()
+              })
+            });
+            var tData = await tRes.json().catch(function() { return {}; });
+            if (tRes.ok && tData.success && tData.user) {
+              var talentUser = Object.assign({}, tData.user, {
+                sessionToken: tData.sessionToken || tData.user.sessionToken || ""
+              });
+              completeLogin(talentUser, "talent_d1");
+              return;
+            }
+            if (!tData.notFound && tRes.status !== 404) {
+              throw new Error(tData.error || "Username atau password talent salah.");
+            }
+          }
 
           var endpoint = isReg ? "/api/auth/register" : "/api/auth/login";
           var payload = isReg
