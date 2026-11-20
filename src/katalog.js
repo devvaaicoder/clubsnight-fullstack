@@ -11,7 +11,7 @@ document.addEventListener('keydown', function(e) {
 
 const LIVECHAT_WORKER_URL = import.meta.env.VITE_LIVECHAT_URL || "https://clubsnight-livechat.clubsnight.workers.dev";
 const TELEGRAM_CS_BOT_URL = "https://t.me/clubsnightcs_bot";
-const WORKER_API_URL = import.meta.env.VITE_API_URL || "https://clubsnight-fullstack.clubsnight.workers.dev";
+const WORKER_API_URL = import.meta.env.VITE_API_URL || "https://clubsnight-api.clubsnight.workers.dev";
 const MEDIA_WORKER_URL = import.meta.env.VITE_MEDIA_URL || "https://clubsnight-media.clubsnight.workers.dev";
 function escapeHTML(str) {
   return String(str || "")
