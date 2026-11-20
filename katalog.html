@@ -6657,5 +6657,17 @@
 })();
 </script>
 
+
+<script id="cnCrossTabSync">
+window.addEventListener("storage", function(e) {
+  if (e.key === "cn_pwa_session_v1" || e.key === "cn_auth_session_v1") {
+    if (!e.newValue) {
+      window.location.replace("/login.html?next=%2Fkatalog");
+    } else {
+      window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: JSON.parse(e.newValue) }));
+    }
+  }
+});
+</script>
 </body>
 </html>

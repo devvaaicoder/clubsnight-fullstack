@@ -6,12 +6,14 @@ export default {
     ];
     const origin = request.headers.get("Origin") || "";
     const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-    const corsOrigin = (allowedOrigins.includes(origin) || isLocalhost) ? origin : allowedOrigins[0];
+    const isPagesPreview = /^https:\/\/[a-z0-9-]+\.clubsnight-id\.pages\.dev$/.test(origin);
+    const corsOrigin = (allowedOrigins.includes(origin) || isLocalhost || isPagesPreview) ? origin : allowedOrigins[0];
 
     const corsHeaders = {
       "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
       "Vary": "Origin"
     };
 

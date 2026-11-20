@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Masuk & Daftar — Clubs' Night</title>
   <link rel="icon" type="image/svg+xml" href="/cn-icon.svg" />
   <style>
@@ -127,6 +127,17 @@
     #tgWidgetWrap { min-height: 46px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; }
     .foot { margin-top: 16px; font-size: 11.5px; color: rgba(255,255,255,0.45); }
   </style>
+
+<style id="cnGlobalIosPolish">
+  html, body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    -webkit-tap-highlight-color: transparent;
+  }
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+</style>
 </head>
 <body>
   <a href="/" class="back-link">← Kembali ke Beranda</a>
