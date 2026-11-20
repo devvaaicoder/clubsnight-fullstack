@@ -6291,17 +6291,24 @@
         }
       };
 
-      window.cnTriggerTelegramAuth = function() {
+      window.cnTriggerTelegramAuth = function(forceReload) {
         var isLocal = ["localhost", "127.0.0.1"].indexOf(window.location.hostname) !== -1;
         if (isLocal) {
           if (window.cnToast) window.cnToast("Widget Telegram butuh domain HTTPS. Gunakan tombol Localhost Testing di bawah.", "warn");
           return;
         }
-        // Di domain HTTPS produksi, muat script resmi Telegram Widget
         var wrap = document.getElementById("cnTgWidgetContainer");
-        if (!wrap || wrap.dataset.loaded) return;
+        if (!wrap) return;
+        if (wrap.dataset.loaded === "1" && !forceReload) return;
         wrap.dataset.loaded = "1";
-        wrap.innerHTML = "";
+        wrap.style.minHeight = "52px";
+        wrap.style.display = "flex";
+        wrap.style.flexDirection = "column";
+        wrap.style.alignItems = "center";
+        wrap.style.justifyContent = "center";
+        wrap.style.gap = "10px";
+        wrap.innerHTML = '<div id="cnTgLoadingMsg" style="font-size:12px;color:rgba(255,255,255,0.65);">Menghubungkan ke Telegram...</div>';
+
         var sc = document.createElement("script");
         sc.async = true;
         sc.src = "https://telegram.org/js/telegram-widget.js?22";
@@ -6310,7 +6317,29 @@
         sc.setAttribute("data-radius", "12");
         sc.setAttribute("data-onauth", "onTelegramAuth(user)");
         sc.setAttribute("data-request-access", "write");
+
+        sc.onload = function() {
+          var msg = document.getElementById("cnTgLoadingMsg");
+          if (msg) msg.remove();
+        };
+
+        sc.onerror = function() {
+          wrap.dataset.loaded = "0";
+          wrap.innerHTML = '<div style="font-size:12px;color:#ff6b81;margin-bottom:6px;">Gagal memuat widget dari telegram.org (cek koneksi/DNS/AdBlock).</div>' +
+            '<button type="button" class="cn-tg-login-btn" onclick="window.cnTriggerTelegramAuth(true)"><i class="fa-brands fa-telegram"></i><span>Coba Muat Ulang Telegram</span></button>';
+        };
+
         wrap.appendChild(sc);
+
+        // Fallback jika iframe Telegram tidak muncul dalam 5 detik
+        setTimeout(function() {
+          if (!wrap.querySelector("iframe")) {
+            var msg = document.getElementById("cnTgLoadingMsg");
+            if (msg) {
+              msg.innerHTML = 'Widget Telegram lambat merespons. <button type="button" onclick="window.cnTriggerTelegramAuth(true)" style="background:none;border:none;color:#2AABEE;font-weight:700;cursor:pointer;text-decoration:underline;">Muat ulang</button>';
+            }
+          }
+        }, 5000);
       };
 
       // Simulasi khusus localhost (terblokir otomatis di domain produksi)
