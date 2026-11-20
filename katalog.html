@@ -7571,79 +7571,26 @@ window.addEventListener("storage", function(e) {
 
 
 
-<script id="cnCleanSubpageRouterJs">
-(function() {
-  var origSwitch = window.switchPwaTab;
-  var subPages = {
-    orders: "cnPageOrders",
-    support: "cnPageSupport",
-    sop: "cnPageSop",
-    articles: "cnPageArticles"
-  };
 
-  function hideAllSubPages() {
-    Object.keys(subPages).forEach(function(k) {
-      var sec = document.getElementById(subPages[k]);
-      if (sec) sec.style.display = "none";
-    });
+<script id="cnHistoryBackSyncJs">
+(function() {
+  var baseSwitch = window.switchPwaTab;
+  if (typeof baseSwitch === "function") {
+    window.switchPwaTab = function(tab, btnEl, fromPopState) {
+      baseSwitch(tab, btnEl);
+      if (!fromPopState && tab && window.history && window.history.pushState) {
+        var targetHash = tab === "home" ? window.location.pathname : "#" + tab;
+        window.history.pushState({ cnTab: tab }, "", targetHash);
+      }
+    };
   }
 
-  window.switchPwaTab = function(tab, btnEl, fromPopState) {
-    hideAllSubPages();
-
-    if (subPages[tab]) {
-      if (typeof origSwitch === "function") {
-        origSwitch("__subpage__", null);
-      } else {
-        document.querySelectorAll(".cn-pwa-page").forEach(function(el) {
-          el.style.display = "none";
-        });
-      }
-
-      document.querySelectorAll(".cn-bnav-item").forEach(function(b) {
-        b.classList.remove("active");
-      });
-      var actBtn = document.querySelector('.cn-bnav-item[data-pwa-tab="activity"]');
-      if (actBtn) actBtn.classList.add("active");
-
-      var targetSec = document.getElementById(subPages[tab]);
-      if (targetSec) targetSec.style.display = "block";
-
-      try {
-        if (tab === "orders" && typeof window.switchCnOrderTab === "function") {
-          window.switchCnOrderTab("personal");
-        }
-        if (tab === "support" && typeof window.renderCnSupportChat === "function") {
-          window.renderCnSupportChat();
-        }
-      } catch (_) {}
-
-      if (!fromPopState && window.history && window.history.pushState) {
-        window.history.pushState({ cnTab: tab }, "", "#" + tab);
-      }
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    if (typeof origSwitch === "function") {
-      origSwitch(tab, btnEl);
-    }
-
-    if (!fromPopState && tab && tab !== "__subpage__" && window.history && window.history.pushState) {
-      window.history.pushState({ cnTab: tab }, "", tab === "home" ? window.location.pathname : "#" + tab);
-    }
-  };
-
-  // Sinkronkan tombol Back fisik / gestur HP dengan navigasi tab & sub-halaman
   window.addEventListener("popstate", function(ev) {
     var st = ev.state;
-    if (st && st.cnTab) {
+    if (st && st.cnTab && typeof window.switchPwaTab === "function") {
       window.switchPwaTab(st.cnTab, null, true);
-    } else {
-      hideAllSubPages();
-      if (typeof origSwitch === "function") {
-        origSwitch("home", null);
-      }
+    } else if (typeof window.switchPwaTab === "function") {
+      window.switchPwaTab("home", null, true);
     }
   });
 })();
