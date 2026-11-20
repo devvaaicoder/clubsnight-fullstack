@@ -2157,3 +2157,8 @@ Object.assign(window, {
 });
 
 import "./luxury-theme.css";
+
+
+// Ekspos openDetail & openDetailById ke global agar tombol Booking di Lounge langsung membuka halaman mandiri Detail Booking
+window.openDetail = openDetail;
+window.openDetailById = openDetailById;
