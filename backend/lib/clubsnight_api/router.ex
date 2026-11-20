@@ -1,6 +1,6 @@
 defmodule ClubsnightApi.Router do
   use Plug.Router
-  alias ClubsnightApi.{D1, TelegramAuth}
+  alias ClubsnightApi.{D1, TelegramAuth, LocalAuth}
 
   plug :cors
   plug Plug.Parsers, parsers: [:json], pass: ["application/json"], json_decoder: Jason
@@ -30,6 +30,104 @@ defmodule ClubsnightApi.Router do
       {:error, reason} ->
         send_json(conn, 401, %{error: "Auth failed", reason: reason})
     end
+  end
+
+
+  # Daftar Akun Pure Clubs' Night (Username + Password, Tanpa Email/No HP)
+  post "/api/auth/register" do
+    username = LocalAuth.normalize_username(Map.get(conn.body_params, "username", ""))
+    password = Map.get(conn.body_params, "password", "")
+    display_name = (Map.get(conn.body_params, "name", "") |> to_string() |> String.trim())
+    name = if display_name == "", do: username, else: String.slice(display_name, 0, 40)
+
+    cond do
+      String.length(username) < 3 or String.length(username) > 24 ->
+        send_json(conn, 422, %{error: "Username harus 3–24 karakter (huruf, angka, garis bawah)."})
+
+      not is_binary(password) or String.length(password) < 6 ->
+        send_json(conn, 422, %{error: "Password minimal 6 karakter."})
+
+      true ->
+        case D1.query("SELECT tg_id FROM users WHERE LOWER(username) = ? LIMIT 1", [username]) do
+          {:ok, [_ | _]} ->
+            send_json(conn, 409, %{error: "Username sudah dipakai. Silakan pilih username lain."})
+
+          {:ok, []} ->
+            cn_id = LocalAuth.generate_cn_id()
+            pw_hash = LocalAuth.hash_password(password)
+
+            case D1.query(
+                   "INSERT INTO users (tg_id, username, name, role, avatar_url, password_hash, auth_provider) VALUES (?, ?, ?, 'user', '', ?, 'clubsnight')",
+                   [cn_id, username, name, pw_hash]
+                 ) do
+              {:ok, _} ->
+                user = %{
+                  tg_id: cn_id,
+                  username: username,
+                  name: name,
+                  avatar_url: "",
+                  role: "user",
+                  permissions: [],
+                  saVerified: false
+                }
+
+                token = Plug.Crypto.sign(System.fetch_env!("SESSION_SECRET"), "cn_session", user)
+
+                conn
+                |> put_resp_cookie("cn_sess", token, http_only: true, secure: true, same_site: "None", max_age: 2_592_000)
+                |> send_json(201, %{ok: true, user: Map.put(user, :provider, "clubsnight")})
+
+              {:error, _} ->
+                send_json(conn, 500, %{error: "Gagal mendaftarkan akun. Coba lagi."})
+            end
+
+          {:error, _} ->
+            send_json(conn, 500, %{error: "Gangguan database."})
+        end
+    end
+  end
+
+  # Login Akun Pure Clubs' Night
+  post "/api/auth/login" do
+    username = LocalAuth.normalize_username(Map.get(conn.body_params, "username", ""))
+    password = Map.get(conn.body_params, "password", "")
+
+    case D1.query("SELECT tg_id, username, name, role, avatar_url, password_hash FROM users WHERE LOWER(username) = ? AND auth_provider = 'clubsnight' LIMIT 1", [username]) do
+      {:ok, [row]} ->
+        if LocalAuth.verify_password(password, row["password_hash"] || "") do
+          role = row["role"] || "user"
+          user = %{
+            tg_id: row["tg_id"],
+            username: row["username"],
+            name: row["name"] || row["username"],
+            avatar_url: row["avatar_url"] || "",
+            role: role,
+            permissions: [],
+            saVerified: role in ["owner", "admin_qc_merch", "admin_qc", "admin_merch"]
+          }
+
+          token = Plug.Crypto.sign(System.fetch_env!("SESSION_SECRET"), "cn_session", user)
+
+          conn
+          |> put_resp_cookie("cn_sess", token, http_only: true, secure: true, same_site: "None", max_age: 2_592_000)
+          |> send_json(200, %{ok: true, user: Map.put(user, :provider, "clubsnight")})
+        else
+          send_json(conn, 401, %{error: "Username atau password salah."})
+        end
+
+      {:ok, []} ->
+        send_json(conn, 401, %{error: "Username atau password salah."})
+
+      {:error, _} ->
+        send_json(conn, 500, %{error: "Gangguan database."})
+    end
+  end
+
+  # Logout (Hapus HttpOnly Cookie)
+  post "/api/auth/logout" do
+    conn
+    |> delete_resp_cookie("cn_sess", http_only: true, secure: true, same_site: "None")
+    |> send_json(200, %{ok: true})
   end
 
   get "/api/me" do
