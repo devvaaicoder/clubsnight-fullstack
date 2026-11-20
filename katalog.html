@@ -4576,34 +4576,497 @@
       var FEED_KEY = "cn_lounge_posts_v1";
       var tempAvatarDataUrl = "";
 
-      var seedProfiles = {};
-
-      function getProfiles() {
-        try {
-          var raw = localStorage.getItem(PROF_KEY);
-          var parsed = raw ? JSON.parse(raw) : {};
-          return Object.assign({}, seedProfiles, parsed);
-        } catch (e) { return Object.assign({}, seedProfiles); }
-      }
-
-      function saveProfiles(map) {
-        try { localStorage.setItem(PROF_KEY, JSON.stringify(map)); } catch (e) {}
-      }
-
-      function getProfileByUsername(username, fallbackName, fallbackRole) {
-        var clean = (username || "").replace(/^@/, "").toLowerCase();
-        var map = getProfiles();
-        if (map[clean]) return map[clean];
-        return {
-          username: clean || "member",
-          name: fallbackName || clean || "Member",
-          role: (fallbackRole || "VIP").toUpperCase(),
-          agency: "Clubs'Night",
-          status: "READY",
-          moods: ["VIP Lounge"],
-          bio: "Belum menambahkan biodata.",
-          avatar: ""
-        };
+      var seedProfiles = {
+  "florence": {
+    "username": "florence",
+    "name": "Florence 🇹🇭",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "OFFLINE",
+    "moods": [
+      "Cosplay"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://media-cn.my.id/assets-pict/1793497947821_sbsmgc.jpg"
+  },
+  "vallery": {
+    "username": "vallery",
+    "name": "Vallery",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "Manja"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://media-cn.my.id/assets-pict/1793497233382_jb5clr.jpg"
+  },
+  "cacawew": {
+    "username": "cacawew",
+    "name": "Cacawew",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "OFFLINE",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/wh6z0zwG/IMG-20261010-171128-470.jpg"
+  },
+  "maura": {
+    "username": "maura",
+    "name": "Maura",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/YTyDt0X1/IMG-20261015-154737-722.jpg"
+  },
+  "april": {
+    "username": "april",
+    "name": "April",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "OFFLINE",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/20Hng2Vr/IMG-20261011-104752-969.jpg"
+  },
+  "kesyaa": {
+    "username": "kesyaa",
+    "name": "Kesyaa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/4wHJhRmj/IMG-20261010-012425-208.jpg"
+  },
+  "natalia": {
+    "username": "natalia",
+    "name": "Natalia",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "Manja"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/spTwzBMK/IMG-20261020-110116-871.jpg"
+  },
+  "rubyy": {
+    "username": "rubyy",
+    "name": "Rubyy",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/Z1gnxvcr/IMG-20261011-110222-483.jpg"
+  },
+  "arabella": {
+    "username": "arabella",
+    "name": "Arabella",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/LXQZH1Rb/IMG-20261011-113633-427.jpg"
+  },
+  "nativa": {
+    "username": "nativa",
+    "name": "Nativa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://files.catbox.moe/7rba0n.jpg"
+  },
+  "grethaa": {
+    "username": "grethaa",
+    "name": "Grethaa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/7tSz0Q7N/623809-60kb.jpg"
+  },
+  "moraa": {
+    "username": "moraa",
+    "name": "Moraa",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/XfLN850R/IMG-20261011-104403-146.jpg"
+  },
+  "zahwa": {
+    "username": "zahwa",
+    "name": "Zahwa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/Fk09mgXZ/IMG-20261016-201955-303.jpg"
+  },
+  "eirene": {
+    "username": "eirene",
+    "name": "Eirene",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/jvNW84kb/IMG-20261009-220039-733.jpg"
+  },
+  "riaa": {
+    "username": "riaa",
+    "name": "Riaa",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/GNkChws/IMG-20261011-104019-864.jpg"
+  },
+  "ocaa": {
+    "username": "ocaa",
+    "name": "Ocaa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://files.catbox.moe/t7pik5.jpg"
+  },
+  "ara_lotus": {
+    "username": "ara_lotus",
+    "name": "Ara Lotus",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "OFFLINE",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/nN3SCwBZ/IMG-20261011-105102-470.jpg"
+  },
+  "annie": {
+    "username": "annie",
+    "name": "Annie",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://files.catbox.moe/xdvafu.jpg"
+  },
+  "nesaa": {
+    "username": "nesaa",
+    "name": "Nesaa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/FLnkxmMv/IMG-20261011-113242-435.jpg"
+  },
+  "vania": {
+    "username": "vania",
+    "name": "Vania",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/TDCgDXBt/IMG-20261009-131412-618.jpg"
+  },
+  "mimi": {
+    "username": "mimi",
+    "name": "MiMi",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/M5SvCXcw/IMG-20261010-004400-288.jpg"
+  },
+  "jazzy": {
+    "username": "jazzy",
+    "name": "Jazzy",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/PZR334cJ/IMG-20261011-105536-355.jpg"
+  },
+  "laras": {
+    "username": "laras",
+    "name": "Laras",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "OFFLINE",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/gZt2v1V3/IMG-20261020-111759-310.jpg"
+  },
+  "libyy": {
+    "username": "libyy",
+    "name": "Libyy",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://files.catbox.moe/fh25mn.jpg"
+  },
+  "lexxa": {
+    "username": "lexxa",
+    "name": "Lexxa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/n88Vxt3P/IMG-20261015-154736-231.jpg"
+  },
+  "kiky": {
+    "username": "kiky",
+    "name": "Kiky",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/ZRh0hHMg/623638-50kb.jpg"
+  },
+  "cimory": {
+    "username": "cimory",
+    "name": "Cimory",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/vvHTWtV5/IMG-20261009-221218-270.jpg"
+  },
+  "ichaashaa": {
+    "username": "ichaashaa",
+    "name": "IchaaShaa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/0yh7Lqnq/626275-80kb.jpg"
+  },
+  "cheese": {
+    "username": "cheese",
+    "name": "Cheese",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "BUSY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/Z6kPp2P9/IMG-20261011-103439-391.jpg"
+  },
+  "feiraa": {
+    "username": "feiraa",
+    "name": "Feiraa",
+    "role": "TALENT",
+    "agency": "Noctis Angel",
+    "status": "READY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Noctis Angel. Privasi member terjamin 100%.",
+    "avatar": "https://files.catbox.moe/66isno.jpg"
+  },
+  "lyelle": {
+    "username": "lyelle",
+    "name": "Lyelle",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "OFFLINE",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/vxJd3L4N/623633.jpg"
+  },
+  "lucia": {
+    "username": "lucia",
+    "name": "Lucia",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "OFFLINE",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/F4QPZ78k/IMG-20261011-103724-175.jpg"
+  },
+  "rara_nadifah": {
+    "username": "rara_nadifah",
+    "name": "Rara Nadifah",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://media-cn.my.id/assets-pict/1792518726053_646048.jpg"
+  },
+  "mirley": {
+    "username": "mirley",
+    "name": "Mirley",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "OFFLINE",
+    "moods": [
+      "Manja"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://media-cn.my.id/assets-pict/1792521879637_646045.jpg"
+  },
+  "peyy": {
+    "username": "peyy",
+    "name": "Peyy",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/4ZckRQJ6/IMG-20261012-012305-941.jpg"
+  },
+  "afaaa_cn": {
+    "username": "afaaa_cn",
+    "name": "Afaaa C'N",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "READY",
+    "moods": [
+      "Cosplay",
+      "Manja"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/tTRKKHK5/IMG-20261008-225136-257.jpg"
+  },
+  "faraa": {
+    "username": "faraa",
+    "name": "Faraa",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/VY1dPL9S/625845-80kb.jpg"
+  },
+  "syakilla": {
+    "username": "syakilla",
+    "name": "Syakilla",
+    "role": "TALENT",
+    "agency": "Clubs'Night",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Clubs'Night. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/GQspSfkR/IMG-20261009-041437-165.jpg"
+  },
+  "lily": {
+    "username": "lily",
+    "name": "Lily",
+    "role": "TALENT",
+    "agency": "Lotus",
+    "status": "BUSY",
+    "moods": [
+      "GFE",
+      "VIP Lounge"
+    ],
+    "bio": "Talent resmi Lotus. Privasi member terjamin 100%.",
+    "avatar": "https://i.ibb.co.com/Tx2Z9jHw/IMG-20261011-103041-636.jpg"
+  }
+};
       }
 
       // 1. Mount halaman #cnPagePublicProfile di puncak <main>
