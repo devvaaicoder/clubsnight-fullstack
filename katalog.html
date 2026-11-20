@@ -8862,5 +8862,350 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
 })();
 </script>
 
+<script id="cnHardPaymentGateScript">
+(function() {
+  var WORKER_API = "https://clubsnight-fullstack.devvaaicoder.workers.dev";
+  var paidBookingReceipts = {};
+
+  function formatRp(n) {
+    return "Rp " + Number(n || 0).toLocaleString("id-ID");
+  }
+
+  function getUnifiedUser() {
+    if (window.cnAuth && typeof window.cnAuth.getSession === "function") {
+      var s0 = window.cnAuth.getSession();
+      if (s0 && s0.username) return { username: String(s0.username).replace(/^@/, "").toLowerCase(), name: s0.name || s0.username };
+    }
+    var keys = ["cn_talent_session_v1", "cn_talent_session", "cn_active_talent", "cn_pwa_session_v1", "cn_auth_session_v1"];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var raw = localStorage.getItem(keys[i]);
+        if (!raw) continue;
+        var obj = JSON.parse(raw);
+        if (obj && obj.username) {
+          return {
+            username: String(obj.username).replace(/^@/, "").toLowerCase(),
+            name: obj.name || obj.displayName || obj.username
+          };
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function getSessionToken() {
+    try {
+      var t = localStorage.getItem("cn_session_token");
+      if (t) return t;
+      var keys = ["cn_talent_session_v1", "cn_pwa_session_v1", "cn_auth_session_v1"];
+      for (var i = 0; i < keys.length; i++) {
+        var raw = localStorage.getItem(keys[i]);
+        if (!raw) continue;
+        var obj = JSON.parse(raw);
+        if (obj && (obj.sessionToken || obj.token)) return obj.sessionToken || obj.token;
+      }
+    } catch (_) {}
+    return "";
+  }
+
+  function getLocalWalletBalance(uname) {
+    try {
+      var raw = localStorage.getItem("cn_wallet_balances_v1");
+      if (raw) {
+        var map = JSON.parse(raw);
+        if (map && typeof map[uname] === "number") return map[uname];
+      }
+      var single = localStorage.getItem("cn_wallet_balance_" + uname);
+      if (single !== null && !isNaN(Number(single))) return Number(single);
+    } catch (_) {}
+    return 0;
+  }
+
+  function setLocalWalletBalance(uname, newBal) {
+    try {
+      var raw = localStorage.getItem("cn_wallet_balances_v1");
+      var map = raw ? JSON.parse(raw) : {};
+      map[uname] = Number(newBal || 0);
+      localStorage.setItem("cn_wallet_balances_v1", JSON.stringify(map));
+      localStorage.setItem("cn_wallet_balance_" + uname, String(Number(newBal || 0)));
+      window.dispatchEvent(new CustomEvent("cn:wallet-updated", { detail: { username: uname, balance: Number(newBal || 0) } }));
+    } catch (_) {}
+  }
+
+  async function fetchServerBalance(uname) {
+    var localBal = getLocalWalletBalance(uname);
+    try {
+      var res = await fetch(WORKER_API + "/api/wallet/balance?username=" + encodeURIComponent(uname));
+      var data = await res.json();
+      if (res.ok && data && data.success && typeof data.balance === "number") {
+        setLocalWalletBalance(uname, data.balance);
+        return data.balance;
+      }
+    } catch (_) {}
+    return localBal;
+  }
+
+  function readGrandTotalOrder() {
+    var totalEl = document.getElementById("displayTotal");
+    if (totalEl) {
+      var txt = totalEl.textContent || "";
+      var m = txt.match(/Rp\s*([0-9.,]+)/i);
+      if (m && m[1]) {
+        var parsed = Number(m[1].replace(/[^0-9]/g, ""));
+        if (parsed > 0) return parsed;
+      }
+    }
+    var base = Number(document.getElementById("calcHarga")?.value || 0) || 0;
+    if (base <= 0) return 0;
+    var fee = base < 100000 ? 10000 : (base >= 250000 ? 20000 : 15000);
+    return base + fee;
+  }
+
+  function renderPaymentGateBanner() {
+    var qrisBox = document.getElementById("qrisContainer");
+    if (!qrisBox) return;
+    var u = getUnifiedUser();
+    var total = readGrandTotalOrder();
+    var bal = u ? getLocalWalletBalance(u.username) : 0;
+    var enough = u && total > 0 && bal >= total;
+
+    qrisBox.innerHTML =
+      '<div style="padding:12px 14px;border-radius:12px;background:rgba(139,92,246,0.12);border:1px solid rgba(167,139,250,0.4);text-align:left;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">' +
+          '<span style="font-size:11.5px;font-weight:800;color:#c4b5fd;"><i class="fa-solid fa-shield-halved"></i> WAJIB BAYAR VIA SALDO CN WALLET</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:' + (enough ? '#34d399' : '#fb7185') + ';">Saldo: ' + (u ? formatRp(bal) : 'Belum Login') + '</span>' +
+        '</div>' +
+        '<p style="font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);margin:0;">' +
+          'Sistem pemesanan kini menggunakan <b>Saldo CN Wallet</b> terlebih dahulu sebelum meneruskan format order ke Telegram. ' +
+          (u
+            ? (enough
+                ? 'Saldo Anda mencukupi. Klik tombol di bawah untuk memotong saldo otomatis &amp; lanjut ke Telegram.'
+                : 'Saldo Anda belum mencukupi untuk tagihan <b>' + formatRp(total) + '</b>. Klik tombol di bawah untuk langsung menuju halaman <b>Top-Up Saldo CN Wallet</b>.')
+            : 'Silakan login terlebih dahulu atau isi saldo CN Wallet Anda untuk melanjutkan pemesanan.') +
+        '</p>' +
+      '</div>';
+
+    var submitBtn = document.querySelector("#calculatorCardInline .btn-submit-telegram");
+    if (submitBtn) {
+      if (!u) {
+        submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login &amp; Bayar via Saldo CN Wallet';
+      } else if (total > 0 && bal < total) {
+        submitBtn.innerHTML = '<i class="fa-solid fa-wallet"></i> Saldo Kurang — Top-Up CN Wallet Sekarang';
+      } else {
+        submitBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Bayar ' + formatRp(total) + ' &amp; Lanjut ke Telegram';
+      }
+    }
+  }
+
+  function redirectToTopupWithReason(uname, currentBal, requiredAmount) {
+    var kurang = Math.max(0, requiredAmount - currentBal);
+    var talentName = (document.getElementById("calcTalent")?.value || "Talent").trim();
+    var catName = (document.getElementById("calcBagian")?.value || "Private Session").trim();
+
+    alert(
+      "⚠️ SALDO CN WALLET TIDAK MENCUKUPI\n\n" +
+      "Alasan: Sistem pemesanan Clubs'Night kini mewajibkan pembayaran melalui Saldo CN Wallet sebelum meneruskan order ke Telegram.\n\n" +
+      "• Saldo Anda saat ini: " + formatRp(currentBal) + "\n" +
+      "• Total Tagihan Sesi: " + formatRp(requiredAmount) + "\n" +
+      "• Kekurangan Saldo: " + formatRp(kurang) + "\n\n" +
+      "Anda akan diarahkan langsung ke halaman Top-Up Saldo CN Wallet sekarang."
+    );
+
+    if (typeof window.openCnQrisTopupModal === "function") {
+      window.openCnQrisTopupModal(requiredAmount, {
+        amount: requiredAmount,
+        service: "Top-Up Booking: " + talentName + " (" + catName + ")"
+      });
+    } else if (typeof window.switchPwaTab === "function") {
+      window.switchPwaTab("activity");
+    }
+  }
+
+  function installHardPaymentGate() {
+    var origFn = window.copyAndRedirectToBot;
+    if (typeof origFn !== "function" || origFn.__cnPaymentGated) return;
+
+    var gatedFn = async function(e) {
+      if (e && typeof e.preventDefault === "function") e.preventDefault();
+
+      var chk1 = document.getElementById("chkNoRecord");
+      var chk2 = document.getElementById("chkRuleAgree");
+      if ((chk1 && !chk1.checked) || (chk2 && !chk2.checked)) {
+        alert("Harap centang kedua pernyataan privasi & prosedur agensi terlebih dahulu.");
+        return;
+      }
+
+      var totalAmount = readGrandTotalOrder();
+      if (totalAmount <= 0) {
+        alert("Pilih kategori & durasi layanan terlebih dahulu agar total tagihan terhitung.");
+        return;
+      }
+
+      var u = getUnifiedUser();
+      if (!u) {
+        alert(
+          "🔒 LOGIN DIPERLUKAN\n\n" +
+          "Alasan: Pemesanan kini menggunakan Saldo CN Wallet agar transaksi aman & terverifikasi otomatis sebelum masuk ke Telegram.\n\n" +
+          "Anda akan diarahkan ke halaman Login / Daftar Akun terlebih dahulu."
+        );
+        window.location.href = "/login.html";
+        return;
+      }
+
+      var submitBtn = document.querySelector("#calculatorCardInline .btn-submit-telegram");
+      var origBtnHtml = submitBtn ? submitBtn.innerHTML : "";
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa Saldo CN Wallet...';
+      }
+
+      try {
+        var currentBal = await fetchServerBalance(u.username);
+        renderPaymentGateBanner();
+
+        if (currentBal < totalAmount) {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origBtnHtml;
+          }
+          redirectToTopupWithReason(u.username, currentBal, totalAmount);
+          return;
+        }
+
+        var okConfirm = confirm(
+          "KONFIRMASI PEMBAYARAN CN WALLET\n\n" +
+          "• Akun: @" + u.username + "\n" +
+          "• Total Pembayaran: " + formatRp(totalAmount) + "\n" +
+          "• Saldo Saat Ini: " + formatRp(currentBal) + "\n" +
+          "• Sisa Saldo Setelah Bayar: " + formatRp(currentBal - totalAmount) + "\n\n" +
+          "Lanjutkan potong saldo & buka Telegram sekarang?"
+        );
+
+        if (!okConfirm) {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origBtnHtml;
+          }
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses Pembayaran Saldo...';
+        }
+
+        var sessTok = getSessionToken();
+        if (!sessTok) {
+          try {
+            var gRes = await fetch(WORKER_API + "/api/session/guest", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: u.username })
+            });
+            var gData = await gRes.json();
+            if (gData && gData.sessionToken) {
+              sessTok = gData.sessionToken;
+              localStorage.setItem("cn_session_token", sessTok);
+            }
+          } catch (_) {}
+        }
+
+        var spendRes = await fetch(WORKER_API + "/api/wallet/spend", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": sessTok
+          },
+          body: JSON.stringify({
+            username: u.username,
+            amount: totalAmount,
+            service: (document.getElementById("calcTalent")?.value || "Talent") + " • " + (document.getElementById("calcBagian")?.value || "Service")
+          })
+        });
+        var spendData = await spendRes.json().catch(function() { return {}; });
+
+        if (!spendRes.ok || !spendData.success) {
+          var latestBal = typeof spendData.balance === "number" ? spendData.balance : currentBal;
+          setLocalWalletBalance(u.username, latestBal);
+          renderPaymentGateBanner();
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origBtnHtml;
+          }
+          if (spendRes.status === 402 || latestBal < totalAmount) {
+            redirectToTopupWithReason(u.username, latestBal, totalAmount);
+          } else {
+            alert("Gagal memproses pembayaran: " + (spendData.error || "Sesi kadaluarsa, silakan login ulang."));
+          }
+          return;
+        }
+
+        // Pembayaran LUNAS terverifikasi di D1! Perbarui saldo lokal & catat kode bukti lunas
+        var newBal = typeof spendData.balance === "number" ? spendData.balance : Math.max(0, currentBal - totalAmount);
+        setLocalWalletBalance(u.username, newBal);
+        var receiptId = "CN-PAID-" + Date.now();
+        paidBookingReceipts[receiptId] = true;
+
+        var noteEl = document.getElementById("calcNote");
+        if (noteEl && noteEl.value.indexOf("CN-PAID-") === -1) {
+          noteEl.value = (noteEl.value ? noteEl.value + " | " : "") + "LUNAS WALLET (" + receiptId + ")";
+        }
+
+        renderPaymentGateBanner();
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Lunas! Mengarahkan ke Telegram...';
+        }
+
+        // Jalankan fungsi asli copy & redirect ke Telegram setelah pembayaran LUNAS
+        return await origFn.call(this, e);
+      } catch (err) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origBtnHtml;
+        }
+        alert("Terjadi gangguan koneksi saat memverifikasi saldo. Silakan coba lagi.");
+      }
+    };
+
+    gatedFn.__cnPaymentGated = true;
+    window.copyAndRedirectToBot = gatedFn;
+  }
+
+  // Sinkronkan banner status saldo setiap kali kalkulator dibuka atau voucher diterapkan
+  var origCalc = window.processToCalculator;
+  if (typeof origCalc === "function" && !origCalc.__cnGateWrapped) {
+    window.processToCalculator = function() {
+      var r = origCalc.apply(this, arguments);
+      var u = getUnifiedUser();
+      if (u) fetchServerBalance(u.username).then(renderPaymentGateBanner);
+      setTimeout(renderPaymentGateBanner, 50);
+      return r;
+    };
+    window.processToCalculator.__cnGateWrapped = true;
+  }
+
+  var origVoucher = window.applyVoucherCode;
+  if (typeof origVoucher === "function" && !origVoucher.__cnGateWrapped) {
+    window.applyVoucherCode = function() {
+      var r = origVoucher.apply(this, arguments);
+      setTimeout(renderPaymentGateBanner, 50);
+      return r;
+    };
+    window.applyVoucherCode.__cnGateWrapped = true;
+  }
+
+  setInterval(installHardPaymentGate, 400);
+  window.addEventListener("cn:wallet-updated", renderPaymentGateBanner);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function() {
+      installHardPaymentGate();
+      renderPaymentGateBanner();
+    });
+  } else {
+    installHardPaymentGate();
+    renderPaymentGateBanner();
+  }
+})();
+</script>
 </body>
 </html>
