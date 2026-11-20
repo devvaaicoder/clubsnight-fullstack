@@ -8665,9 +8665,24 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     }
 
     try {
+      var sessTok = (u && u.sessionToken) || localStorage.getItem("cn_session_token") || "";
+      if (!sessTok) {
+        try {
+          var gRes = await fetch(WORKER_API + "/api/session/guest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: u.username })
+          });
+          var gData = await gRes.json();
+          if (gData && gData.sessionToken) {
+            sessTok = gData.sessionToken;
+            localStorage.setItem("cn_session_token", sessTok);
+          }
+        } catch (_) {}
+      }
       var res = await fetch(WORKER_API + "/api/wallet/intent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
         body: JSON.stringify({
           username: u.username,
           baseAmount: baseNominal,
