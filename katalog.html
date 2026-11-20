@@ -6529,6 +6529,24 @@
   </script>
 
 
+<script id="cnKillOldModal">
+(function() {
+  function kill() {
+    var inner = document.getElementById("cnLocalAuthBox") || document.getElementById("cnTgWidgetContainer");
+    if (inner) {
+      var overlay = inner.closest('[style*="fixed"], [class*="gate"], [class*="modal"], [class*="overlay"]') || inner.parentElement;
+      if (overlay && overlay !== document.body) {
+        overlay.remove();
+      }
+    }
+ else {
+    kill();
+  }
+  setTimeout(kill, 200);
+})();
+</script>
+
+
 <script id="cnStandaloneAuthBridge">
 (function() {
   var SESSION_KEY = "cn_auth_session_v1";
@@ -6546,10 +6564,14 @@
     window.location.href = "/login.html?next=" + next;
   }
 
-  // Override fungsi modal lama agar langsung menuju halaman mandiri /login.html
   window.cnOpenAuthModal = goToLogin;
   window.enforceHardGate = function() {
-)
+    document.documentElement.classList.remove("cn-auth-locked");
+    document.body.classList.remove("cn-auth-locked");
+  };
+
+  // Sinkronkan sesi diam-diam dengan /api/me di background
+  fetch(API_BASE + "/api/me", { credentials: "include" })
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
       if (data && data.user) {
@@ -6559,23 +6581,43 @@
       }
     }).catch(function() {});
 
-  // Wajib punya akun untuk semua tombol Order / Booking / Service Talent
+  // Deteksi klik universal (mencakup <button>, <a>, maupun <div> menu Aktivitas)
   document.addEventListener("click", function(e) {
-    var btn = e.target && e.target.closest ? e.target.closest("button, a") : null;
+    var target = e.target;
+    if (!target || !target.closest) return;
+
+    // 1. Cek klik pada baris "Masuk / Daftar (User & Talent)" (bisa berupa div/li/button/a)
+    var el = target;
+    for (var i = 0; i < 4 && el && el !== document.body; i++) {
+      var rawTxt = (el.textContent || "").trim().toLowerCase();
+      if (rawTxt.length > 0 && rawTxt.length < 80) {
+        if (rawTxt.includes("masuk / daftar")) {
+          e.preventDefault();
+          e.stopPropagation();
+          goToLogin();
+          return;
+        }
+        if (rawTxt.includes("keluar dari sesi")) {
+          // Hapus juga HttpOnly cookie di server agar tidak auto-login lagi saat refresh
+          fetch(API_BASE + "/api/auth/logout", { method: "POST", credentials: "include" }).catch(function() {});
+          return;
+        }
+      }
+      el = el.parentElement;
+    }
+
+    // 2. Cek tombol Order / Booking / Service Talent (wajib punya akun)
+    var btn = target.closest("button, a, [role='button']");
     if (!btn) return;
     var txt = (btn.textContent || "").trim().toLowerCase();
 
-    // Jika klik Masuk / Daftar -> langsung ke /login.html
-    if (txt.includes("masuk / daftar") || txt === "masuk" || txt === "login") {
-      if (!getSession()) {
-        e.preventDefault();
-        e.stopPropagation();
-        goToLogin();
-        return;
-      }
+    if ((txt === "masuk" || txt === "login") && !getSession()) {
+      e.preventDefault();
+      e.stopPropagation();
+      goToLogin();
+      return;
     }
 
-    // Jika klik Order / Booking / Pesan / Sewa / Reservasi tanpa akun -> wajib login
     var isOrderAction = /(order|booking|pesan sekarang|sewa|reservasi|checkout|pilih layanan|lanjut bayar)/i.test(txt);
     if (isOrderAction && !getSession()) {
       e.preventDefault();
@@ -6584,24 +6626,6 @@
       setTimeout(goToLogin, 350);
     }
   }, true);
-})();
-</script>
-
-
-<script id="cnKillOldModal">
-(function() {
-  function kill() {
-    var inner = document.getElementById("cnLocalAuthBox") || document.getElementById("cnTgWidgetContainer");
-    if (inner) {
-      var overlay = inner.closest('[style*="fixed"], [class*="gate"], [class*="modal"], [class*="overlay"]') || inner.parentElement;
-      if (overlay && overlay !== document.body) {
-        overlay.remove();
-      }
-    }
- else {
-    kill();
-  }
-  setTimeout(kill, 200);
 })();
 </script>
 
