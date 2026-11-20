@@ -1,10 +1,9 @@
 import "./katalog.css";
 document.addEventListener('keydown', function(e) {
-  if (
-    e.keyCode === 123 || 
-    (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
-    (e.ctrlKey && e.keyCode === 85)
-  ) {
+  const isF12 = e.keyCode === 123;
+  const isDevTools = e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode);
+  const isViewSource = e.ctrlKey && e.keyCode === 85;
+  if (isF12 || isDevTools || isViewSource) {
     e.preventDefault();
     return false;
   }
@@ -12,7 +11,7 @@ document.addEventListener('keydown', function(e) {
 
 const LIVECHAT_WORKER_URL = import.meta.env.VITE_LIVECHAT_URL || "https://clubsnight-livechat.clubsnight.workers.dev";
 const TELEGRAM_CS_BOT_URL = "https://t.me/clubsnightcs_bot";
-const WORKER_API_URL = import.meta.env.VITE_API_URL || "https://clubsnight-api.clubsnight.workers.dev";
+const WORKER_API_URL = import.meta.env.VITE_API_URL || "https://clubsnight-fullstack.clubsnight.workers.dev";
 const MEDIA_WORKER_URL = import.meta.env.VITE_MEDIA_URL || "https://clubsnight-media.clubsnight.workers.dev";
 function escapeHTML(str) {
   return String(str || "")
@@ -2162,3 +2161,5 @@ Object.assign(window, {
   applyVoucherCode, copyAndRedirectToBot, toggleCnChat, sendQuickMsg,
   connectToAdminTelegram, sendCnMessage, scrollToTopPage, handleImgError
 });
+
+import "./luxury-theme.css";

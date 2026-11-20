@@ -508,7 +508,7 @@ Object.assign(window, {
   });
 
 // ==================== SINKRONISASI CLOUDFLARE D1 REALTIME ====================
-const WORKER_API_URL = import.meta.env.VITE_API_URL || "https://clubsnight-api.clubsnight.workers.dev";
+const WORKER_API_URL = import.meta.env.VITE_API_URL || "https://clubsnight-fullstack.clubsnight.workers.dev";
 let d1TalentsCache = [];
 
 function getMinTalentPrice(talent) {

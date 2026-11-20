@@ -1,0 +1,5331 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap');
+
+:root {
+  --bg-color: #06030b;
+  --bg-elevated: #0e0718;
+  --bg-surface: #140b22;
+  --card-bg: rgba(20, 11, 34, 0.92);
+  --card-border: rgba(245, 194, 107, 0.18);
+  --card-border-strong: rgba(245, 194, 107, 0.42);
+
+  --crimson-red: #ec1864;
+  --neon-pink: #ec1864;
+  --neon-purple: #6d28d9;
+  --amethyst-light: #e2c285;
+  --text-main: #faf6ff;
+  --text-muted: #b3a6c9;
+}
+
+/* Latar belakang obsidian bertekstur cahaya lembut */
+body {
+  background-color: var(--bg-color) !important;
+  background-image:
+    radial-gradient(circle at 50% -10%, rgba(236, 24, 100, 0.14) 0%, transparent 55%),
+    radial-gradient(circle at 85% 25%, rgba(245, 194, 107, 0.06) 0%, transparent 45%) !important;
+}
+
+/* Header & Brand Logo Editorial */
+#mainHeader {
+  background: rgba(8, 4, 15, 0.88) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+  border-bottom: 1px solid rgba(245, 194, 107, 0.16) !important;
+}
+
+.brand-logo {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 1.38rem !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* Lencana Agensi Premium */
+.agency-header-badge {
+  background: linear-gradient(135deg, rgba(28, 15, 46, 0.92), rgba(76, 17, 48, 0.72), rgba(28, 15, 46, 0.92)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.38) !important;
+  color: #fff5e0 !important;
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.75), 0 0 16px rgba(245, 194, 107, 0.12) !important;
+}
+
+/* Bingkai Banner Carousel */
+.banner-wrapper {
+  border: 1px solid rgba(245, 194, 107, 0.28) !important;
+  box-shadow: 0 18px 38px -12px rgba(0, 0, 0, 0.85) !important;
+}
+
+.banner-dot.active {
+  background: #f5c26b !important;
+  box-shadow: 0 0 10px rgba(245, 194, 107, 0.65) !important;
+}
+
+/* Kolom Pencarian Kaca Gelap */
+.search-box input {
+  background: rgba(18, 10, 31, 0.92) !important;
+  border: 1px solid rgba(245, 194, 107, 0.2) !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.search-box input:focus {
+  border-color: rgba(245, 194, 107, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(245, 194, 107, 0.12), inset 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+}
+
+.search-badge-hint {
+  background: rgba(245, 194, 107, 0.14) !important;
+  border-color: rgba(245, 194, 107, 0.32) !important;
+  color: #f5c26b !important;
+}
+
+/* Kartu Talent Nocturnal Luxury */
+.talent-card {
+  background: linear-gradient(170deg, rgba(24, 14, 41, 0.94) 0%, rgba(12, 7, 22, 0.98) 100%) !important;
+  border: 1px solid rgba(245, 194, 107, 0.18) !important;
+  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.8) !important;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.24s ease, box-shadow 0.24s ease !important;
+}
+
+.talent-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(245, 194, 107, 0.48) !important;
+  box-shadow: 0 20px 36px -12px rgba(0, 0, 0, 0.9), 0 0 20px rgba(236, 24, 100, 0.22) !important;
+}
+
+.talent-thumb {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.talent-card:hover .talent-thumb {
+  transform: scale(1.04);
+}
+
+.talent-name {
+  letter-spacing: -0.01em !important;
+  color: #ffffff !important;
+}
+
+.talent-tag {
+  color: #f5c26b !important;
+}
+
+/* Floating Ad Card yang Lebih Elegan */
+.floating-ad-card {
+  background: linear-gradient(145deg, rgba(22, 12, 38, 0.96), rgba(10, 5, 18, 0.98)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.32) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* =========================================================
+   FULL-BLEED HERO BANNER & MONARCHY-STYLE TOP ARCHITECTURE
+   ========================================================= */
+
+/* 1. Top Ticker Bar */
+.cn-top-ticker {
+  width: 100%;
+  background: #040208;
+  border-bottom: 1px solid rgba(245, 194, 107, 0.14);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 6px 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #b8adc9;
+  position: relative;
+  z-index: 60;
+}
+
+.cn-ticker-track {
+  display: inline-block;
+  animation: cnTickerScroll 28s linear infinite;
+}
+
+@keyframes cnTickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* 2. Sembunyikan badge lama di atas agar menyatu ke dalam Hero Banner */
+.agency-badge-wrapper {
+  display: none !important;
+}
+
+/* 3. Full-Bleed Edge-to-Edge Hero Banner Canvas */
+.banner-container.cn-fullbleed-hero {
+  position: relative !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  margin-top: -12px !important;
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(245, 194, 107, 0.15) !important;
+  min-height: 365px !important;
+  background: #06030b !important;
+  box-shadow: none !important;
+}
+
+.banner-container.cn-fullbleed-hero .banner-wrapper,
+.banner-container.cn-fullbleed-hero .banner-slide {
+  min-height: 365px !important;
+  aspect-ratio: auto !important;
+}
+
+/* Gradasi gelap dramatis di atas gambar banner agar teks mengapung jelas */
+.banner-container.cn-fullbleed-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 3, 11, 0.48) 0%,
+    rgba(6, 3, 11, 0.68) 45%,
+    rgba(6, 3, 11, 0.94) 84%,
+    #06030b 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 4. Teks Editorial Mengapung di Tengah Atas Banner */
+.cn-hero-editorial-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px 20px 58px 20px;
+  pointer-events: none;
+}
+
+.cn-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  border-radius: 99px;
+  background: rgba(14, 8, 24, 0.78);
+  border: 1px solid rgba(245, 194, 107, 0.28);
+  backdrop-filter: blur(8px);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #e2d8f0;
+  margin-bottom: 12px;
+}
+
+.cn-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.cn-hero-title {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: clamp(2rem, 8vw, 3rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.05 !important;
+  color: #ffffff !important;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85);
+  margin-bottom: 4px !important;
+}
+
+.cn-hero-subtitle {
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.22em !important;
+  color: #f5c26b !important;
+  text-transform: uppercase;
+  margin-bottom: 10px !important;
+}
+
+.cn-hero-desc {
+  max-width: 340px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: rgba(248, 250, 252, 0.82);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.banner-container.cn-fullbleed-hero .banner-dots {
+  bottom: 54px !important;
+  right: 50% !important;
+  transform: translateX(50%) !important;
+  z-index: 4 !important;
+  background: rgba(10, 5, 18, 0.65) !important;
+  border: 1px solid rgba(245, 194, 107, 0.2) !important;
+}
+
+/* 5. Kontrol Pencarian & Filter Mengapung Menyatu dengan Bagian Bawah Banner */
+#galleryView {
+  position: relative;
+  z-index: 5;
+  margin-top: -42px !important;
+}
+
+#galleryView .search-box input {
+  background: rgba(16, 9, 28, 0.92) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(245, 194, 107, 0.32) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* =========================================================
+   MONARCHY-STYLE SINGLE-ROW COMPACT LUXURY HEADER
+   ========================================================= */
+header#mainHeader.cn-monarchy-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 90 !important;
+  background: rgba(6, 3, 11, 0.94) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 8px 12px !important;
+}
+
+.cn-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.cn-burger-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.cn-brand-emblem {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(245, 194, 107, 0.35);
+  cursor: pointer;
+}
+
+.cn-brand-emblem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cn-header-search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.cn-header-search i {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.cn-header-search input {
+  width: 100%;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 99px !important;
+  padding: 0 12px 0 31px !important;
+  font-size: 0.76rem !important;
+  color: #ffffff !important;
+  outline: none !important;
+}
+
+.cn-header-search input::placeholder {
+  color: #8e869e;
+}
+
+.cn-header-search input:focus {
+  border-color: rgba(245, 194, 107, 0.45) !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+}
+
+.cn-currency-pill {
+  flex-shrink: 0;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 99px;
+  padding: 0 4px;
+}
+
+.cn-currency-pill select {
+  background: transparent !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  padding: 0 6px !important;
+  height: 26px !important;
+  outline: none !important;
+  cursor: pointer;
+}
+
+.cn-currency-pill select option {
+  background: #0e0718;
+  color: #ffffff;
+}
+
+/* Drawer Navigasi Lipat */
+nav.header-nav.cn-header-drawer {
+  display: none !important;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+nav.header-nav.cn-header-drawer.open {
+  display: flex !important;
+}
+
+nav.header-nav.cn-header-drawer a {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 0.72rem;
+}
+
+/* Naikkan controls-section sedikit agar menyatu mulus ke bagian bawah banner */
+#galleryView {
+  margin-top: -28px !important;
+}
+
+/* =========================================================
+   LUXURY LEFT SLIDE-OUT SIDEBAR DRAWER
+   ========================================================= */
+.cn-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 1, 8, 0.76);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9990;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+.cn-sidebar-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cn-sidebar-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 272px;
+  max-width: 82vw;
+  background: linear-gradient(180deg, #0d0717 0%, #07030d 100%);
+  border-right: 1px solid rgba(245, 194, 107, 0.22);
+  box-shadow: 16px 0 48px rgba(0, 0, 0, 0.9);
+  z-index: 9995;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px;
+  transform: translateX(-105%);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cn-sidebar-drawer.open {
+  transform: translateX(0);
+}
+
+.cn-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 16px;
+}
+
+.cn-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cn-sidebar-brand img {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 194, 107, 0.4);
+  object-fit: cover;
+}
+
+.cn-sidebar-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.cn-sidebar-title span {
+  color: #ec1864;
+}
+
+.cn-sidebar-sub {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #f5c26b;
+  margin-top: 2px;
+}
+
+.cn-sidebar-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.cn-sidebar-section-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #7c728f;
+  margin: 6px 0 8px 6px;
+}
+
+.cn-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.cn-sidebar-nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.cn-sidebar-nav a i {
+  width: 18px;
+  text-align: center;
+  color: #f5c26b;
+  font-size: 0.88rem;
+}
+
+.cn-sidebar-nav a:hover,
+.cn-sidebar-nav a:active {
+  background: rgba(245, 194, 107, 0.1);
+  border-color: rgba(245, 194, 107, 0.35);
+  transform: translateX(3px);
+}
+
+.cn-sidebar-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cn-sidebar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.66rem;
+  color: #9ca3af;
+}
+
+/* =========================================================
+   FIX SIDEBAR Z-INDEX & HERO VIGNETTE ANTI-OVERLAP
+   ========================================================= */
+.cn-sidebar-backdrop {
+  z-index: 99998 !important;
+}
+
+.cn-sidebar-drawer {
+  z-index: 99999 !important;
+  visibility: hidden;
+}
+
+.cn-sidebar-drawer.open {
+  visibility: visible !important;
+  transform: translateX(0) !important;
+}
+
+/* Susun teks hero di bagian bawah dengan vignette pekat agar tidak tabrakan dengan poster banner */
+.banner-container.cn-fullbleed-hero::after {
+  background: linear-gradient(
+    180deg,
+    rgba(6, 3, 11, 0.15) 0%,
+    rgba(6, 3, 11, 0.35) 45%,
+    rgba(6, 3, 11, 0.92) 78%,
+    #06030b 100%
+  ) !important;
+}
+
+.cn-hero-editorial-overlay {
+  justify-content: flex-end !important;
+  padding: 16px 18px 54px 18px !important;
+}
+
+.cn-hero-pill {
+  margin-bottom: 6px !important;
+  padding: 4px 12px !important;
+  font-size: 0.56rem !important;
+}
+
+.cn-hero-title {
+  font-size: clamp(1.65rem, 6.8vw, 2.4rem) !important;
+  margin-bottom: 2px !important;
+}
+
+.cn-hero-subtitle {
+  font-size: 0.72rem !important;
+  margin-bottom: 4px !important;
+}
+
+.cn-hero-desc {
+  font-size: 0.68rem !important;
+  max-width: 310px !important;
+  opacity: 0.85;
+}
+
+.banner-container.cn-fullbleed-hero .banner-dots {
+  top: 12px !important;
+  bottom: auto !important;
+  right: 12px !important;
+  transform: none !important;
+}
+
+/* =========================================================
+   CLEAN SEPARATED EDITORIAL HERO + INTACT BANNER SLIDER
+   ========================================================= */
+.cn-clean-hero {
+  text-align: center;
+  padding: 20px 16px 18px 16px;
+  background: radial-gradient(circle at 50% 0%, rgba(236, 24, 100, 0.14) 0%, rgba(6, 3, 11, 0) 75%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cn-clean-hero .cn-hero-desc {
+  margin: 4px auto 0 auto;
+}
+
+/* Kembalikan banner-container ke rasio 16:9 utuh dan jernih tanpa lapisan gelap */
+#bannerContainer.banner-container {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 18px 0 !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(245, 194, 107, 0.28) !important;
+  min-height: 0 !important;
+  aspect-ratio: 16 / 9 !important;
+  box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.85) !important;
+}
+
+#bannerContainer.banner-container::after {
+  display: none !important;
+}
+
+#bannerContainer .banner-wrapper,
+#bannerContainer .banner-slide {
+  min-height: 0 !important;
+  aspect-ratio: 16 / 9 !important;
+}
+
+#bannerContainer .banner-dots {
+  top: auto !important;
+  bottom: 10px !important;
+  right: 12px !important;
+  transform: none !important;
+}
+
+/* Kembalikan jarak normal #galleryView agar tidak menarik ke atas */
+#galleryView {
+  margin-top: 0 !important;
+}
+
+/* =========================================================
+   FULL-BLEED MOVING AMBIENT HERO CANVAS (MONARCHY STYLE)
+   ========================================================= */
+.cn-clean-hero.cn-ambient-hero {
+  position: relative !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  margin-top: -12px !important;
+  margin-bottom: 18px !important;
+  padding: 38px 20px 34px 20px !important;
+  overflow: hidden !important;
+  background: #05020a !important;
+  border-bottom: 1px solid rgba(245, 194, 107, 0.16) !important;
+}
+
+.cn-ambient-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 0%, #1b0c2e 0%, #07030e 65%, #05020a 100%);
+}
+
+.cn-ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(52px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.cn-ambient-orb.orb-1 {
+  width: 280px;
+  height: 280px;
+  top: -70px;
+  left: -40px;
+  background: radial-gradient(circle, rgba(236, 24, 100, 0.45), transparent 70%);
+  animation: cnOrbFloatOne 11s ease-in-out infinite alternate;
+}
+
+.cn-ambient-orb.orb-2 {
+  width: 300px;
+  height: 300px;
+  bottom: -90px;
+  right: -50px;
+  background: radial-gradient(circle, rgba(245, 194, 107, 0.32), transparent 70%);
+  animation: cnOrbFloatTwo 14s ease-in-out infinite alternate;
+}
+
+/* Garis kisi perspektif halus bergerak perlahan */
+.cn-ambient-grid {
+  position: absolute;
+  inset: -40%;
+  background-image:
+    linear-gradient(rgba(245, 194, 107, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 194, 107, 0.05) 1px, transparent 1px);
+  background-size: 36px 36px;
+  transform: perspective(420px) rotateX(48deg);
+  animation: cnGridDrift 18s linear infinite;
+  mask-image: radial-gradient(circle at 50% 45%, rgba(0,0,0,0.85) 0%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle at 50% 45%, rgba(0,0,0,0.85) 0%, transparent 72%);
+}
+
+@keyframes cnOrbFloatOne {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(75px, 40px) scale(1.18); }
+}
+
+@keyframes cnOrbFloatTwo {
+  0% { transform: translate(0, 0) scale(1.05); }
+  100% { transform: translate(-80px, -35px) scale(0.92); }
+}
+
+@keyframes cnGridDrift {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 72px; }
+}
+
+.cn-hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* =========================================================
+   MONARCHY BALI EXACT CARBON-BLACK & EDITORIAL HERO SYSTEM
+   ========================================================= */
+:root, html, body {
+  --bg-color: #050505 !important;
+  --bg-elevated: #0c0c0c !important;
+  --bg-surface: #121212 !important;
+  --card-bg: #111111 !important;
+  --card-border: rgba(255, 255, 255, 0.1) !important;
+  --card-border-strong: rgba(245, 194, 107, 0.4) !important;
+  background-color: #050505 !important;
+  background-image: none !important;
+}
+
+.cn-top-ticker {
+  background: #000000 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #9ca3af !important;
+}
+
+header#mainHeader.cn-monarchy-header {
+  background: rgba(5, 5, 5, 0.96) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Full-Bleed Monarchy Hero Section */
+.cn-monarchy-hero {
+  position: relative;
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  margin-top: -12px;
+  margin-bottom: 18px;
+  background: #050505;
+  overflow: hidden;
+}
+
+.cn-hero-bg-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 330px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Foto atmosfer malam mewah dengan gerakan Ken Burns lambat */
+.cn-hero-bg-photo {
+  position: absolute;
+  inset: -6%;
+  background-image: url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80');
+  background-size: cover;
+  background-position: center 35%;
+  filter: grayscale(35%) contrast(1.12) brightness(0.46);
+  animation: cnKenBurnsHero 22s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes cnKenBurnsHero {
+  0% { transform: scale(1) translate3d(0, 0, 0); }
+  100% { transform: scale(1.1) translate3d(-1.5%, -1%, 0); }
+}
+
+.cn-hero-bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 5, 5, 0.35) 0%,
+    rgba(5, 5, 5, 0.58) 55%,
+    #050505 96%
+  );
+}
+
+.cn-hero-center {
+  position: relative;
+  z-index: 2;
+  padding: 44px 20px 26px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.cn-hero-center .cn-hero-pill {
+  background: rgba(15, 15, 15, 0.82) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #d1d5db !important;
+  margin-bottom: 14px !important;
+}
+
+.cn-hero-center .cn-hero-title {
+  font-size: clamp(2rem, 8.2vw, 2.9rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.03em !important;
+  color: #ffffff !important;
+}
+
+.cn-hero-center .cn-hero-subtitle {
+  color: #e5b85c !important;
+  letter-spacing: 0.24em !important;
+  font-size: 0.78rem !important;
+  margin-bottom: 12px !important;
+}
+
+.cn-hero-center .cn-hero-desc {
+  color: rgba(255, 255, 255, 0.78) !important;
+  font-size: 0.72rem !important;
+  max-width: 330px !important;
+}
+
+/* Bar Tab Status di Bawah Hero */
+.cn-hero-status-bar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 16px 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cn-status-tab {
+  background: transparent;
+  border: none;
+  color: #888888;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  cursor: pointer;
+  position: relative;
+}
+
+.cn-status-tab.active {
+  color: #ffffff;
+}
+
+.cn-status-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -11px;
+  height: 2px;
+  background: #ffffff;
+}
+
+.cn-status-count {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  color: #9ca3af;
+}
+
+/* Grid Filter Editorial 2x2 Minimalis (Monarchy Style) */
+.cn-editorial-filter-grid {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+  padding: 14px 16px 18px 16px;
+  background: #050505;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cn-ef-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  padding-bottom: 8px;
+}
+
+.cn-ef-cell label {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #737373;
+  text-transform: uppercase;
+}
+
+.cn-ef-cell select {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.cn-ef-cell select option {
+  background: #0c0c0c;
+  color: #ffffff;
+}
+
+.cn-ef-reset-row {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.cn-ef-reset-btn {
+  background: transparent;
+  border: none;
+  color: #737373;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.cn-ef-reset-btn:hover {
+  color: #ffffff;
+}
+
+.cn-ef-search-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #050505;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.86rem;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+
+/* Sembunyikan baris ikon kotak ungu lama agar digantikan grid editorial di atas */
+
+
+/* Ubah tombol Live Chat CS menjadi tab vertikal tipis di sisi kanan persis Monarchy Bali */
+#floatingCsBtn, .floating-cs-btn, .live-chat-float {
+  right: 0 !important;
+  left: auto !important;
+  bottom: 42% !important;
+  border-radius: 10px 0 0 10px !important;
+  background: #ffffff !important;
+  color: #050505 !important;
+  padding: 10px 7px !important;
+  writing-mode: vertical-rl !important;
+  text-orientation: mixed !important;
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.12em !important;
+  box-shadow: -4px 4px 18px rgba(0, 0, 0, 0.65) !important;
+  border: none !important;
+}
+
+#floatingCsBtn i, .floating-cs-btn i, .live-chat-float i {
+  display: none !important;
+}
+
+/* =========================================================
+   NOCTURNAL COLOURFUL LUXURY & SEAMLESS BLENDED HERO CANVAS
+   ========================================================= */
+:root, html, body {
+  --bg-color: #090412 !important;
+  --bg-elevated: #120822 !important;
+  --bg-surface: #180b2c !important;
+  background-color: #090412 !important;
+  background-image:
+    radial-gradient(circle at 18% 0%, rgba(236, 24, 100, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(124, 58, 237, 0.16) 0%, transparent 48%),
+    radial-gradient(circle at 50% 60%, rgba(245, 194, 107, 0.05) 0%, transparent 60%) !important;
+}
+
+/* 1. Top Ticker Bar Colourful Elegan */
+.cn-top-ticker {
+  background: linear-gradient(90deg, #130724 0%, #260a24 50%, #130724 100%) !important;
+  border-bottom: 1px solid rgba(245, 194, 107, 0.22) !important;
+  color: #f3d9a4 !important;
+}
+
+/* 2. Header Kaca Gelap Berwarna & Fleksibel */
+header#mainHeader.cn-monarchy-header {
+  background: linear-gradient(180deg, rgba(16, 7, 30, 0.92) 0%, rgba(11, 5, 22, 0.88) 100%) !important;
+  backdrop-filter: blur(20px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
+  border-bottom: 1px solid rgba(245, 194, 107, 0.2) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55) !important;
+}
+
+.cn-burger-btn {
+  background: linear-gradient(135deg, rgba(236, 24, 100, 0.22), rgba(124, 58, 237, 0.22)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.3) !important;
+  color: #fff5e1 !important;
+}
+
+.cn-brand-emblem {
+  border: 1px solid rgba(245, 194, 107, 0.55) !important;
+  box-shadow: 0 0 14px rgba(236, 24, 100, 0.35) !important;
+}
+
+.cn-header-search input {
+  background: rgba(25, 12, 46, 0.78) !important;
+  border: 1px solid rgba(192, 132, 252, 0.28) !important;
+  color: #ffffff !important;
+}
+
+.cn-header-search i {
+  color: #f5c26b !important;
+}
+
+.cn-currency-pill {
+  background: linear-gradient(135deg, rgba(245, 194, 107, 0.16), rgba(236, 24, 100, 0.18)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.38) !important;
+}
+
+.cn-currency-pill select {
+  color: #ffe8b8 !important;
+}
+
+/* 3. Hero Canvas Menyatu Penuh Tanpa Hairline & Tanpa Tab Status */
+.cn-hero-status-bar {
+  display: none !important;
+}
+
+.cn-monarchy-hero {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  margin-bottom: 10px !important;
+}
+
+.cn-hero-bg-stage {
+  height: 100% !important;
+}
+
+.cn-hero-bg-photo {
+  filter: saturate(1.18) contrast(1.08) brightness(0.54) !important;
+}
+
+/* Gradasi penyatu mulus dari atmosfer colourful ke kanvas utama (#090412) */
+.cn-hero-bg-vignette {
+  background:
+    radial-gradient(circle at 50% 25%, rgba(236, 24, 100, 0.22) 0%, rgba(124, 58, 237, 0.24) 48%, transparent 78%),
+    linear-gradient(
+      180deg,
+      rgba(9, 4, 18, 0.25) 0%,
+      rgba(9, 4, 18, 0.52) 55%,
+      rgba(9, 4, 18, 0.92) 86%,
+      #090412 100%
+    ) !important;
+}
+
+.cn-hero-center {
+  padding: 40px 20px 36px 20px !important;
+}
+
+.cn-hero-center .cn-hero-pill {
+  background: linear-gradient(90deg, rgba(236, 24, 100, 0.24), rgba(124, 58, 237, 0.24)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.36) !important;
+  color: #ffefc9 !important;
+}
+
+.cn-hero-center .cn-hero-title {
+  background: linear-gradient(180deg, #ffffff 30%, #f7d99c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none !important;
+  filter: drop-shadow(0 4px 18px rgba(236, 24, 100, 0.35));
+}
+
+.cn-hero-center .cn-hero-subtitle {
+  color: #f5c26b !important;
+}
+
+/* =========================================================
+   BLOOD-CRIMSON COLOURFUL LUXURY SIDEBAR + LORDICON STYLING
+   ========================================================= */
+.cn-sidebar-drawer.cn-blood-sidebar {
+  background:
+    radial-gradient(circle at 15% 8%, rgba(190, 18, 60, 0.42) 0%, transparent 48%),
+    radial-gradient(circle at 88% 45%, rgba(136, 19, 55, 0.34) 0%, transparent 52%),
+    radial-gradient(circle at 25% 92%, rgba(88, 28, 135, 0.32) 0%, transparent 50%),
+    linear-gradient(180deg, #1b050d 0%, #10030a 52%, #090207 100%) !important;
+  border-right: 1px solid rgba(244, 63, 94, 0.36) !important;
+  box-shadow: 18px 0 55px rgba(136, 8, 36, 0.35), 8px 0 30px rgba(0, 0, 0, 0.92) !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-head {
+  border-bottom: 1px solid rgba(244, 63, 94, 0.24) !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-brand img {
+  border: 1.5px solid #f43f5e !important;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.55) !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-title span {
+  color: #fb7185 !important;
+  text-shadow: 0 0 12px rgba(244, 63, 94, 0.5);
+}
+
+.cn-blood-sidebar .cn-sidebar-close {
+  background: rgba(225, 29, 72, 0.18) !important;
+  border: 1px solid rgba(244, 63, 94, 0.38) !important;
+  color: #ffe4e6 !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-section-label {
+  color: #fda4af !important;
+  opacity: 0.85;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.cn-nav-item {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(159, 18, 57, 0.24) 0%, rgba(45, 10, 28, 0.55) 100%) !important;
+  border: 1px solid rgba(244, 63, 94, 0.26) !important;
+  color: #fff1f2 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.38) !important;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* Sentuhan variasi warna mewah tiap item menu */
+.cn-blood-sidebar .cn-sidebar-nav a.item-home {
+  border-left: 3px solid #e11d48 !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.item-gallery {
+  background: linear-gradient(135deg, rgba(190, 18, 60, 0.26) 0%, rgba(88, 28, 135, 0.34) 100%) !important;
+  border-left: 3px solid #c084fc !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.item-testi {
+  background: linear-gradient(135deg, rgba(159, 18, 57, 0.26) 0%, rgba(146, 64, 14, 0.28) 100%) !important;
+  border-left: 3px solid #f5c26b !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.item-blog {
+  background: linear-gradient(135deg, rgba(136, 19, 55, 0.28) 0%, rgba(30, 27, 75, 0.42) 100%) !important;
+  border-left: 3px solid #fb7185 !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.item-guide {
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.24) 0%, rgba(136, 19, 55, 0.32) 100%) !important;
+  border-left: 3px solid #fbbf24 !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.cn-nav-item:hover,
+.cn-blood-sidebar .cn-sidebar-nav a.cn-nav-item:active {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.45) 0%, rgba(136, 19, 55, 0.65) 100%) !important;
+  border-color: rgba(245, 194, 107, 0.55) !important;
+  transform: translateX(4px) scale(1.01) !important;
+  box-shadow: 0 8px 22px rgba(225, 29, 72, 0.35) !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-footer {
+  border-top: 1px solid rgba(244, 63, 94, 0.22) !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-status {
+  color: #fecdd3 !important;
+}
+
+/* =========================================================
+   1. HIGH-FPS 60FPS GPU SIDEBAR (ZERO BLUR LAG) + ACTIVE STATE
+   ========================================================= */
+.cn-sidebar-backdrop {
+  background: rgba(6, 1, 4, 0.84) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: opacity 0.2s ease, visibility 0.2s ease !important;
+  will-change: opacity;
+}
+
+.cn-sidebar-drawer.cn-blood-sidebar {
+  transform: translate3d(-105%, 0, 0) !important;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  will-change: transform;
+  contain: layout paint;
+  box-shadow: 12px 0 36px rgba(0, 0, 0, 0.88) !important;
+}
+
+.cn-sidebar-drawer.cn-blood-sidebar.open {
+  transform: translate3d(0, 0, 0) !important;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.cn-nav-item {
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32) !important;
+}
+
+/* Status Halaman Aktif di Sidebar */
+.cn-blood-sidebar .cn-sidebar-nav a.cn-nav-item.active {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.52) 0%, rgba(136, 19, 55, 0.72) 100%) !important;
+  border: 1px solid rgba(245, 194, 107, 0.68) !important;
+  border-left: 4px solid #f5c26b !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.32) !important;
+}
+
+.cn-nav-active-dot {
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f5c26b;
+  box-shadow: 0 0 8px #f5c26b;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cn-blood-sidebar .cn-sidebar-nav a.cn-nav-item.active .cn-nav-active-dot {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* =========================================================
+   2. UNIFIED BLOOD-CRIMSON LUXURY THEME FOR ENTIRE CATALOG
+   ========================================================= */
+:root, html, body {
+  --bg-color: #0b0206 !important;
+  --bg-elevated: #16040c !important;
+  --bg-surface: #1f0612 !important;
+  --card-bg: #17040d !important;
+  --card-border: rgba(244, 63, 94, 0.24) !important;
+  --card-border-strong: rgba(245, 194, 107, 0.52) !important;
+  background-color: #0b0206 !important;
+  background-image:
+    radial-gradient(circle at 15% 4%, rgba(190, 18, 60, 0.28) 0%, transparent 45%),
+    radial-gradient(circle at 85% 18%, rgba(136, 19, 55, 0.24) 0%, transparent 48%),
+    linear-gradient(180deg, #16040c 0%, #0b0206 100%) !important;
+}
+
+/* Top Ticker & Header Selaras Merah Darah */
+.cn-top-ticker {
+  background: linear-gradient(90deg, #1a040d 0%, #3b0719 50%, #1a040d 100%) !important;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.28) !important;
+  color: #ffe4e6 !important;
+}
+
+header#mainHeader.cn-monarchy-header {
+  background: rgba(20, 4, 11, 0.94) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.26) !important;
+}
+
+.cn-burger-btn {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.34), rgba(136, 19, 55, 0.45)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.42) !important;
+  color: #fff1f2 !important;
+}
+
+.cn-header-search input {
+  background: rgba(34, 7, 19, 0.88) !important;
+  border: 1px solid rgba(244, 63, 94, 0.32) !important;
+  color: #fff1f2 !important;
+}
+
+.cn-currency-pill {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.26), rgba(136, 19, 55, 0.36)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.44) !important;
+}
+
+/* Hero Gradasi Menyatu ke Kanvas Blood-Crimson */
+.cn-hero-bg-vignette {
+  background:
+    radial-gradient(circle at 50% 25%, rgba(225, 29, 72, 0.28) 0%, rgba(136, 19, 55, 0.26) 50%, transparent 78%),
+    linear-gradient(
+      180deg,
+      rgba(11, 2, 6, 0.25) 0%,
+      rgba(11, 2, 6, 0.56) 58%,
+      rgba(11, 2, 6, 0.94) 88%,
+      #0b0206 100%
+    ) !important;
+}
+
+/* Banner Frame Selaras Merah Darah & Emas */
+#bannerContainer.banner-container {
+  border: 1px solid rgba(244, 63, 94, 0.34) !important;
+  box-shadow: 0 14px 32px rgba(136, 8, 36, 0.26), 0 8px 20px rgba(0, 0, 0, 0.78) !important;
+}
+
+/* Tombol Kategori Inline & Filter (Seragam Blood-Crimson) */
+.unified-icon-nav-box {
+  background: linear-gradient(180deg, rgba(28, 6, 16, 0.86) 0%, rgba(16, 3, 9, 0.92) 100%) !important;
+  border: 1px solid rgba(244, 63, 94, 0.24) !important;
+  border-radius: 18px !important;
+  padding: 12px !important;
+}
+
+.cat-group-label {
+  color: #fda4af !important;
+}
+
+.icon-nav-btn, .filter-pill-btn {
+  background: linear-gradient(145deg, rgba(44, 9, 24, 0.85) 0%, rgba(22, 4, 12, 0.95) 100%) !important;
+  border: 1px solid rgba(244, 63, 94, 0.26) !important;
+  color: #ffe4e6 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+.icon-nav-btn.active, .filter-pill-btn.active {
+  background: linear-gradient(135deg, #e11d48 0%, #881337 100%) !important;
+  border: 1px solid rgba(245, 194, 107, 0.75) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.42) !important;
+}
+
+/* Info Box & Section Headers Selaras */
+.category-info-box, .section-header-card {
+  background: linear-gradient(135deg, rgba(42, 8, 23, 0.85) 0%, rgba(20, 4, 11, 0.94) 100%) !important;
+  border: 1px solid rgba(244, 63, 94, 0.28) !important;
+  border-left: 3px solid #f5c26b !important;
+}
+
+/* Kartu Talent & Reels Feed Selaras */
+.talent-card, .reel-card, .vcs-card {
+  background: linear-gradient(180deg, #1d0510 0%, #110309 100%) !important;
+  border: 1px solid rgba(244, 63, 94, 0.28) !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.65) !important;
+}
+
+.talent-card:hover, .reel-card:hover, .vcs-card:hover {
+  border-color: rgba(245, 194, 107, 0.62) !important;
+}
+
+.talent-card .order-btn, .book-btn, .btn-primary-luxury {
+  background: linear-gradient(135deg, #e11d48 0%, #9f1239 100%) !important;
+  border: 1px solid rgba(245, 194, 107, 0.45) !important;
+  color: #ffffff !important;
+}
+
+/* Rapikan posisi floating Live Chat & Floating Promo agar tidak tumpang tindih */
+#floatingCsBtn, .floating-cs-btn, .live-chat-float {
+  bottom: 92px !important;
+  right: 0 !important;
+  left: auto !important;
+  background: linear-gradient(180deg, #e11d48 0%, #881337 100%) !important;
+  color: #fff1f2 !important;
+  border: 1px solid rgba(245, 194, 107, 0.5) !important;
+  border-right: none !important;
+}
+
+/* =========================================================
+   1. TWITTER/X STYLE HAIRLINE DIVIDER FILTER (TANPA PEMBUNGKUS)
+   ========================================================= */
+.unified-icon-nav-box {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 4px 0 0 0 !important;
+  margin-bottom: 12px !important;
+}
+
+.cat-group-label {
+  padding: 10px 4px 6px 4px !important;
+  margin-bottom: 4px !important;
+  border-top: 1px solid rgba(244, 63, 94, 0.16) !important;
+  color: #fda4af !important;
+  font-size: 0.64rem !important;
+  letter-spacing: 0.12em !important;
+}
+
+.cat-group-label:first-of-type {
+  border-top: none !important;
+}
+
+/* Hilangkan kotak card individual pada setiap ikon filter */
+.icon-nav-row, .icon-scroll-row {
+  border-bottom: 1px solid rgba(244, 63, 94, 0.18) !important;
+  padding-bottom: 10px !important;
+  margin-bottom: 6px !important;
+  gap: 6px !important;
+}
+
+.icon-nav-btn, .filter-pill-btn {
+  position: relative !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  padding: 8px 10px !important;
+  color: #cbd5e1 !important;
+  transition: color 0.18s ease, background 0.18s ease !important;
+}
+
+.icon-nav-btn:hover, .filter-pill-btn:hover {
+  background: rgba(244, 63, 94, 0.08) !important;
+  color: #ffffff !important;
+}
+
+/* Tab aktif bergaya Twitter/X dengan garis bawah menyala */
+.icon-nav-btn.active, .filter-pill-btn.active {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.icon-nav-btn.active::after, .filter-pill-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -10px;
+  height: 2.5px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #f43f5e, #f5c26b);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.65);
+}
+
+/* Hilangkan kotak pembungkus pada baris info "Semua Reels Feed", jadikan baris garis tipis */
+.category-info-box, #categoryInfoBox {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.2) !important;
+  border-left: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 10px 4px 12px 4px !important;
+  margin-top: 2px !important;
+}
+
+/* =========================================================
+   2. HERO VISUAL BACKGROUND SELARAS TEMA MERAH DARAH (BLOOD-CRIMSON)
+   ========================================================= */
+.cn-hero-bg-photo {
+  background-image: url('https://images.unsplash.com/photo-1566737236500-c8ac43014a67?auto=format&fit=crop&w=1200&q=80') !important;
+  background-position: center 40% !important;
+  filter: sepia(0.35) hue-rotate(-28deg) saturate(1.85) contrast(1.12) brightness(0.46) !important;
+}
+
+.cn-hero-bg-vignette {
+  background:
+    radial-gradient(circle at 50% 22%, rgba(190, 18, 60, 0.38) 0%, rgba(120, 10, 42, 0.28) 46%, transparent 76%),
+    linear-gradient(
+      180deg,
+      rgba(16, 3, 9, 0.32) 0%,
+      rgba(14, 2, 8, 0.62) 56%,
+      rgba(11, 2, 6, 0.95) 88%,
+      #0b0206 100%
+    ) !important;
+}
+
+/* =========================================================
+   STANDALONE BORDERLESS HEADER BRAND LOGO (MONARCHY STYLE)
+   ========================================================= */
+.cn-brand-emblem {
+  width: 44px !important;
+  height: 44px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 2px !important;
+}
+
+.cn-brand-emblem img {
+  width: 44px !important;
+  height: 44px !important;
+  object-fit: contain !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  mix-blend-mode: lighten !important;
+  transform: scale(1.12);
+}
+
+/* Sekalian bersihkan border logo di dalam sidebar agar seragam */
+.cn-blood-sidebar .cn-sidebar-brand img {
+  width: 42px !important;
+  height: 42px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  mix-blend-mode: lighten !important;
+  object-fit: contain !important;
+}
+
+/* =========================================================
+   UNIFIED SEAMLESS SINGLE-CANVAS MERGE (HERO + BANNER + FEED)
+   ========================================================= */
+
+/* 1. Hilangkan jarak & garis pemisah antara Hero Atas dan Banner */
+.cn-monarchy-hero {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+.cn-hero-center {
+  padding: 34px 20px 22px 20px !important;
+}
+
+.cn-hero-bg-vignette {
+  background:
+    radial-gradient(circle at 50% 25%, rgba(190, 18, 60, 0.32) 0%, transparent 72%),
+    linear-gradient(
+      180deg,
+      rgba(11, 2, 6, 0.25) 0%,
+      rgba(11, 2, 6, 0.65) 65%,
+      #0b0206 100%
+    ) !important;
+}
+
+/* 2. Ubah Banner menjadi Full-Bleed Edge-to-Edge Tanpa Kotak Pembungkus */
+#bannerContainer.banner-container {
+  position: relative !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #0b0206 !important;
+  overflow: hidden !important;
+}
+
+/* Lapisan pelebur atas-bawah + toning warna crimson pada banner agar menyatu dengan kanvas */
+#bannerContainer.banner-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, #0b0206 0%, rgba(11, 2, 6, 0.18) 18%, rgba(11, 2, 6, 0.18) 78%, #0b0206 100%),
+    radial-gradient(circle at center, rgba(159, 18, 57, 0.18) 0%, rgba(11, 2, 6, 0.42) 100%);
+}
+
+#bannerContainer .banner-slide img {
+  filter: saturate(0.88) contrast(1.06) brightness(0.84) !important;
+}
+
+#bannerContainer .banner-dots {
+  z-index: 4 !important;
+  bottom: 12px !important;
+  right: 14px !important;
+}
+
+/* 3. Paksa hilangkan semua kotak pembungkus tombol kategori (Twitter/X Hairline Style) */
+.controls-section,
+.unified-icon-nav-box,
+.icon-nav-wrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.icon-nav-btn,
+.icon-nav-btn .icon-box,
+.icon-box {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.icon-nav-btn {
+  border-radius: 0 !important;
+  padding: 8px 12px !important;
+  opacity: 0.72;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+.icon-nav-btn.active {
+  opacity: 1 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 4. Rapikan Live Chat CS agar menempel rapi di tepi kanan & tidak menimpa kategori */
+#floatingCsBtn, .floating-cs-btn, [id*="liveChat"], [class*="live-chat"] {
+  left: auto !important;
+  right: 0 !important;
+  bottom: 96px !important;
+  border-radius: 12px 0 0 12px !important;
+  padding: 8px 12px !important;
+  font-size: 0.72rem !important;
+  background: linear-gradient(135deg, #be123c 0%, #881337 100%) !important;
+  border: 1px solid rgba(245, 194, 107, 0.45) !important;
+  border-right: none !important;
+  box-shadow: -4px 6px 18px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* =========================================================
+   1. GLOBAL UNIFIED VIDEO CANVAS (SATU LATAR UNTUK SEMUA)
+   ========================================================= */
+html, body {
+  background-color: #090206 !important;
+  background-image: none !important;
+}
+
+.cn-global-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: #090206;
+  pointer-events: none;
+}
+
+.cn-global-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.38;
+  filter: saturate(1.2) contrast(1.1) brightness(0.65);
+  transform: scale(1.04);
+}
+
+.cn-global-canvas-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(190, 18, 60, 0.24) 0%, transparent 58%),
+    linear-gradient(180deg, rgba(9, 2, 6, 0.55) 0%, rgba(11, 2, 7, 0.82) 45%, rgba(9, 2, 6, 0.94) 100%);
+}
+
+/* Buat Hero & container utama transparan agar menyatu di atas Global Video Canvas */
+.cn-monarchy-hero,
+.cn-hero-bg-stage,
+.cn-hero-bg-photo,
+.cn-hero-bg-vignette {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.cn-hero-bg-stage {
+  display: none !important;
+}
+
+.cn-hero-center {
+  padding: 36px 20px 26px 20px !important;
+}
+
+/* =========================================================
+   2. PONDASI KHUSUS SECTION BANNER PROMO (TERPISAH & TAJAM)
+   ========================================================= */
+.cn-promo-foundation {
+  position: relative;
+  margin: 4px 0 20px 0;
+  padding: 14px 12px 14px 12px;
+  border-radius: 18px;
+  background: rgba(16, 3, 9, 0.72);
+  border: 1px solid rgba(244, 63, 94, 0.24);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.cn-promo-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.cn-promo-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #fda4af;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.cn-promo-badge i {
+  color: #f5c26b;
+}
+
+.cn-promo-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.35), transparent);
+}
+
+/* Kembalikan banner ke ukuran rapi di dalam pondasi (hapus edge-to-edge & kabut gelap) */
+#bannerContainer.banner-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65) !important;
+  overflow: hidden !important;
+}
+
+#bannerContainer.banner-container::before,
+#bannerContainer.banner-container::after {
+  display: none !important;
+}
+
+#bannerContainer .banner-slide img {
+  filter: none !important;
+}
+
+/* =========================================================
+   ARCHITECTURAL NOCTURNAL NEON FOOTER (SEAMLESS & REFINED)
+   ========================================================= */
+footer.cn-neon-footer {
+  position: relative !important;
+  margin-top: 32px !important;
+  padding: 44px 18px 96px 18px !important;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 2, 6, 0.12) 0%,
+    rgba(13, 3, 8, 0.86) 14%,
+    rgba(8, 1, 5, 0.96) 100%
+  ) !important;
+  border-top: none !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+/* Garis Laser Neon 1px Presisi di Puncak Footer */
+footer.cn-neon-footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(244, 63, 94, 0.65) 28%,
+    rgba(245, 194, 107, 0.95) 50%,
+    rgba(244, 63, 94, 0.65) 72%,
+    transparent 100%
+  );
+  box-shadow: 0 0 14px rgba(244, 63, 94, 0.55);
+}
+
+/* Pendaran Atmosfer Crimson Halus di Bawah Garis Laser */
+footer.cn-neon-footer::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  height: 90px;
+  background: radial-gradient(ellipse at center, rgba(225, 29, 72, 0.24) 0%, transparent 72%);
+  pointer-events: none;
+}
+
+/* Brand Header di Atas Footer */
+footer.cn-neon-footer img[src*="favicon"] {
+  border: none !important;
+  box-shadow: none !important;
+  mix-blend-mode: lighten !important;
+}
+
+footer.cn-neon-footer h2,
+footer.cn-neon-footer h3,
+footer.cn-neon-footer .footer-brand-title {
+  text-shadow: 0 0 18px rgba(244, 63, 94, 0.42) !important;
+  letter-spacing: 0.06em !important;
+}
+
+/* Lepas Semua Kotak Ungu Pembungkus Seksi -> Hairline Divider */
+footer.cn-neon-footer .cn-ft-block {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid rgba(244, 63, 94, 0.14) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 22px 2px 10px 2px !important;
+  margin: 14px 0 0 0 !important;
+}
+
+/* Label Seksi Editorial Minimalis (Bukan Pil Tebal) */
+footer.cn-neon-footer .cn-ft-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 0 14px 0 !important;
+  margin: 0 auto 6px auto !important;
+  font-size: 0.64rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.18em !important;
+  color: #fda4af !important;
+  text-transform: uppercase !important;
+}
+
+footer.cn-neon-footer .cn-ft-label i {
+  color: #f5c26b !important;
+  font-size: 0.72rem !important;
+  filter: drop-shadow(0 0 6px rgba(245, 194, 107, 0.5));
+}
+
+/* 1. Media Sosial: Kaca Gelap Ramping dengan Neon Rim Halus Saat Disentuh */
+footer.cn-neon-footer .cn-ft-social-block a {
+  background: rgba(24, 5, 13, 0.52) !important;
+  border: 1px solid rgba(244, 63, 94, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+  color: #fce7f3 !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease !important;
+}
+
+footer.cn-neon-footer .cn-ft-social-block a:hover,
+footer.cn-neon-footer .cn-ft-social-block a:active {
+  background: rgba(159, 18, 57, 0.28) !important;
+  border-color: rgba(245, 194, 107, 0.65) !important;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.28) !important;
+  transform: translateY(-1px) !important;
+  color: #ffffff !important;
+}
+
+/* 2. Pengaduan & Legalitas: Trust Ledger dengan Garis Laser Kiri 2px */
+footer.cn-neon-footer .cn-ft-legal-block > div:not(.cn-ft-label) {
+  background: transparent !important;
+  border: none !important;
+  border-left: 2px solid rgba(244, 63, 94, 0.45) !important;
+  border-radius: 0 !important;
+  padding-left: 14px !important;
+  margin-left: 4px !important;
+}
+
+footer.cn-neon-footer .cn-ft-legal-block a {
+  color: #f5c26b !important;
+  text-decoration: none !important;
+  text-shadow: 0 0 10px rgba(245, 194, 107, 0.28);
+}
+
+/* 3. Jaringan Agensi Resmi: Strip 4 Kolom Kompak & Mewah */
+footer.cn-neon-footer .cn-ft-agency-block > div:not(.cn-ft-label) {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+footer.cn-neon-footer .cn-ft-agency-block a,
+footer.cn-neon-footer .cn-ft-agency-block > div:not(.cn-ft-label) > div {
+  background: rgba(20, 4, 11, 0.5) !important;
+  border: 1px solid rgba(244, 63, 94, 0.18) !important;
+  border-radius: 12px !important;
+  padding: 10px 6px !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+footer.cn-neon-footer .cn-ft-agency-block a:hover,
+footer.cn-neon-footer .cn-ft-agency-block a:active {
+  border-color: rgba(245, 194, 107, 0.55) !important;
+  box-shadow: 0 0 14px rgba(225, 29, 72, 0.26) !important;
+}
+
+footer.cn-neon-footer .cn-ft-agency-block img {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+  object-fit: contain !important;
+}
+
+footer.cn-neon-footer .cn-ft-agency-block span,
+footer.cn-neon-footer .cn-ft-agency-block p,
+footer.cn-neon-footer .cn-ft-agency-block div {
+  font-size: 0.64rem !important;
+  line-height: 1.2 !important;
+}
+
+/* Copyright Bawah Ringkas */
+footer.cn-neon-footer > p:last-of-type,
+footer.cn-neon-footer [class*="copyright"] {
+  border-top: 1px solid rgba(244, 63, 94, 0.12) !important;
+  margin-top: 22px !important;
+  padding-top: 16px !important;
+  font-size: 0.68rem !important;
+  color: rgba(253, 164, 175, 0.58) !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* Selaraskan Tombol Scroll-to-Top (↑) dari Ungu ke Blood-Crimson Neon Glass */
+#scrollTopBtn, .scroll-top-btn, button[onclick*="scrollTo"] {
+  background: linear-gradient(135deg, rgba(190, 18, 60, 0.9), rgba(102, 10, 38, 0.95)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.55) !important;
+  color: #fff1f2 !important;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.45) !important;
+}
+
+/* =========================================================
+   EDITORIAL ARTICLE-STYLE LEGAL & TRUST LEDGER (NO BUTTONS)
+   ========================================================= */
+.cn-editorial-legal-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-left: 1.5px solid rgba(244, 63, 94, 0.38) !important;
+  padding: 2px 0 2px 16px !important;
+  margin: 4px 0 4px 6px !important;
+  text-align: left !important;
+}
+
+.cn-editorial-legal-list a.cn-ed-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  padding: 12px 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.14) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+.cn-editorial-legal-list a.cn-ed-item:last-child {
+  border-bottom: none !important;
+}
+
+.cn-ed-kicker {
+  font-size: 0.6rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.16em !important;
+  color: #f5c26b !important;
+  text-transform: uppercase !important;
+}
+
+.cn-ed-title {
+  font-size: 0.84rem !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+  color: rgba(255, 241, 242, 0.9) !important;
+}
+
+.cn-ed-more {
+  font-size: 0.7rem !important;
+  color: rgba(253, 164, 175, 0.72) !important;
+  margin-top: 2px !important;
+}
+
+.cn-editorial-legal-list a.cn-ed-item:hover .cn-ed-title,
+.cn-editorial-legal-list a.cn-ed-item:active .cn-ed-title {
+  color: #ffffff !important;
+}
+
+.cn-editorial-legal-list a.cn-ed-item:hover .cn-ed-more {
+  color: #f5c26b !important;
+}
+
+/* =========================================================
+   FIXED FLOATING HEADER + CRISP NOCTURNAL CRIMSON DETAILS
+   ========================================================= */
+.cn-top-ticker {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  z-index: 9991 !important;
+  background: linear-gradient(90deg, #16030b 0%, #3a071a 50%, #16030b 100%) !important;
+  border-bottom: 1px solid rgba(245, 194, 107, 0.24) !important;
+}
+
+header#mainHeader.cn-monarchy-header {
+  position: fixed !important;
+  top: 26px;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  z-index: 9990 !important;
+  background: linear-gradient(180deg, rgba(24, 5, 13, 0.94) 0%, rgba(15, 3, 9, 0.96) 100%) !important;
+  backdrop-filter: blur(14px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(150%) !important;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.34) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 28px rgba(0, 0, 0, 0.72) !important;
+  transition: background 0.22s ease, box-shadow 0.22s ease !important;
+}
+
+/* Garis laser 1px crimson-gold di tepi bawah header agar tegas & tidak samar */
+header#mainHeader.cn-monarchy-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1.5px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(244, 63, 94, 0.78) 22%,
+    rgba(245, 194, 107, 0.92) 50%,
+    rgba(244, 63, 94, 0.78) 78%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.45);
+}
+
+/* Saat halaman di-scroll, perkuat kontras latar & bayangan agar konten di bawah tidak tabrakan */
+header#mainHeader.cn-monarchy-header.cn-header-scrolled {
+  background: rgba(14, 2, 8, 0.98) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(245, 194, 107, 0.12),
+    0 14px 34px rgba(0, 0, 0, 0.88),
+    0 2px 14px rgba(225, 29, 72, 0.22) !important;
+}
+
+/* Detail elemen di dalam header lebih tajam & jelas terbaca */
+.cn-burger-btn {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.42), rgba(136, 19, 55, 0.56)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.52) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 12px rgba(225, 29, 72, 0.28) !important;
+  color: #ffffff !important;
+}
+
+.cn-header-search input {
+  background: rgba(38, 8, 21, 0.92) !important;
+  border: 1px solid rgba(244, 63, 94, 0.44) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45) !important;
+  color: #ffffff !important;
+}
+
+.cn-header-search input::placeholder {
+  color: rgba(255, 228, 230, 0.68) !important;
+}
+
+.cn-header-search input:focus {
+  border-color: rgba(245, 194, 107, 0.78) !important;
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.22) !important;
+}
+
+.cn-currency-pill {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.34), rgba(136, 19, 55, 0.46)) !important;
+  border: 1px solid rgba(245, 194, 107, 0.54) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.cn-currency-pill select {
+  color: #fff3d1 !important;
+  font-weight: 700 !important;
+}
+
+/* =========================================================
+   FIX HEADER TENGGELAM DI BAWAH TOP TICKER
+   ========================================================= */
+.cn-top-ticker {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  z-index: 9991 !important;
+}
+
+header#mainHeader,
+header#mainHeader.cn-monarchy-header {
+  position: fixed !important;
+  top: 28px !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin-top: 0 !important;
+  transform: none !important;
+  z-index: 9990 !important;
+}
+
+body {
+  padding-top: 94px !important;
+}
+
+/* =========================================================
+   ARCHITECTURAL EDITORIAL HERO & FRAMELESS PROMO UX UPGRADE
+   ========================================================= */
+.cn-monarchy-hero.cn-editorial-hero {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 18px 0 !important;
+  padding: 18px 4px 0 4px !important;
+  background: transparent !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+/* 1. Eyebrow Status Bar (Architectural Hairline) */
+.cn-ed-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.22);
+}
+
+.cn-ed-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #fff1f2;
+}
+
+.cn-ed-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: rgba(245, 194, 107, 0.85);
+}
+
+/* 2. Editorial Left-Aligned Display Typography */
+.cn-ed-headline-wrap {
+  text-align: left;
+  padding: 0 2px 18px 2px;
+}
+
+.cn-ed-title {
+  margin: 0 0 6px 0;
+  font-size: clamp(2.05rem, 8.8vw, 2.75rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.cn-ed-title span {
+  background: linear-gradient(135deg, #fb7185 0%, #f5c26b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cn-ed-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  color: #f5c26b;
+  margin-bottom: 10px;
+}
+
+.cn-ed-kicker::before {
+  content: "";
+  width: 18px;
+  height: 1.5px;
+  background: linear-gradient(90deg, #f43f5e, #f5c26b);
+}
+
+.cn-ed-copy {
+  margin: 0;
+  max-width: 94%;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: rgba(255, 228, 230, 0.72);
+}
+
+/* 3. Hairline Metrics & Instant Action Strip */
+.cn-ed-action-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 2px;
+  border-top: 1px solid rgba(244, 63, 94, 0.2);
+  border-bottom: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.cn-ed-metrics {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.cn-ed-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cn-ed-metric strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+}
+
+.cn-ed-metric span {
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(253, 164, 175, 0.68);
+}
+
+.cn-ed-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #e11d48 0%, #881337 100%);
+  border: 1px solid rgba(245, 194, 107, 0.55);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.36);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+
+.cn-ed-cta i {
+  font-size: 0.66rem;
+  color: #f5c26b;
+}
+
+.cn-ed-cta:active {
+  transform: scale(0.96);
+}
+
+/* 4. Frameless Promo Showcase (Kill Double-Box Bezel) */
+.cn-promo-foundation.cn-editorial-promo {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 4px 0 18px 0 !important;
+  margin: 0 0 14px 0 !important;
+  border-bottom: 1px solid rgba(244, 63, 94, 0.16) !important;
+}
+
+/* Sembunyikan otomatis jika banner disembunyikan oleh navigasi sidebar */
+.cn-promo-foundation.cn-editorial-promo:has(#bannerContainer[style*="display: none"]) {
+  display: none !important;
+}
+
+.cn-promo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 8px 4px;
+}
+
+.cn-promo-index {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(253, 164, 175, 0.78);
+}
+
+.cn-promo-hint {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(245, 194, 107, 0.7);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cn-editorial-promo #bannerContainer.banner-container {
+  border-radius: 14px !important;
+  border: 1px solid rgba(245, 194, 107, 0.28) !important;
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.85), 0 0 24px -8px rgba(225, 29, 72, 0.28) !important;
+}
+
+/* =========================================================
+   REFINED LUXURY DISPLAY TYPOGRAPHY & AESTHETIC HERO POLISH
+   ========================================================= */
+.cn-editorial-hero .cn-ed-headline-wrap {
+  padding: 4px 2px 20px 2px !important;
+}
+
+.cn-editorial-hero h1.cn-ed-title {
+  font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: clamp(2.25rem, 9.8vw, 3.1rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.02 !important;
+  letter-spacing: 0.02em !important;
+  margin: 0 0 10px 0 !important;
+  color: #ffffff !important;
+  text-shadow: 0 4px 24px rgba(225, 29, 72, 0.32) !important;
+}
+
+.cn-editorial-hero h1.cn-ed-title span {
+  background: linear-gradient(135deg, #ff4d6d 0%, #f5c26b 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 2px 14px rgba(244, 63, 94, 0.42)) !important;
+}
+
+.cn-editorial-hero .cn-ed-kicker {
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.26em !important;
+  color: #f5c26b !important;
+  margin-bottom: 12px !important;
+}
+
+.cn-editorial-hero .cn-ed-copy {
+  font-size: 0.8rem !important;
+  line-height: 1.6 !important;
+  color: rgba(255, 228, 230, 0.78) !important;
+  max-width: 96% !important;
+}
+
+.cn-editorial-hero .cn-ed-metric strong {
+  font-size: 0.96rem !important;
+  letter-spacing: 0.03em !important;
+}
+
+.cn-editorial-hero .cn-ed-cta {
+  padding: 10px 18px !important;
+  background: linear-gradient(135deg, #e11d48 0%, #9f1239 100%) !important;
+  border: 1px solid rgba(245, 194, 107, 0.62) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 8px 22px rgba(225, 29, 72, 0.42) !important;
+  font-size: 0.74rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* =========================================================
+   AWWWARDS KINETIC REVEAL & REAL-TIME SCROLLYTELLING HERO
+   ========================================================= */
+.cn-editorial-hero {
+  --cn-sp: 0;
+}
+
+/* State awal sebelum reveal (masked & slightly shifted) */
+.cn-editorial-hero .cn-ed-eyebrow,
+.cn-editorial-hero h1.cn-ed-title,
+.cn-editorial-hero .cn-ed-kicker,
+.cn-editorial-hero .cn-ed-copy,
+.cn-editorial-hero .cn-ed-action-strip {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  clip-path: inset(0 0 100% 0);
+  will-change: transform, opacity, clip-path;
+  transition:
+    opacity 0.72s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.82s cubic-bezier(0.16, 1, 0.3, 1),
+    clip-path 0.82s cubic-bezier(0.16, 1, 0.3, 1),
+    letter-spacing 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cn-editorial-hero h1.cn-ed-title {
+  letter-spacing: 0.14em !important;
+}
+
+/* Staggered Awwwards Reveal saat .cn-awwwards-in aktif */
+.cn-editorial-hero.cn-awwwards-in .cn-ed-eyebrow {
+  opacity: calc(1 - var(--cn-sp) * 1.15);
+  clip-path: inset(0 0 0% 0);
+  transform: translate3d(0, calc(var(--cn-sp) * -14px), 0);
+  transition-delay: 0.04s;
+}
+
+.cn-editorial-hero.cn-awwwards-in h1.cn-ed-title {
+  opacity: calc(1 - var(--cn-sp) * 0.92);
+  clip-path: inset(0 0 0% 0);
+  letter-spacing: calc(0.02em + var(--cn-sp) * 0.12em) !important;
+  transform: translate3d(0, calc(var(--cn-sp) * -28px), 0) scale(calc(1 - var(--cn-sp) * 0.05));
+  transition-delay: 0.12s;
+}
+
+.cn-editorial-hero.cn-awwwards-in .cn-ed-kicker {
+  opacity: calc(1 - var(--cn-sp) * 1.1);
+  clip-path: inset(0 0 0% 0);
+  transform: translate3d(calc(var(--cn-sp) * 10px), calc(var(--cn-sp) * -20px), 0);
+  transition-delay: 0.22s;
+}
+
+.cn-editorial-hero.cn-awwwards-in .cn-ed-copy {
+  opacity: calc(1 - var(--cn-sp) * 1.25);
+  clip-path: inset(0 0 0% 0);
+  transform: translate3d(0, calc(var(--cn-sp) * -12px), 0);
+  transition-delay: 0.3s;
+}
+
+.cn-editorial-hero.cn-awwwards-in .cn-ed-action-strip {
+  opacity: calc(1 - var(--cn-sp) * 0.85);
+  clip-path: inset(0 0 0% 0);
+  transform: translate3d(0, calc(var(--cn-sp) * -6px), 0);
+  transition-delay: 0.38s;
+}
+
+/* Pastikan scroll-margin-top aman dari header fixed */
+.category-info-box,
+#categoryInfoBox,
+.unified-icon-nav-box,
+#galleryView {
+  scroll-margin-top: 108px !important;
+}
+
+/* =========================================================
+   FIX HERO BLANK: PURE CSS AWWWARDS REVEAL + SAFE PARALLAX
+   ========================================================= */
+.cn-editorial-hero .cn-ed-eyebrow,
+.cn-editorial-hero h1.cn-ed-title,
+.cn-editorial-hero .cn-ed-kicker,
+.cn-editorial-hero .cn-ed-copy,
+.cn-editorial-hero .cn-ed-action-strip {
+  opacity: 1 !important;
+  clip-path: none !important;
+  transition: none !important;
+}
+
+@keyframes cnAwwwardsRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+    clip-path: inset(0 0 100% 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    clip-path: inset(0 0 0% 0);
+  }
+}
+
+.cn-editorial-hero .cn-ed-eyebrow {
+  animation: cnAwwwardsRise 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.42s both;
+  transform: translate3d(0, calc(var(--cn-sp, 0) * -12px), 0);
+}
+
+.cn-editorial-hero h1.cn-ed-title {
+  letter-spacing: calc(0.02em + var(--cn-sp, 0) * 0.1em) !important;
+  animation: cnAwwwardsRise 0.78s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+  transform: translate3d(0, calc(var(--cn-sp, 0) * -24px), 0) scale(calc(1 - var(--cn-sp, 0) * 0.04));
+}
+
+.cn-editorial-hero .cn-ed-kicker {
+  animation: cnAwwwardsRise 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.58s both;
+  transform: translate3d(calc(var(--cn-sp, 0) * 8px), calc(var(--cn-sp, 0) * -16px), 0);
+}
+
+.cn-editorial-hero .cn-ed-copy {
+  animation: cnAwwwardsRise 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.66s both;
+  transform: translate3d(0, calc(var(--cn-sp, 0) * -10px), 0);
+}
+
+.cn-editorial-hero .cn-ed-action-strip {
+  animation: cnAwwwardsRise 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.74s both;
+  transform: translate3d(0, calc(var(--cn-sp, 0) * -4px), 0);
+}
+
+/* =========================================================
+   SYNCED AWWWARDS EXPO-OUT REVEAL (POST-SPLASH CINEMATIC)
+   ========================================================= */
+#cnSplashLoader {
+  transition: opacity 0.44s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.44s ease !important;
+}
+
+/* Lepas kunci !important sebelumnya agar keyframe bisa berjalan penuh */
+.cn-editorial-hero .cn-ed-eyebrow,
+.cn-editorial-hero h1.cn-ed-title,
+.cn-editorial-hero .cn-ed-kicker,
+.cn-editorial-hero .cn-ed-copy,
+.cn-editorial-hero .cn-ed-action-strip {
+  animation: none !important;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  transform: translate3d(0, 34px, 0);
+  transition: none !important;
+}
+
+@keyframes cnAwwwardsExpoRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 34px, 0);
+    clip-path: inset(0 0 100% 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    clip-path: inset(0 0 0% 0);
+  }
+}
+
+@keyframes cnAwwwardsTitleGlide {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.18em;
+    transform: translate3d(0, 42px, 0) scale(0.96);
+    clip-path: inset(0 0 100% 0);
+  }
+  100% {
+    opacity: 1;
+    letter-spacing: 0.02em;
+    transform: translate3d(0, 0, 0) scale(1);
+    clip-path: inset(0 0 0% 0);
+  }
+}
+
+/* Dipicu tepat saat splash screen memudar (.cn-reveal-go) */
+.cn-editorial-hero.cn-reveal-go .cn-ed-eyebrow {
+  animation: cnAwwwardsExpoRise 0.85s cubic-bezier(0.19, 1, 0.22, 1) 0.12s forwards !important;
+}
+
+.cn-editorial-hero.cn-reveal-go h1.cn-ed-title {
+  animation: cnAwwwardsTitleGlide 1.1s cubic-bezier(0.19, 1, 0.22, 1) 0.22s forwards !important;
+}
+
+.cn-editorial-hero.cn-reveal-go .cn-ed-kicker {
+  animation: cnAwwwardsExpoRise 0.9s cubic-bezier(0.19, 1, 0.22, 1) 0.38s forwards !important;
+}
+
+.cn-editorial-hero.cn-reveal-go .cn-ed-copy {
+  animation: cnAwwwardsExpoRise 0.92s cubic-bezier(0.19, 1, 0.22, 1) 0.5s forwards !important;
+}
+
+.cn-editorial-hero.cn-reveal-go .cn-ed-action-strip {
+  animation: cnAwwwardsExpoRise 0.95s cubic-bezier(0.19, 1, 0.22, 1) 0.62s forwards !important;
+}
+
+/* =========================================================
+   FIX CLICKABILITY TOMBOL LIHAT READY
+   ========================================================= */
+.cn-editorial-hero,
+.cn-editorial-hero .cn-ed-action-strip {
+  position: relative !important;
+  z-index: 25 !important;
+  pointer-events: auto !important;
+}
+
+.cn-editorial-hero .cn-ed-cta,
+#cnBtnLihatReady {
+  position: relative !important;
+  z-index: 30 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+}
+
+/* =========================================================
+   FIX TITIK AKTIF SIDEBAR DINAMIS
+   ========================================================= */
+.cn-nav-item .cn-nav-active-dot {
+  opacity: 0 !important;
+  transform: scale(0.4) !important;
+  transition: opacity 0.22s ease, transform 0.22s ease !important;
+}
+
+.cn-nav-item.active .cn-nav-active-dot {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+/* =========================================================
+   SIDEBAR BRAND TITLE: PURE FONT (CLUBS' NIGHT SERAGAM)
+   ========================================================= */
+.cn-sidebar-header span,
+.cn-sidebar-brand span,
+.cn-sidebar-title span,
+.sidebar-header span,
+[class*="sidebar"] [class*="title"] span,
+[class*="sidebar"] [class*="brand"] span {
+  color: inherit !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  -webkit-text-fill-color: inherit !important;
+  filter: none !important;
+  text-shadow: inherit !important;
+  font-weight: inherit !important;
+}
+
+/* =========================================================
+   SAMAKAN 100% FONT-FAMILY NIGHT DENGAN CLUBS' DI SIDEBAR
+   ========================================================= */
+.cn-sidebar-header span,
+.cn-sidebar-brand span,
+.cn-sidebar-title span,
+.sidebar-header span,
+[class*="sidebar"] [class*="title"] span,
+[class*="sidebar"] [class*="brand"] span {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+}
+
+/* =========================================================
+   AWWWARDS VERTICAL EDGE BADGE — LIVE CHAT CS
+   ========================================================= */
+.cn-awwwards-chat-tab {
+  position: fixed !important;
+  right: 0 !important;
+  left: auto !important;
+  top: 62% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  z-index: 9990 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+
+  width: 38px !important;
+  min-width: 38px !important;
+  height: auto !important;
+  padding: 14px 6px !important;
+  margin: 0 !important;
+
+  background: #ffffff !important;
+  color: #0b0b0f !important;
+  border: none !important;
+  border-radius: 6px 0 0 6px !important;
+  box-shadow: -4px 8px 24px rgba(0, 0, 0, 0.45) !important;
+  cursor: pointer !important;
+  transition: padding-right 0.22s ease, background-color 0.22s ease !important;
+}
+
+.cn-awwwards-chat-tab:hover,
+.cn-awwwards-chat-tab:active {
+  padding-right: 10px !important;
+  background: #f4f4f6 !important;
+}
+
+.cn-awwwards-chat-tab .cn-aw-brand {
+  font-family: "Plus Jakarta Sans", "Inter", -apple-system, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1 !important;
+  color: #0b0b0f !important;
+}
+
+.cn-awwwards-chat-tab .cn-aw-line {
+  width: 16px !important;
+  height: 1px !important;
+  background: rgba(11, 11, 15, 0.22) !important;
+}
+
+.cn-awwwards-chat-tab .cn-aw-label {
+  writing-mode: vertical-rl !important;
+  text-orientation: mixed !important;
+  transform: rotate(180deg) !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  color: #0b0b0f !important;
+  white-space: nowrap !important;
+}
+
+.cn-awwwards-chat-tab .cn-aw-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: #e11d48 !important;
+  box-shadow: 0 0 8px rgba(225, 29, 72, 0.7) !important;
+}
+
+/* =========================================================
+   LIVE CHAT SLIDE-OUT DRAWER (GESER KANAN -> KIRI)
+   ========================================================= */
+#cn-chat-widget {
+  position: static !important;
+  transform: none !important;
+}
+
+#cn-chat-btn.cn-awwwards-chat-tab {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), padding-right 0.22s ease, opacity 0.25s ease !important;
+}
+
+#cn-chat-btn.cn-awwwards-chat-tab.cn-tab-hidden {
+  transform: translate(110%, -50%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#cn-chat-box.cn-chat-window {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  width: min(390px, 92vw) !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  border-radius: 18px 0 0 18px !important;
+  z-index: 9999 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+
+  transform: translateX(105%) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, visibility 0.42s ease !important;
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.65) !important;
+}
+
+#cn-chat-box.cn-chat-window.cn-slide-open {
+  transform: translateX(0) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* =========================================================
+   DYNAMIC WELCOME DIALOGUE SECTION (ZERO LAYOUT SHIFT)
+   ========================================================= */
+.cn-welcome-title-anim {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cn-welcome-title-anim.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cn-welcome-accent {
+  background: linear-gradient(90deg, #ff4d6d, #f5c26b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cn-welcome-desc-box {
+  min-height: 3.4em !important;
+  line-height: 1.55 !important;
+}
+
+.cn-welcome-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: #ff4d6d;
+  font-weight: 700;
+  animation: cnCursorBlink 0.75s infinite;
+}
+
+.cn-welcome-cursor.cn-cursor-idle {
+  animation: cnCursorBlink 1.1s infinite;
+}
+
+@keyframes cnCursorBlink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* =========================================================
+   PWA 5-TAB BOTTOM NAV & INDEPENDENT PAGES
+   ========================================================= */
+/* Hapus baris 24/7 INSTANT BOOK | 100% E2E PRIVATE | Lihat Ready */
+.cn-hero-footer,
+.cn-hero-stats,
+.cn-hero-metrics,
+.cn-editorial-hero .cn-hero-cta-row {
+  display: none !important;
+}
+
+body {
+  padding-bottom: 88px !important;
+}
+
+.cn-pwa-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 18px 16px 32px;
+  min-height: 72vh;
+}
+
+.cn-pwa-header {
+  margin-bottom: 18px;
+}
+
+.cn-pwa-header h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 4px;
+}
+
+.cn-pwa-header p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+  margin: 0;
+}
+
+.cn-pwa-placeholder-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 20px;
+  border-radius: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.65);
+  text-align: center;
+  font-size: 13px;
+}
+
+.cn-pwa-placeholder-box i {
+  font-size: 26px;
+  color: #ff4d6d;
+}
+
+/* Merch Placeholder Grid */
+.cn-merch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.cn-merch-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.cn-merch-thumb {
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 42, 95, 0.14), rgba(147, 51, 234, 0.14));
+  font-size: 38px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cn-merch-info {
+  padding: 12px;
+}
+
+.cn-merch-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #f5c26b;
+}
+
+.cn-merch-info h4 {
+  font-size: 13px;
+  color: #fff;
+  margin: 4px 0 6px;
+}
+
+.cn-merch-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ff4d6d;
+  margin: 0;
+}
+
+/* Activity Page (USHERS Style) */
+.cn-activity-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.48);
+  margin: 18px 0 8px 4px;
+}
+
+.cn-activity-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.cn-activity-row {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: #fff;
+  padding: 15px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cn-activity-row:last-child {
+  border-bottom: none;
+}
+
+.cn-activity-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cn-activity-row span i {
+  color: #ff4d6d;
+  width: 18px;
+  text-align: center;
+}
+
+.cn-activity-row > i {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+}
+
+/* Floating Pencil FAB (Twitter/X Style) */
+.cn-pencil-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 92px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #ff2a5f, #f97316);
+  color: #fff;
+  font-size: 19px;
+  box-shadow: 0 10px 26px rgba(255, 42, 95, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9940;
+}
+
+/* 5-Tab PWA Bottom Navigation Bar */
+.cn-pwa-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9955;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: end;
+  padding: 8px 6px max(10px, env(safe-area-inset-bottom));
+  background: rgba(12, 8, 16, 0.92);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cn-bnav-item {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.52);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.cn-bnav-item i {
+  font-size: 18px;
+}
+
+.cn-bnav-item span {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.cn-bnav-item.active {
+  color: #ffffff;
+}
+
+.cn-bnav-item.active i {
+  color: #ff4d6d;
+}
+
+.cn-bnav-center {
+  position: relative;
+  margin-top: -18px;
+}
+
+.cn-bnav-center-orb {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff2a5f, #f97316);
+  color: #fff !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(255, 42, 95, 0.5);
+  border: 3px solid #0c0810;
+}
+
+.cn-bnav-center-orb i {
+  color: #fff !important;
+  font-size: 19px;
+}
+
+/* =========================================================
+   FASE 2: COMPACT FILTER (GARIS + DROPDOWN + TRAY)
+   & PEMISAHAN HOME (PURE REELS) VS TALENT (GRID CARD)
+   ========================================================= */
+/* Sembunyikan blok filter lama 2 baris & kotak info besar */
+.nav-row-title,
+.icon-nav-row,
+.sub-row,
+.category-info-box,
+.category-banner-info,
+#categoryInfoBox {
+  display: none !important;
+}
+
+.cn-compact-filter {
+  margin: 6px 0 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 0;
+}
+
+.cn-cf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cn-cf-select-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0 12px;
+  height: 38px;
+}
+
+.cn-cf-icon {
+  color: #ff4d6d;
+  font-size: 13px;
+  margin-right: 8px;
+}
+
+.cn-cf-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+}
+
+.cn-cf-select option {
+  background: #140d1a;
+  color: #ffffff;
+}
+
+.cn-cf-chevron {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.cn-cf-tray-btn {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.cn-cf-tray-btn i {
+  font-size: 10px;
+  transition: transform 0.22s ease;
+}
+
+.cn-cf-tray-btn.open {
+  border-color: rgba(255, 77, 109, 0.6);
+  background: rgba(255, 77, 109, 0.12);
+}
+
+.cn-cf-tray-btn.open i {
+  transform: rotate(180deg);
+}
+
+.cn-cf-tray {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  pointer-events: none;
+  transition: max-height 0.26s ease, opacity 0.22s ease, margin-top 0.22s ease;
+}
+
+.cn-cf-tray::-webkit-scrollbar {
+  display: none;
+}
+
+.cn-cf-tray.open {
+  max-height: 52px;
+  opacity: 1;
+  margin-top: 10px;
+  pointer-events: auto;
+}
+
+.cn-cf-pill {
+  flex: 0 0 auto;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cn-cf-pill.active {
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+/* Mode Enforcement: Home = Pure Reels | Talent = Grid Card */
+body.cn-mode-home-reels .talent-grid,
+body.cn-mode-home-reels #talentGrid,
+body.cn-mode-home-reels .card-grid {
+  display: none !important;
+}
+
+body.cn-mode-talent-grid .reels-container,
+body.cn-mode-talent-grid .reels-feed,
+body.cn-mode-talent-grid #reelsContainer {
+  display: none !important;
+}
+
+/* =========================================================
+   FASE 3: AUTH MODAL (USER VS TALENT) & SESSION PROFILE
+   ========================================================= */
+.cn-auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.cn-auth-modal.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.cn-auth-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 3, 9, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.cn-auth-sheet {
+  position: relative;
+  width: min(460px, 100vw);
+  max-height: 90dvh;
+  overflow-y: auto;
+  background: #130b19;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px 24px 0 0;
+  padding: 20px 18px max(24px, env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cn-auth-modal.open .cn-auth-sheet {
+  transform: translateY(0);
+}
+
+.cn-auth-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.cn-auth-header h3 {
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.cn-auth-header p {
+  margin: 0;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.cn-auth-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.cn-auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.cn-auth-tab {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 9px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cn-auth-tab.active {
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  color: #fff;
+}
+
+.cn-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cn-role-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cn-role-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cn-role-btn.active {
+  border-color: #ff4d6d;
+  background: rgba(255, 42, 95, 0.16);
+  color: #fff;
+}
+
+.cn-talent-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 12px;
+  padding: 11px 12px;
+}
+
+.cn-tw-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #fbbf24;
+  margin-bottom: 4px;
+}
+
+.cn-talent-warning p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cn-field label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.cn-field input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  padding: 11px 13px;
+  color: #fff;
+  font-size: 13.5px;
+  outline: none;
+}
+
+.cn-field input:focus {
+  border-color: #ff4d6d;
+}
+
+.cn-auth-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.cn-auth-note i {
+  color: #34d399;
+}
+
+.cn-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+}
+
+.cn-auth-submit {
+  margin-top: 4px;
+  padding: 13px;
+  border-radius: 13px;
+  border: none;
+  background: linear-gradient(135deg, #ff2a5f, #f97316);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cn-auth-feedback {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.cn-auth-feedback.is-success {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.cn-auth-feedback.is-error {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* Session Profile Card di Tab Aktivitas */
+.cn-session-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cn-session-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cn-session-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cn-session-handle {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.58);
+  margin-top: 2px;
+}
+
+.cn-badge-role {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.cn-badge-role.is-talent {
+  background: rgba(255, 42, 95, 0.22);
+  color: #ff7597;
+}
+
+.cn-badge-role.is-user {
+  background: rgba(139, 92, 246, 0.22);
+  color: #c4b5fd;
+}
+
+.cn-badge-status.is-ok { color: #34d399; }
+.cn-badge-status.is-pending { color: #fbbf24; }
+.cn-logout-row span i { color: #f87171 !important; }
+
+/* =========================================================
+   FASE 4: USHERS LOUNGE (STORY BAR, FEED, COMPOSER iOS)
+   ========================================================= */
+.cn-story-bar {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 14px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  scrollbar-width: none;
+}
+
+.cn-story-bar::-webkit-scrollbar { display: none; }
+
+.cn-story-item {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cn-story-ring {
+  padding: 2.5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff2a5f, #f97316, #c084fc);
+  transition: opacity 0.25s ease;
+}
+
+.cn-story-item.is-seen .cn-story-ring {
+  background: rgba(255, 255, 255, 0.22);
+  opacity: 0.65;
+}
+
+.cn-story-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 2.5px solid #0e0814;
+  color: #fff;
+  font-weight: 800;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cn-story-name {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 62px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cn-story-item.is-seen .cn-story-name {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Story Viewer Fullscreen */
+.cn-story-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: #0a060f;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.cn-story-viewer.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.cn-sv-progress {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 12px 14px 10px;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.cn-sv-bar {
+  height: 100%;
+  width: 0%;
+  background: #fff;
+}
+
+.cn-sv-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px 12px;
+}
+
+.cn-sv-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cn-sv-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #fff;
+}
+
+.cn-sv-name { font-size: 14px; font-weight: 700; color: #fff; }
+.cn-sv-time { font-size: 11px; color: rgba(255, 255, 255, 0.55); }
+
+.cn-sv-close {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.cn-sv-media {
+  flex: 1;
+  margin: 0 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cn-sv-caption {
+  padding: 18px 20px max(28px, env(safe-area-inset-bottom));
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: #fff;
+  text-align: center;
+}
+
+/* Feed Cards (USHERS Style) */
+.cn-lounge-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cn-post-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  padding: 15px;
+}
+
+.cn-post-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cn-post-ava {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cn-post-meta { flex: 1; }
+.cn-post-author { font-size: 13.5px; font-weight: 700; color: #fff; }
+.cn-post-author span { font-weight: 500; color: rgba(255, 255, 255, 0.5); font-size: 12px; }
+.cn-post-time { font-size: 11px; color: rgba(255, 255, 255, 0.45); }
+
+.cn-post-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(255, 42, 95, 0.2);
+  color: #ff6b8b;
+}
+
+.cn-post-body {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: pre-wrap;
+}
+
+.cn-post-img {
+  width: 100%;
+  border-radius: 14px;
+  margin-bottom: 12px;
+  max-height: 340px;
+  object-fit: cover;
+}
+
+.cn-post-actions {
+  display: flex;
+  gap: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 10px;
+}
+
+.cn-pa-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.cn-pa-btn.is-liked { color: #ff2a5f; }
+
+.cn-reply-box {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.cn-reply-item {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.82);
+  margin-bottom: 6px;
+}
+
+.cn-reply-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cn-reply-input-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 11px;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.cn-reply-input-row button {
+  background: #ff2a5f;
+  border: none;
+  color: #fff;
+  width: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Composer Textarea & Upload Box */
+.cn-field textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 11px 13px;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.cn-char-counter {
+  float: right;
+  font-size: 11px;
+  color: #fbbf24;
+}
+
+.cn-char-counter.is-valid { color: #34d399; }
+
+.cn-upload-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cn-img-preview-wrap {
+  margin-top: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cn-img-preview-wrap img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  display: block;
+}
+
+.cn-compress-info {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+#cnPostSubmitBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   FASE 5: OFFICIAL MERCH STORE & DEVELOPER CRUD
+   ========================================================= */
+.cn-merch-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.cn-merch-pills {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cn-merch-pills::-webkit-scrollbar { display: none; }
+
+.cn-merch-dev-chip {
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 194, 107, 0.4);
+  background: rgba(245, 194, 107, 0.12);
+  color: #f5c26b;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cn-merch-photo {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.cn-merch-desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.56);
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cn-merch-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.cn-merch-buy {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #ff2a5f, #f97316);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cn-merch-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cn-select-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  padding: 11px 12px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+}
+
+.cn-select-input option {
+  background: #130b19;
+  color: #fff;
+}
+
+.cn-merch-form-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cn-btn-ghost {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cn-dev-list-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 18px 0 8px;
+}
+
+.cn-dev-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cn-dev-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.cn-dev-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cn-dev-item-info b {
+  font-size: 12.5px;
+  color: #fff;
+}
+
+.cn-dev-item-info span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.cn-dev-item-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.cn-dev-item-btns button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+}
+
+.cn-dev-item-btns button.is-del {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+}
+
+/* =========================================================
+   FIX LAYOUT BUGS: POSISI HALAMAN, BANNER 18+, & TAB TALENT
+   ========================================================= */
+/* 1. Hapus ruang kosong besar di Tab Talent */
+#cnPageTalent {
+  min-height: auto !important;
+  padding-bottom: 8px !important;
+}
+
+/* 2. Angkat banner melayang EXCLUSIVITY 18+ agar tidak menabrak 5-Tab Bottom Nav,
+      dan sembunyikan saat berada di tab selain Home */
+.floating-promo-banner,
+.promo-floating-bar,
+.exclusive-promo-bar,
+[class*="promo-banner"],
+[id*="promoBanner"],
+[id*="exclusiveBanner"] {
+  bottom: 78px !important;
+  z-index: 9930 !important;
+}
+
+body:not(.cn-mode-home-reels) .floating-promo-banner,
+body:not(.cn-mode-home-reels) .promo-floating-bar,
+body:not(.cn-mode-home-reels) .exclusive-promo-bar,
+body:not(.cn-mode-home-reels) [class*="promo-banner"],
+body:not(.cn-mode-home-reels) [id*="promoBanner"],
+body:not(.cn-mode-home-reels) [id*="exclusiveBanner"] {
+  display: none !important;
+}
+
+/* 3. Pastikan tombol pensil FAB di Lounge selalu di atas Bottom Nav */
+.cn-pencil-fab {
+  bottom: 92px !important;
+  z-index: 9960 !important;
+}
+
+/* =========================================================
+   HILANGKAN SPACE KOSONG ATAS PADA HALAMAN PWA
+   ========================================================= */
+.cn-pwa-page {
+  margin-top: 0 !important;
+  padding-top: 10px !important;
+}
+
+/* =========================================================
+   STORY VIEWER TAP ZONES (KIRI: PREV | KANAN: NEXT)
+   ========================================================= */
+.cn-sv-media {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.cn-sv-tap-zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  z-index: 5;
+}
+
+.cn-sv-tap-prev {
+  width: 35%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cn-sv-tap-next {
+  width: 65%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================================
+   STORY UPLOAD BUTTON (+ STORY SAYA) & MULTI-SLIDE SEGMENTS
+   ========================================================= */
+.cn-story-add-ring {
+  position: relative;
+  padding: 2.5px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 77, 109, 0.75);
+}
+
+.cn-story-add-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 42, 95, 0.14);
+  color: #ff4d6d;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cn-story-add-btn.is-full .cn-story-add-ring {
+  border-color: rgba(255, 255, 255, 0.25);
+  opacity: 0.6;
+}
+
+.cn-story-quota-pill {
+  position: absolute;
+  bottom: -3px;
+  right: -4px;
+  background: #ff2a5f;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 99px;
+  border: 2px solid #0e0814;
+}
+
+.cn-sv-progress.cn-sv-progress-multi {
+  display: flex;
+  gap: 5px;
+  background: transparent;
+  height: 3px;
+}
+
+.cn-sv-seg {
+  flex: 1;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.cn-sv-seg-fill {
+  height: 100%;
+  width: 0%;
+  background: #ffffff;
+}
+
+.cn-sv-seg-fill.is-done {
+  width: 100%;
+}
+
+.cn-sv-seg-fill.is-running {
+  width: 100%;
+  transition: width 4.5s linear;
+}
+
+/* =========================================================
+   FASE 6: DEDICATED COMPOSE PAGE & SUPER DEV CONTROL CENTER
+   ========================================================= */
+.cn-compose-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cn-compose-back {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.cn-compose-top-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.cn-compose-e2e-pill {
+  font-size: 10px;
+  font-weight: 800;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 4px 8px;
+  border-radius: 99px;
+}
+
+.cn-compose-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.cn-cw-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #fbbf24;
+  margin-bottom: 6px;
+}
+
+.cn-compose-warning ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cn-compose-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cn-compose-author-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cn-compose-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cn-compose-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cn-compose-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.cn-compose-chips {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cn-compose-chips::-webkit-scrollbar { display: none; }
+
+.cn-chip-opt {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cn-chip-opt.active {
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  border-color: transparent;
+  color: #fff;
+}
+
+#cnFullPostText {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #fff;
+  font-size: 13.5px;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+}
+
+#cnFullPostText:focus { border-color: #ff4d6d; }
+
+.cn-char-progress-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.cn-char-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #fbbf24;
+  transition: width 0.18s ease, background 0.2s ease;
+}
+
+.cn-char-progress-fill.is-valid { background: #34d399; }
+
+.cn-preview-img-rel {
+  position: relative;
+}
+
+.cn-preview-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.72);
+  color: #f87171;
+  cursor: pointer;
+}
+
+.cn-compose-toggles {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.cn-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.86);
+  cursor: pointer;
+}
+
+.cn-toggle-row input[type="checkbox"],
+.cn-qc-switch-card input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #ff2a5f;
+}
+
+#cnFullPostSubmitBtn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* Super Developer Control Center */
+.cn-dev-sheet { max-height: 92dvh; }
+
+.cn-dev-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.cn-dev-tab {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  padding: 8px 4px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.cn-dev-tab.active {
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  color: #fff;
+}
+
+.cn-dev-badge {
+  background: #f59e0b;
+  color: #000;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 99px;
+}
+
+.cn-dev-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 12px;
+}
+
+.cn-dev-empty {
+  text-align: center;
+  padding: 20px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.45);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+}
+
+.cn-qc-switch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 42, 95, 0.09);
+  border: 1px solid rgba(255, 42, 95, 0.3);
+  margin-bottom: 14px;
+}
+
+.cn-qc-switch-card b { display: block; font-size: 13px; color: #fff; }
+.cn-qc-switch-card span { font-size: 11px; color: rgba(255, 255, 255, 0.65); }
+
+.cn-qc-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.cn-qc-status { font-weight: 700; color: #f5c26b !important; }
+.cn-dev-item-btns button.is-ok { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+
+/* Indikator Auto-Pruning D1 & R2 di bawah Feed Lounge */
+.cn-feed-quota-note {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 12px 10px 6px;
+}
+
+.cn-feed-quota-note i {
+  color: #34d399;
+  margin-right: 4px;
+}
+
+/* =========================================================
+   EDIT PROFIL & BIODATA + HALAMAN PROFIL PUBLIK LOUNGE
+   ========================================================= */
+.cn-edit-prof-row {
+  align-items: center !important;
+}
+
+.cn-edit-prof-left {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  text-align: left;
+}
+
+.cn-edit-prof-text {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 2px !important;
+}
+
+.cn-edit-prof-text b {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cn-edit-prof-text small {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.cn-prof-ava-editor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cn-prof-ava-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+}
+
+.cn-pubprof-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cn-pubprof-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff2a5f, #b829ea);
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 77, 109, 0.55);
+}
+
+.cn-pubprof-identity h3 {
+  margin: 0 0 2px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.cn-pubprof-handle {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 6px;
+}
+
+.cn-pubprof-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cn-pub-agency-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cn-pubprof-bio {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+}
+
+.cn-pubprof-meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.cn-pub-mood-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #f5c26b;
+  background: rgba(245, 194, 107, 0.1);
+  border: 1px solid rgba(245, 194, 107, 0.25);
+  padding: 4px 10px;
+  border-radius: 99px;
+}
+
+.cn-pubprof-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* =========================================================
+   FASE 7: INDEPENDENT PAGES (ORDERS, SUPPORT, SOP, ARTICLES)
+   ========================================================= */
+.cn-order-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 15px;
+  padding: 13px 15px;
+  margin-bottom: 10px;
+}
+
+.cn-order-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.cn-order-top b { font-size: 13.5px; color: #fff; }
+
+.cn-order-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+}
+
+.cn-order-meta { font-size: 11.5px; color: rgba(255, 255, 255, 0.5); }
+
+.cn-order-review {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.cn-support-hero {
+  text-align: center;
+  padding: 22px 16px;
+  border-radius: 18px;
+  background: rgba(255, 42, 95, 0.08);
+  border: 1px solid rgba(255, 42, 95, 0.25);
+  margin-bottom: 14px;
+}
+
+.cn-support-hero > i { font-size: 32px; color: #ff4d6d; margin-bottom: 8px; }
+.cn-support-hero h3 { margin: 0 0 6px; font-size: 17px; color: #fff; }
+.cn-support-hero p { margin: 0 0 14px; font-size: 12.5px; color: rgba(255, 255, 255, 0.72); line-height: 1.5; }
+
+.cn-faq-item {
+  padding: 13px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cn-faq-item:last-child { border-bottom: none; }
+.cn-faq-item b { display: block; font-size: 13px; color: #fff; margin-bottom: 4px; }
+.cn-faq-item p { margin: 0; font-size: 12px; line-height: 1.5; color: rgba(255, 255, 255, 0.65); }
+
+.cn-server-status-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 15px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  margin-bottom: 14px;
+}
+
+.cn-ss-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 10px #34d399;
+  flex-shrink: 0;
+}
+
+.cn-server-status-card b { display: block; font-size: 13px; color: #fff; }
+.cn-server-status-card span { font-size: 11.5px; color: rgba(255, 255, 255, 0.72); }
+
+.cn-article-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cn-article-card {
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 15px;
+  cursor: pointer;
+}
+
+.cn-article-card h4 { margin: 6px 0; font-size: 14.5px; color: #fff; }
+.cn-article-card p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.65); }
+
+.cn-article-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ff4d6d;
+}
+
+.cn-article-reader {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  padding: 18px 16px;
+}
+
+.cn-article-reader h3 { margin: 8px 0 6px; font-size: 18px; color: #fff; line-height: 1.35; }
+.cn-article-date { font-size: 11.5px; color: rgba(255, 255, 255, 0.5); margin-bottom: 14px; }
+.cn-article-reader p { margin: 0; font-size: 13.5px; line-height: 1.65; color: rgba(255, 255, 255, 0.88); }
+
+/* =========================================================
+   FASE 8: GLASS TOAST, ACTION SHEET MODERASI & OFFLINE BAR
+   ========================================================= */
+.cn-glass-toast {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translate(-50%, -140%);
+  z-index: 10090;
+  max-width: min(400px, calc(100vw - 28px));
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: rgba(18, 11, 24, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cn-glass-toast.show {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.cn-glass-toast.is-info i { color: #34d399; }
+.cn-glass-toast.is-warn i { color: #fbbf24; }
+.cn-glass-toast.is-error i { color: #f87171; }
+
+.cn-offline-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10085;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.cn-post-more-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.cn-post-more-btn:active { background: rgba(255, 255, 255, 0.1); }
+
+.cn-action-sheet {
+  padding-top: 10px !important;
+}
+
+.cn-action-handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.22);
+  margin: 0 auto 14px;
+}
+
+.cn-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cn-action-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cn-action-item.is-danger {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.cn-action-cancel {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* =========================================================
+   FASE 9A: IMAGE LIGHTBOX, HOLD-TO-PAUSE & KEYBOARD GUARD
+   ========================================================= */
+.cn-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10095;
+  background: rgba(5, 3, 9, 0.94);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.cn-lightbox.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.cn-lightbox img {
+  max-width: 100%;
+  max-height: 86dvh;
+  border-radius: 14px;
+  object-fit: contain;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+}
+
+.cn-lightbox-close {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.cn-post-img {
+  cursor: zoom-in;
+}
+
+/* Hold-to-Pause visual feedback di Story Viewer */
+.cn-story-viewer.is-paused .cn-sv-top,
+.cn-story-viewer.is-paused .cn-sv-caption {
+  opacity: 0.35;
+  transition: opacity 0.18s ease;
+}
+
+/* Sembunyikan Bottom Nav saat keyboard HP terbuka agar tidak menabrak input */
+body.cn-kb-open #cnPwaBottomNav,
+body.cn-kb-open .cn-pencil-fab {
+  transform: translateY(120%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* =========================================================
+   FASE 10: DIRECT-ORDER CTA DI LOUNGE & BOOKING SHEET
+   ========================================================= */
+.cn-post-order-cta {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 42, 95, 0.32);
+  background: linear-gradient(90deg, rgba(255, 42, 95, 0.14), rgba(184, 41, 234, 0.12));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.cn-post-order-cta:active {
+  transform: scale(0.985);
+}
+
+.cn-po-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cn-po-left i {
+  color: #f5c26b;
+}
+
+.cn-po-right {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ff6b8b;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cn-order-talent-preview {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 14px;
+}
+
+/* =========================================================
+   DETAIL BOOKING STANDALONE MODE (BEBAS HERO & BANNER HOME)
+   ========================================================= */
+body.cn-detail-open .cn-editorial-hero,
+body.cn-detail-open .cn-editorial-promo,
+body.cn-detail-open .cn-compact-filter-bar,
+body.cn-detail-open .cn-pwa-page,
+body.cn-detail-open #galleryView,
+body.cn-detail-open #blogView,
+body.cn-detail-open #testimoniView,
+body.cn-detail-open footer,
+body.cn-detail-open .floating-promo-banner,
+body.cn-detail-open .promo-floating-bar,
+body.cn-detail-open .exclusive-promo-bar,
+body.cn-detail-open [class*="promo-banner"],
+body.cn-detail-open [id*="promoBanner"],
+body.cn-detail-open [id*="exclusiveBanner"] {
+  display: none !important;
+}
+
+body.cn-detail-open #detailView {
+  display: block !important;
+  margin-top: 0 !important;
+  padding-top: 10px !important;
+  padding-bottom: 96px !important;
+}
+
+/* =========================================================
+   AESTHETIC EDITORIAL OVERHAUL (PRE-BACKEND POLISH)
+   ========================================================= */
+.cn-pwa-header {
+  position: relative;
+  padding: 6px 0 14px !important;
+  margin-bottom: 14px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cn-eyebrow {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #ff4d6d;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cn-eyebrow::before {
+  content: "";
+  width: 14px;
+  height: 1.5px;
+  background: linear-gradient(90deg, #ff2a5f, #b829ea);
+  border-radius: 99px;
+}
+
+.cn-pwa-header h2 {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  margin: 0 0 4px !important;
+  background: linear-gradient(135deg, #ffffff 30%, rgba(255, 255, 255, 0.72) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cn-pwa-header p {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  color: rgba(255, 255, 255, 0.52) !important;
+  margin: 0 !important;
+  max-width: 92%;
+}
+
+/* Rapikan ritme vertikal kartu & container di seluruh tab */
+.cn-activity-card,
+.cn-post-card,
+.cn-merch-card,
+.cn-order-card,
+.cn-article-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.085) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+.cn-activity-group-label {
+  font-size: 10px !important;
+  letter-spacing: 0.16em !important;
+  color: rgba(255, 255, 255, 0.42) !important;
+  margin: 18px 0 8px 4px !important;
+}
+
+#cnPageTalent .cn-pwa-header {
+  margin-bottom: 12px !important;
+}
+
+/* =========================================================
+   FIX VISUAL: NATIVE FILTER DOCK & COMPACT HEADER (TAB TALENT)
+   ========================================================= */
+/* 1. Hilangkan garis ganda & rapatkan jarak header ke filter */
+#cnPageTalent .cn-pwa-header {
+  border-bottom: none !important;
+  padding: 4px 0 6px !important;
+  margin-bottom: 4px !important;
+}
+
+/* 2. Rombak Filter Bar jadi Pill Dock yang sleek (tanpa border atas/bawah kaku) */
+.cn-compact-filter-bar,
+.cn-filter-bar,
+#cnCompactFilterBar {
+  border-top: none !important;
+  border-bottom: none !important;
+  background: transparent !important;
+  padding: 2px 0 10px !important;
+  margin: 0 0 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* 3. Tombol dropdown Kategori & Mood bergaya Native iOS/App Chip */
+.cn-compact-filter-bar button,
+.cn-compact-filter-bar select,
+.cn-cf-trigger,
+#cnCatDropdownBtn,
+#cnMoodDropdownBtn {
+  height: 38px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease !important;
+}
+
+.cn-compact-filter-bar button:active,
+.cn-cf-trigger:active {
+  transform: scale(0.97) !important;
+  background: rgba(255, 42, 95, 0.14) !important;
+  border-color: rgba(255, 42, 95, 0.45) !important;
+}
+
+/* 4. Kompres banner info "Semua Reels Feed / VCService" agar slim & tidak makan tempat */
+#activeFilterBanner,
+.active-filter-banner,
+.cn-filter-status-banner {
+  padding: 8px 12px !important;
+  margin: 0 0 12px !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#activeFilterBanner p,
+.active-filter-banner p {
+  font-size: 11px !important;
+  margin-top: 2px !important;
+  opacity: 0.65 !important;
+}
+
+/* =========================================================
+   TAHAP 1: TELEGRAM-ONLY HARD AUTH GATE
+   ========================================================= */
+body.cn-gate-locked {
+  overflow: hidden !important;
+}
+
+body.cn-gate-locked > *:not(#cnTelegramHardGate):not(#cnGlassToast) {
+  filter: blur(18px) brightness(0.35);
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.cn-hard-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  background: radial-gradient(circle at 50% 20%, rgba(255, 42, 95, 0.16), rgba(8, 5, 13, 0.96) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.cn-hg-card {
+  width: 100%;
+  max-width: 370px;
+  background: rgba(18, 11, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 28px 22px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+}
+
+.cn-hg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #ff4d6d;
+  background: rgba(255, 42, 95, 0.12);
+  border: 1px solid rgba(255, 42, 95, 0.3);
+  padding: 5px 12px;
+  border-radius: 99px;
+  margin-bottom: 12px;
+}
+
+.cn-hg-title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.cn-hg-sub {
+  margin: 0 0 22px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.cn-tg-login-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #2AABEE, #229ED9);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(34, 158, 217, 0.35);
+}
+
+.cn-hg-dev-box {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.cn-hg-dev-lbl {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #f5c26b;
+  margin-bottom: 8px;
+}
+
+.cn-hg-dev-btns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.cn-hg-dev-btns button {
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cn-hg-foot {
+  margin-top: 18px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.42);
+}

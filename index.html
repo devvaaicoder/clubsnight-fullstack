@@ -198,8 +198,134 @@
             transform: scale(1.08);
         }
     </style>
- </head>
+   <!-- CN-UNIVERSAL-SPLASH-START -->
+  <link rel="preload" as="image" href="https://i.ibb.co.com/4RXGWh17/favicon.jpg">
+  <style id="cn-universal-splash-css">
+    html,body{background-color:#090206!important;color:#faf6ff!important;margin:0;padding:0;}
+    .cn-global-canvas{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#090206;pointer-events:none;}
+    .cn-global-video{width:100%;height:100%;object-fit:cover;opacity:0.38;filter:saturate(1.2) contrast(1.1) brightness(0.65);transform:scale(1.04);}
+    .cn-global-canvas-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,2,6,0.55) 0%,rgba(11,2,7,0.82) 45%,rgba(9,2,6,0.94) 100%);}
+
+    #cnSplashLoader{
+      position:fixed;inset:0;z-index:999999;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+      background:radial-gradient(circle at 50% 42%, #240511 0%, #100208 52%, #070104 100%);
+      opacity:1;visibility:visible;
+      transition:opacity 0.34s cubic-bezier(0.22,1,0.36,1), visibility 0.34s ease;
+    }
+    #cnSplashLoader.cn-hide{opacity:0;visibility:hidden;pointer-events:none;}
+    .cn-splash-logo-wrap{
+      position:relative;display:flex;align-items:center;justify-content:center;
+      width:136px;height:136px;
+    }
+    .cn-splash-logo-wrap::before{
+      content:"";position:absolute;inset:-14px;border-radius:50%;
+      background:radial-gradient(circle,rgba(225,29,72,0.42) 0%,rgba(190,18,60,0.14) 48%,transparent 72%);
+      animation:cnSplashAura 1.6s ease-in-out infinite alternate;
+      pointer-events:none;
+    }
+    .cn-splash-logo{
+      position:relative;z-index:1;
+      width:124px;height:124px;object-fit:contain;
+      mix-blend-mode:screen;
+      filter:contrast(1.18) brightness(1.08);
+      -webkit-mask-image:radial-gradient(circle, #000 54%, transparent 74%);
+      mask-image:radial-gradient(circle, #000 54%, transparent 74%);
+      animation:cnSplashPop 0.42s cubic-bezier(0.22,1,0.36,1) both, cnSplashFloat 2s ease-in-out 0.42s infinite;
+      will-change:transform;
+    }
+    .cn-splash-typo{
+      font-family:Georgia,"Times New Roman",serif;
+      font-size:1.38rem;font-weight:800;letter-spacing:0.24em;text-indent:0.24em;
+      background:linear-gradient(180deg,#ffffff 25%,#f5c26b 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      filter:drop-shadow(0 2px 12px rgba(225,29,72,0.45));
+    }
+    .cn-splash-sub{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      font-size:0.56rem;font-weight:700;letter-spacing:0.3em;text-indent:0.3em;
+      color:rgba(253,164,175,0.78);margin-top:-8px;
+    }
+    .cn-splash-bar{
+      width:132px;height:2.5px;border-radius:99px;margin-top:8px;
+      background:rgba(244,63,94,0.22);overflow:hidden;position:relative;
+      box-shadow:0 0 10px rgba(244,63,94,0.25);
+    }
+    .cn-splash-bar::after{
+      content:"";position:absolute;top:0;left:-45%;width:48%;height:100%;
+      background:linear-gradient(90deg,transparent,#f43f5e,#f5c26b,transparent);
+      animation:cnSplashSlide 0.85s cubic-bezier(0.4,0,0.2,1) infinite;
+    }
+    @keyframes cnSplashPop{
+      0%{transform:translateY(6px) scale(0.88);}
+      65%{transform:translateY(-2px) scale(1.05);}
+      100%{transform:translateY(0) scale(1);}
+    }
+    @keyframes cnSplashFloat{
+      0%,100%{transform:translateY(0) scale(1);}
+      50%{transform:translateY(-4px) scale(1.025);}
+    }
+    @keyframes cnSplashAura{
+      0%{transform:scale(0.92);opacity:0.78;}
+      100%{transform:scale(1.08);opacity:1;}
+    }
+    @keyframes cnSplashSlide{
+      0%{left:-48%;}
+      100%{left:108%;}
+    }
+  </style>
+  <script>
+    (function(){
+      var start = Date.now();
+      function hideSplash(minMs){
+        var el = document.getElementById("cnSplashLoader");
+        if(!el) return;
+        var wait = Math.max(0, (minMs || 480) - (Date.now() - start));
+        setTimeout(function(){ el.classList.add("cn-hide"); }, wait);
+      }
+      function showSplash(){
+        var el = document.getElementById("cnSplashLoader");
+        if(!el) return;
+        start = Date.now();
+        el.classList.remove("cn-hide");
+      }
+      window.addEventListener("load", function(){ hideSplash(480); });
+      setTimeout(function(){ hideSplash(480); }, 1300);
+
+      // Tampilkan ulang saat pengguna menekan tombol Back/Forward browser
+      window.addEventListener("pageshow", function(e){
+        if(e.persisted){
+          showSplash();
+          setTimeout(function(){ hideSplash(360); }, 50);
+        }
+      });
+
+      // Tampilkan langsung saat klik link pindah halaman HTML internal
+      document.addEventListener("click", function(e){
+        var a = e.target.closest("a");
+        if(!a) return;
+        var href = a.getAttribute("href");
+        if(!href || href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || a.target === "_blank") return;
+        if(href.indexOf(".html") !== -1 || href.startsWith("/")){
+          showSplash();
+        }
+      }, true);
+    })();
+  </script>
+  <!-- CN-UNIVERSAL-SPLASH-END -->
+</head>
  <body class="bg-midnight text-slate-100 font-sans min-h-screen relative overflow-x-hidden selection:bg-purple-500 selection:text-white">
+  <!-- CN-SPLASH-BODY-START -->
+  <div id="cnSplashLoader" aria-label="Memuat Clubs'Night">
+    <div class="cn-splash-logo-wrap">
+      <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" alt="Clubs'Night" class="cn-splash-logo">
+    </div>
+    <div class="cn-splash-typo">CLUBS'NIGHT</div>
+    <div class="cn-splash-sub">CURATED BY EXCLUSIVITY</div>
+    <div class="cn-splash-bar"></div>
+  </div>
+  <!-- CN-SPLASH-BODY-END -->
+
 
   <!-- 18+ AGE VERIFICATION MODAL -->
   <div id="ageVerificationModal" class="fixed inset-0 z-[100] bg-midnight/95 backdrop-blur-md flex items-center justify-center p-4">

@@ -1,7 +1,7 @@
 export default {
   async fetch(request, env, ctx) {
     const allowedOrigins = [
-      "https://clubsnight.my.id",
+      "https://clubsnight.my.id", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175",
       "https://www.clubsnight.my.id"
     ];
     const origin = request.headers.get("Origin") || "";
