@@ -326,6 +326,251 @@
 
 </style>
 
+<style id="cnPaywallPageCss">
+  #cnPagePaywall {
+    display: none;
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 16px 14px 110px;
+    color: #fff;
+  }
+  .cn-pw-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .cn-pw-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 13px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .cn-pw-badge {
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: rgba(255, 23, 68, 0.16);
+    border: 1px solid rgba(255, 23, 68, 0.45);
+    color: #ff80ab;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+  }
+  .cn-pw-hero {
+    padding: 16px;
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(24,14,38,0.96), rgba(38,12,28,0.94));
+    border: 1px solid rgba(255,64,129,0.35);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.45);
+    margin-bottom: 14px;
+  }
+  .cn-pw-alert-box {
+    padding: 11px 13px;
+    border-radius: 12px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.42);
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #fde68a;
+    margin-bottom: 14px;
+  }
+  .cn-pw-bal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+  .cn-pw-stat {
+    padding: 11px 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+  }
+  .cn-pw-stat small {
+    display: block;
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 3px;
+  }
+  .cn-pw-stat strong {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  /* Marquee 3 Baris Logo Bank & E-Wallet ala widelab.co */
+  .cn-bank-marquee-section {
+    margin: 14px 0;
+    padding: 14px 0;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.09);
+    overflow: hidden;
+  }
+  .cn-bank-marquee-head {
+    padding: 0 14px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .cn-bank-marquee-head span {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.75);
+    text-transform: uppercase;
+  }
+  .cn-bank-marquee-head small {
+    font-size: 10.5px;
+    color: #34d399;
+    font-weight: 700;
+  }
+  .cn-mq-row {
+    display: flex;
+    width: 100%;
+    overflow: hidden;
+    margin-bottom: 9px;
+    mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  }
+  .cn-mq-row:last-child { margin-bottom: 0; }
+  .cn-mq-track {
+    display: flex;
+    gap: 9px;
+    width: max-content;
+    will-change: transform;
+  }
+  .cn-mq-left { animation: cnMarqueeLeft 26s linear infinite; }
+  .cn-mq-right { animation: cnMarqueeRight 28s linear infinite; }
+  .cn-bank-marquee-section:hover .cn-mq-track { animation-play-state: paused; }
+  @keyframes cnMarqueeLeft {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes cnMarqueeRight {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0); }
+  }
+  .cn-bank-pill {
+    min-width: 132px;
+    height: 54px;
+    padding: 0 14px;
+    border-radius: 13px;
+    background: #ffffff;
+    color: #111827;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: -0.2px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+    border: 2px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.16s ease, border-color 0.16s ease;
+  }
+  .cn-bank-pill:active { transform: scale(0.96); }
+  .cn-bank-pill.selected {
+    border-color: #ff1744;
+    box-shadow: 0 0 0 3px rgba(255,23,68,0.28);
+  }
+  .cn-bank-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cn-pw-card {
+    padding: 15px;
+    border-radius: 18px;
+    background: rgba(18, 14, 28, 0.94);
+    border: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 14px;
+  }
+  .cn-pw-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0 12px;
+  }
+  .cn-pw-preset-btn {
+    padding: 10px 6px;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .cn-pw-preset-btn.active {
+    background: linear-gradient(135deg, #ff1744, #9c27b0);
+    border-color: transparent;
+  }
+  .cn-pw-qr-box {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px dashed rgba(255,255,255,0.2);
+    text-align: center;
+  }
+  .cn-pw-qr-frame {
+    width: 210px;
+    height: 210px;
+    margin: 10px auto;
+    padding: 10px;
+    border-radius: 14px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cn-pw-qr-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .cn-pw-steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.75);
+  }
+  .cn-pw-step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 9px 11px;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.03);
+  }
+  .cn-pw-step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff1744, #8b5cf6);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+</style>
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
   <!-- CN-SPLASH-BODY-START -->
@@ -8862,10 +9107,155 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
 })();
 </script>
 
+<section id="cnPagePaywall" class="cn-pwa-page" aria-label="Paywall Top-Up CN Wallet">
+  <div class="cn-pw-topbar">
+    <button type="button" class="cn-pw-back" onclick="window.closeCnPaywallPage()">
+      <i class="fa-solid fa-arrow-left"></i> Kembali ke Booking
+    </button>
+    <span class="cn-pw-badge"><i class="fa-solid fa-shield-halved"></i> CN WALLET PAYWALL</span>
+  </div>
+
+  <div class="cn-pw-hero">
+    <div style="font-size:11px;font-weight:800;letter-spacing:0.6px;color:#ff80ab;margin-bottom:4px;">SISTEM PEMBAYARAN TERVERIFIKASI</div>
+    <h2 style="font-size:19px;font-weight:900;margin:0 0 8px;">Top-Up Saldo CN Wallet</h2>
+    <div id="cnPwReasonBanner" class="cn-pw-alert-box">
+      <b>Mengapa dialihkan ke halaman ini?</b><br/>
+      Sistem Clubs'Night kini telah beralih dari metode bayar langsung ke <b>Saldo CN Wallet</b> agar setiap reservasi talent terverifikasi otomatis, anti-antrean, dan aman sebelum diteruskan ke Telegram.
+    </div>
+    <div class="cn-pw-bal-grid">
+      <div class="cn-pw-stat">
+        <small>Saldo CN Wallet Anda</small>
+        <strong id="cnPwCurrentBal" style="color:#fb7185;">Rp 0</strong>
+      </div>
+      <div class="cn-pw-stat">
+        <small>Kebutuhan / Target Top-Up</small>
+        <strong id="cnPwRequiredBal" style="color:#34d399;">Rp 100.000</strong>
+      </div>
+    </div>
+    <div id="cnPwOrderContext" style="margin-top:10px;font-size:11.5px;color:rgba(255,255,255,0.75);display:none;"></div>
+  </div>
+
+  <!-- MARQUEE 3 BARIS LOGO BANK & E-WALLET -->
+  <div class="cn-bank-marquee-section">
+    <div class="cn-bank-marquee-head">
+      <span><i class="fa-solid fa-building-columns"></i> Mendukung Semua Bank &amp; E-Wallet</span>
+      <small id="cnPwSelectedBankLabel">QRIS Instan (Semua Bank)</small>
+    </div>
+
+    <!-- Baris 1 -->
+    <div class="cn-mq-row">
+      <div class="cn-mq-track cn-mq-left" id="cnBankTrack1"></div>
+    </div>
+    <!-- Baris 2 -->
+    <div class="cn-mq-row">
+      <div class="cn-mq-track cn-mq-right" id="cnBankTrack2"></div>
+    </div>
+    <!-- Baris 3 -->
+    <div class="cn-mq-row">
+      <div class="cn-mq-track cn-mq-left" id="cnBankTrack3"></div>
+    </div>
+  </div>
+
+  <!-- FORM NOMINAL & QRIS DINAMIS -->
+  <div class="cn-pw-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-size:12.5px;font-weight:800;">1. Pilih / Sesuaikan Nominal Top-Up</span>
+      <span style="font-size:11px;color:#a78bfa;font-weight:700;">Min. Rp 10.000</span>
+    </div>
+
+    <div class="cn-pw-presets" id="cnPwPresets">
+      <button type="button" class="cn-pw-preset-btn" data-amt="50000" onclick="window.selectCnPaywallAmount(50000, this)">Rp 50rb</button>
+      <button type="button" class="cn-pw-preset-btn" data-amt="100000" onclick="window.selectCnPaywallAmount(100000, this)">Rp 100rb</button>
+      <button type="button" class="cn-pw-preset-btn" data-amt="150000" onclick="window.selectCnPaywallAmount(150000, this)">Rp 150rb</button>
+      <button type="button" class="cn-pw-preset-btn" data-amt="250000" onclick="window.selectCnPaywallAmount(250000, this)">Rp 250rb</button>
+      <button type="button" class="cn-pw-preset-btn" data-amt="500000" onclick="window.selectCnPaywallAmount(500000, this)">Rp 500rb</button>
+      <button type="button" class="cn-pw-preset-btn" data-amt="1000000" onclick="window.selectCnPaywallAmount(1000000, this)">Rp 1 Jt</button>
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px;">
+      <label style="font-size:11px;color:rgba(255,255,255,0.7);">Nominal Top-Up (Rp)</label>
+      <input type="number" id="cnPwAmountInput" class="form-control" min="10000" step="1000" value="100000" oninput="window.onCnPaywallManualInput(this.value)" />
+    </div>
+
+    <button type="button" id="cnPwGenerateBtn" class="btn-neon" onclick="window.generateCnPaywallInvoice()" style="width:100%;padding:13px;font-size:13.5px;">
+      <i class="fa-solid fa-qrcode"></i> Buat Tagihan &amp; QRIS Pembayaran Sekarang
+    </button>
+
+    <div id="cnPwInvoiceBox" class="cn-pw-qr-box" style="display:none;">
+      <div style="font-size:11px;color:#34d399;font-weight:800;" id="cnPwInvoiceId">ID TAGIHAN: -</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">Transfer / Scan QRIS Tepat Hingga 3 Digit Terakhir:</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;">
+        <span id="cnPwExactTotal" style="font-size:22px;font-weight:900;color:#fff;">Rp 0</span>
+        <button type="button" onclick="window.copyCnPaywallNominal()" style="padding:5px 10px;border-radius:8px;background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          <i class="fa-regular fa-copy"></i> Salin
+        </button>
+      </div>
+      <div style="font-size:11px;color:#fbbf24;margin-top:3px;" id="cnPwUniqueInfo">Termasuk kode unik verifikasi otomatis</div>
+
+      <div class="cn-pw-qr-frame">
+        <img id="cnPwQrImage" alt="QRIS Pembayaran CN Wallet" src="" />
+      </div>
+
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px;">
+        Buka aplikasi <b id="cnPwPayMethodHint">M-Banking / E-Wallet</b> Anda → pilih menu <b>Scan QRIS</b> → bayar sesuai nominal tepat di atas.
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button type="button" id="cnPwCheckStatusBtn" onclick="window.checkCnPaywallStatus(true)" style="padding:11px;border-radius:11px;background:rgba(16,185,129,0.18);border:1px solid rgba(16,185,129,0.5);color:#34d399;font-size:12px;font-weight:800;cursor:pointer;">
+          <i class="fa-solid fa-rotate"></i> Cek Status Masuk
+        </button>
+        <button type="button" onclick="window.confirmCnPaywallManualProof()" style="padding:11px;border-radius:11px;background:linear-gradient(135deg,#8b5cf6,#ec4899);border:none;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">
+          <i class="fa-solid fa-check-double"></i> Saya Sudah Bayar
+        </button>
+      </div>
+      <div id="cnPwStatusMsg" style="margin-top:10px;font-size:11.5px;font-weight:700;color:#a78bfa;"></div>
+    </div>
+  </div>
+
+  <!-- KONDIMEN PANDUAN & JAMINAN KEAMANAN -->
+  <div class="cn-pw-card">
+    <div style="font-size:12.5px;font-weight:800;margin-bottom:6px;"><i class="fa-solid fa-circle-question" style="color:#ff80ab;"></i> Alur Baru Pemesanan Clubs'Night</div>
+    <div class="cn-pw-steps">
+      <div class="cn-pw-step-item"><span class="cn-pw-step-num">1</span><span>Isi saldo <b>CN Wallet</b> menggunakan BCA, Mandiri, BNI, BRI, SeaBank, Bank Jago, GoPay, OVO, DANA, atau QRIS.</span></div>
+      <div class="cn-pw-step-item"><span class="cn-pw-step-num">2</span><span>Setelah saldo masuk ke akun Anda, kembali ke halaman booking talent dan klik <b>Bayar &amp; Lanjut ke Telegram</b>.</span></div>
+      <div class="cn-pw-step-item"><span class="cn-pw-step-num">3</span><span>Saldo terpotong otomatis dengan bukti transaksi <b>LUNAS</b> dan format order langsung siap dikirim ke Admin Telegram.</span></div>
+    </div>
+  </div>
+</section>
 <script id="cnHardPaymentGateScript">
 (function() {
   var WORKER_API = "https://clubsnight-fullstack.devvaaicoder.workers.dev";
-  var paidBookingReceipts = {};
+  var SAWERIA_QRIS_RAW = "00020101021126610016ID.CO.SHOPEE.WWW01189360091800215362930208215362930303UME51440014ID.CO.QRIS.WWW0215ID10243225852960303UME5204581253033605802ID5912CLUBS NIGHT 6013JAKARTA BARAT61051118062070703A0163047A3C";
+  var activePaywallIntent = null;
+  var selectedBankName = "QRIS Instan (Semua Bank)";
+  var pollTimer = null;
+
+  var BANK_ROWS = [
+    [
+      { name: "BCA", color: "#0060AF", icon: "fa-building-columns" },
+      { name: "MANDIRI", color: "#003D79", icon: "fa-building-columns" },
+      { name: "BNI", color: "#F15A23", icon: "fa-building-columns" },
+      { name: "BRI", color: "#00529C", icon: "fa-building-columns" },
+      { name: "BSI", color: "#00A39D", icon: "fa-building-columns" },
+      { name: "CIMB NIAGA", color: "#790008", icon: "fa-building-columns" }
+    ],
+    [
+      { name: "QRIS NASIONAL", color: "#E11D48", icon: "fa-qrcode" },
+      { name: "GOPAY", color: "#00AED6", icon: "fa-wallet" },
+      { name: "OVO", color: "#4C3494", icon: "fa-wallet" },
+      { name: "DANA", color: "#118EEA", icon: "fa-wallet" },
+      { name: "SHOPEEPAY", color: "#EE4D2D", icon: "fa-wallet" },
+      { name: "LINKAJA", color: "#E82529", icon: "fa-wallet" }
+    ],
+    [
+      { name: "SEABANK", color: "#FF6B00", icon: "fa-building-columns" },
+      { name: "BANK JAGO", color: "#F59E0B", icon: "fa-building-columns" },
+      { name: "BLU BY BCA", color: "#0284C7", icon: "fa-building-columns" },
+      { name: "PERMATA", color: "#059669", icon: "fa-building-columns" },
+      { name: "DANAMON", color: "#D97706", icon: "fa-building-columns" },
+      { name: "MAYBANK", color: "#EAB308", icon: "fa-building-columns" }
+    ]
+  ];
 
   function formatRp(n) {
     return "Rp " + Number(n || 0).toLocaleString("id-ID");
@@ -8945,6 +9335,262 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     return localBal;
   }
 
+  function buildDynamicQrisString(amount) {
+    var base = SAWERIA_QRIS_RAW.slice(0, -4).replace("010211", "010212");
+    var amtStr = String(Math.max(1000, Math.round(Number(amount || 0))));
+    var tag54 = "54" + String(amtStr.length).padStart(2, "0") + amtStr;
+    var idx58 = base.indexOf("5802ID");
+    var payload = idx58 !== -1 ? (base.slice(0, idx58) + tag54 + base.slice(idx58)) : (base + tag54);
+    var crc = 0xFFFF;
+    for (var i = 0; i < payload.length; i++) {
+      crc ^= payload.charCodeAt(i) << 8;
+      for (var j = 0; j < 8; j++) {
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      }
+    }
+    return payload + (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, "0");
+  }
+
+  function renderBankMarquees() {
+    BANK_ROWS.forEach(function(items, rowIdx) {
+      var track = document.getElementById("cnBankTrack" + (rowIdx + 1));
+      if (!track || track.children.length > 0) return;
+      var doubled = items.concat(items);
+      track.innerHTML = doubled.map(function(b) {
+        return '<button type="button" class="cn-bank-pill" data-bank="' + b.name + '" onclick="window.selectCnPaywallBank('' + b.name + '')">' +
+          '<span class="cn-bank-dot" style="background:' + b.color + ';"></span>' +
+          '<span>' + b.name + '</span>' +
+        '</button>';
+      }).join("");
+    });
+  }
+
+  window.selectCnPaywallBank = function(bankName) {
+    selectedBankName = bankName;
+    var lbl = document.getElementById("cnPwSelectedBankLabel");
+    if (lbl) lbl.textContent = "Metode: " + bankName;
+    var hint = document.getElementById("cnPwPayMethodHint");
+    if (hint) hint.textContent = bankName;
+    document.querySelectorAll(".cn-bank-pill").forEach(function(el) {
+      el.classList.toggle("selected", el.getAttribute("data-bank") === bankName);
+    });
+  };
+
+  window.selectCnPaywallAmount = function(amt, btnEl) {
+    var inp = document.getElementById("cnPwAmountInput");
+    if (inp) inp.value = amt;
+    document.querySelectorAll(".cn-pw-preset-btn").forEach(function(b) {
+      b.classList.toggle("active", b === btnEl || Number(b.getAttribute("data-amt")) === Number(amt));
+    });
+  };
+
+  window.onCnPaywallManualInput = function(val) {
+    var n = Number(val || 0);
+    document.querySelectorAll(".cn-pw-preset-btn").forEach(function(b) {
+      b.classList.toggle("active", Number(b.getAttribute("data-amt")) === n);
+    });
+  };
+
+  window.openCnPaywallPage = async function(opts) {
+    opts = opts || {};
+    var u = getUnifiedUser();
+    if (!u) {
+      window.location.href = "/login.html";
+      return;
+    }
+
+    renderBankMarquees();
+    var bal = await fetchServerBalance(u.username);
+    var required = Number(opts.requiredAmount || 0);
+    var shortage = required > bal ? (required - bal) : (required || 100000);
+    var suggestedTopup = Math.max(10000, Math.ceil(shortage / 1000) * 1000);
+
+    var curEl = document.getElementById("cnPwCurrentBal");
+    var reqEl = document.getElementById("cnPwRequiredBal");
+    var reasonEl = document.getElementById("cnPwReasonBanner");
+    var ctxEl = document.getElementById("cnPwOrderContext");
+
+    if (curEl) {
+      curEl.textContent = formatRp(bal);
+      curEl.style.color = bal >= required && required > 0 ? "#34d399" : "#fb7185";
+    }
+    if (reqEl) {
+      reqEl.textContent = required > 0 ? formatRp(required) : formatRp(suggestedTopup);
+    }
+
+    if (reasonEl) {
+      if (required > 0 && bal < required) {
+        reasonEl.innerHTML =
+          '<b><i class="fa-solid fa-triangle-exclamation"></i> Saldo CN Wallet Anda Kurang ' + formatRp(required - bal) + '</b><br/>' +
+          'Sistem pemesanan kini mewajibkan pembayaran melalui <b>Saldo CN Wallet</b> terlebih dahulu (menggantikan sistem lama langsung ke Telegram). Silakan isi saldo minimal <b>' + formatRp(suggestedTopup) + '</b> di bawah ini, lalu kembali selesaikan order Anda.';
+      } else {
+        reasonEl.innerHTML =
+          '<b><i class="fa-solid fa-wallet"></i> Isi Saldo CN Wallet Instan</b><br/>' +
+          'Gunakan saldo CN Wallet untuk reservasi cepat tanpa antre. Mendukung seluruh transfer Bank &amp; E-Wallet Indonesia melalui QRIS Dinamis.';
+      }
+    }
+
+    if (ctxEl) {
+      if (opts.serviceLabel) {
+        ctxEl.style.display = "block";
+        ctxEl.innerHTML = '<i class="fa-solid fa-bookmark" style="color:#ff80ab;"></i> Order Tertunda: <b>' + opts.serviceLabel + '</b>';
+      } else {
+        ctxEl.style.display = "none";
+      }
+    }
+
+    window.selectCnPaywallAmount(suggestedTopup);
+
+    // Sembunyikan halaman/tab lain & tampilkan Paywall Page secara penuh (bukan tab Aktivitas)
+    document.querySelectorAll("main, .cn-pwa-page, #cnPubProfilePage").forEach(function(sec) {
+      if (sec.id !== "cnPagePaywall") sec.style.display = "none";
+    });
+    var pwPage = document.getElementById("cnPagePaywall");
+    if (pwPage) {
+      pwPage.style.display = "block";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  window.closeCnPaywallPage = function() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    var pwPage = document.getElementById("cnPagePaywall");
+    if (pwPage) pwPage.style.display = "none";
+    var mainEl = document.querySelector("main");
+    if (mainEl) mainEl.style.display = "block";
+    renderPaymentGateBanner();
+  };
+
+  window.generateCnPaywallInvoice = async function() {
+    var u = getUnifiedUser();
+    if (!u) { window.location.href = "/login.html"; return; }
+    var amt = Math.max(10000, Math.round(Number(document.getElementById("cnPwAmountInput")?.value || 0)));
+    var btn = document.getElementById("cnPwGenerateBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membuat Kode Unik &amp; QRIS...';
+    }
+
+    try {
+      var sessTok = getSessionToken();
+      if (!sessTok) {
+        var gRes = await fetch(WORKER_API + "/api/session/guest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u.username })
+        });
+        var gData = await gRes.json().catch(function() { return {}; });
+        if (gData && gData.sessionToken) {
+          sessTok = gData.sessionToken;
+          localStorage.setItem("cn_session_token", sessTok);
+        }
+      }
+
+      var res = await fetch(WORKER_API + "/api/wallet/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
+        body: JSON.stringify({
+          username: u.username,
+          baseAmount: amt,
+          mode: "topup",
+          service: "Top-Up CN Wallet (" + selectedBankName + ")"
+        })
+      });
+      var data = await res.json().catch(function() { return {}; });
+
+      var totalBayar = amt;
+      var intentId = "QRS-" + Date.now();
+      var kodeUnik = 0;
+
+      if (res.ok && data && data.success && data.intent) {
+        activePaywallIntent = data.intent;
+        totalBayar = data.intent.totalAmount;
+        intentId = data.intent.id;
+        kodeUnik = data.intent.uniqueCode;
+      }
+
+      var qrisStr = buildDynamicQrisString(totalBayar);
+      var qrImg = document.getElementById("cnPwQrImage");
+      if (qrImg) {
+        qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=6&data=" + encodeURIComponent(qrisStr);
+      }
+      document.getElementById("cnPwInvoiceId").textContent = "ID TAGIHAN: " + intentId + " (" + selectedBankName + ")";
+      document.getElementById("cnPwExactTotal").textContent = formatRp(totalBayar);
+      document.getElementById("cnPwUniqueInfo").textContent = kodeUnik > 0
+        ? ("Nominal " + formatRp(amt) + " + Kode Unik " + formatRp(kodeUnik) + " (Otomatis masuk 1-5 detik setelah bayar)")
+        : "Scan QRIS di atas dengan nominal tepat";
+      document.getElementById("cnPwInvoiceBox").style.display = "block";
+      document.getElementById("cnPwStatusMsg").textContent = "⏳ Menunggu pembayaran masuk dari " + selectedBankName + "...";
+
+      // Auto-polling saldo setiap 5 detik
+      var startBal = getLocalWalletBalance(u.username);
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async function() {
+        var latest = await fetchServerBalance(u.username);
+        if (latest > startBal) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          document.getElementById("cnPwCurrentBal").textContent = formatRp(latest);
+          document.getElementById("cnPwCurrentBal").style.color = "#34d399";
+          document.getElementById("cnPwStatusMsg").innerHTML = "✅ TOP-UP BERHASIL! Saldo baru Anda: <b>" + formatRp(latest) + "</b>. Klik 'Kembali ke Booking' untuk lanjut ke Telegram.";
+        }
+      }, 5000);
+    } catch (err) {
+      alert("Gagal membuat tagihan pembayaran. Periksa koneksi internet Anda.");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-qrcode"></i> Buat Ulang Tagihan &amp; QRIS Pembayaran';
+      }
+    }
+  };
+
+  window.copyCnPaywallNominal = function() {
+    var raw = (document.getElementById("cnPwExactTotal")?.textContent || "").replace(/[^0-9]/g, "");
+    if (raw && navigator.clipboard) {
+      navigator.clipboard.writeText(raw);
+      alert("Nominal tepat Rp " + Number(raw).toLocaleString("id-ID") + " berhasil disalin!");
+    }
+  };
+
+  window.checkCnPaywallStatus = async function(manualClick) {
+    var u = getUnifiedUser();
+    if (!u) return;
+    var statusEl = document.getElementById("cnPwStatusMsg");
+    if (manualClick && statusEl) statusEl.textContent = "🔄 Mengecek mutasi saldo di server...";
+    var latest = await fetchServerBalance(u.username);
+    var curEl = document.getElementById("cnPwCurrentBal");
+    if (curEl) curEl.textContent = formatRp(latest);
+    if (statusEl) {
+      statusEl.textContent = "Saldo terverifikasi saat ini: " + formatRp(latest) + ". Jika baru saja transfer, tunggu 5-10 detik lalu klik Cek Status Masuk lagi.";
+    }
+  };
+
+  window.confirmCnPaywallManualProof = async function() {
+    var u = getUnifiedUser();
+    if (!u) return;
+    var amt = activePaywallIntent ? activePaywallIntent.totalAmount : Number(document.getElementById("cnPwAmountInput")?.value || 0);
+    var reqId = activePaywallIntent ? activePaywallIntent.id : ("TOPUP-" + Date.now());
+    try {
+      await fetch(WORKER_API + "/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: reqId,
+          customerUsername: u.username,
+          customerName: u.name,
+          service: "Top-Up CN Wallet via " + selectedBankName + " (" + formatRp(amt) + ")",
+          amount: amt,
+          status: "Menunggu Verifikasi Top-Up"
+        })
+      });
+    } catch (_) {}
+    var statusEl = document.getElementById("cnPwStatusMsg");
+    if (statusEl) {
+      statusEl.innerHTML = "✅ Konfirmasi pembayaran <b>" + formatRp(amt) + "</b> (" + selectedBankName + ") terkirim! Saldo akan otomatis bertambah setelah mutasi terverifikasi.";
+    }
+  };
+
   function readGrandTotalOrder() {
     var totalEl = document.getElementById("displayTotal");
     if (totalEl) {
@@ -8976,12 +9622,12 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
           '<span style="font-size:11.5px;font-weight:800;color:' + (enough ? '#34d399' : '#fb7185') + ';">Saldo: ' + (u ? formatRp(bal) : 'Belum Login') + '</span>' +
         '</div>' +
         '<p style="font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);margin:0;">' +
-          'Sistem pemesanan kini menggunakan <b>Saldo CN Wallet</b> terlebih dahulu sebelum meneruskan format order ke Telegram. ' +
+          'Pemesanan sekarang dipotong otomatis dari <b>Saldo CN Wallet</b> sebelum format order diteruskan ke Telegram. ' +
           (u
             ? (enough
-                ? 'Saldo Anda mencukupi. Klik tombol di bawah untuk memotong saldo otomatis &amp; lanjut ke Telegram.'
-                : 'Saldo Anda belum mencukupi untuk tagihan <b>' + formatRp(total) + '</b>. Klik tombol di bawah untuk langsung menuju halaman <b>Top-Up Saldo CN Wallet</b>.')
-            : 'Silakan login terlebih dahulu atau isi saldo CN Wallet Anda untuk melanjutkan pemesanan.') +
+                ? 'Saldo Anda mencukupi. Klik tombol di bawah untuk memotong saldo &amp; lanjut ke Telegram.'
+                : 'Saldo Anda belum mencukupi untuk tagihan <b>' + formatRp(total) + '</b>. Klik tombol di bawah untuk langsung masuk ke <b>Paywall Top-Up CN Wallet</b>.')
+            : 'Silakan login terlebih dahulu untuk menggunakan Saldo CN Wallet.') +
         '</p>' +
       '</div>';
 
@@ -8990,34 +9636,36 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
       if (!u) {
         submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login &amp; Bayar via Saldo CN Wallet';
       } else if (total > 0 && bal < total) {
-        submitBtn.innerHTML = '<i class="fa-solid fa-wallet"></i> Saldo Kurang — Top-Up CN Wallet Sekarang';
+        submitBtn.innerHTML = '<i class="fa-solid fa-wallet"></i> Saldo Kurang — Top-Up di Paywall Sekarang';
       } else {
         submitBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Bayar ' + formatRp(total) + ' &amp; Lanjut ke Telegram';
       }
     }
   }
 
-  function redirectToTopupWithReason(uname, currentBal, requiredAmount) {
-    var kurang = Math.max(0, requiredAmount - currentBal);
-    var talentName = (document.getElementById("calcTalent")?.value || "Talent").trim();
-    var catName = (document.getElementById("calcBagian")?.value || "Private Session").trim();
-
-    alert(
-      "⚠️ SALDO CN WALLET TIDAK MENCUKUPI\n\n" +
-      "Alasan: Sistem pemesanan Clubs'Night kini mewajibkan pembayaran melalui Saldo CN Wallet sebelum meneruskan order ke Telegram.\n\n" +
-      "• Saldo Anda saat ini: " + formatRp(currentBal) + "\n" +
-      "• Total Tagihan Sesi: " + formatRp(requiredAmount) + "\n" +
-      "• Kekurangan Saldo: " + formatRp(kurang) + "\n\n" +
-      "Anda akan diarahkan langsung ke halaman Top-Up Saldo CN Wallet sekarang."
-    );
-
-    if (typeof window.openCnQrisTopupModal === "function") {
-      window.openCnQrisTopupModal(requiredAmount, {
-        amount: requiredAmount,
-        service: "Top-Up Booking: " + talentName + " (" + catName + ")"
-      });
-    } else if (typeof window.switchPwaTab === "function") {
-      window.switchPwaTab("activity");
+  function injectWalletShortcutInActivity() {
+    var actPage = document.getElementById("cnPageActivity");
+    if (!actPage || document.getElementById("cnActivityWalletCard")) return;
+    var u = getUnifiedUser();
+    if (!u) return;
+    var bal = getLocalWalletBalance(u.username);
+    var card = document.createElement("div");
+    card.id = "cnActivityWalletCard";
+    card.className = "cn-activity-card";
+    card.style.marginBottom = "14px";
+    card.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;gap:12px;">' +
+        '<div>' +
+          '<div style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:700;">SALDO CN WALLET AKTIF</div>' +
+          '<div id="cnActWalletBalText" style="font-size:19px;font-weight:900;color:#34d399;margin-top:2px;">' + formatRp(bal) + '</div>' +
+        '</div>' +
+        '<button type="button" onclick="window.openCnPaywallPage()" style="padding:10px 14px;border-radius:12px;border:none;background:linear-gradient(135deg,#ff1744,#8b5cf6);color:#fff;font-size:12px;font-weight:800;cursor:pointer;">' +
+          '<i class="fa-solid fa-plus"></i> Top-Up Saldo' +
+        '</button>' +
+      '</div>';
+    var firstGroup = actPage.querySelector(".cn-activity-group, .cn-activity-card");
+    if (firstGroup && firstGroup.parentNode) {
+      firstGroup.parentNode.insertBefore(card, firstGroup);
     }
   }
 
@@ -9043,11 +9691,6 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
 
       var u = getUnifiedUser();
       if (!u) {
-        alert(
-          "🔒 LOGIN DIPERLUKAN\n\n" +
-          "Alasan: Pemesanan kini menggunakan Saldo CN Wallet agar transaksi aman & terverifikasi otomatis sebelum masuk ke Telegram.\n\n" +
-          "Anda akan diarahkan ke halaman Login / Daftar Akun terlebih dahulu."
-        );
         window.location.href = "/login.html";
         return;
       }
@@ -9063,12 +9706,18 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
         var currentBal = await fetchServerBalance(u.username);
         renderPaymentGateBanner();
 
+        // Langsung arahkan ke Halaman Paywall Top-Up jika saldo tidak cukup
         if (currentBal < totalAmount) {
           if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = origBtnHtml;
           }
-          redirectToTopupWithReason(u.username, currentBal, totalAmount);
+          var tName = (document.getElementById("calcTalent")?.value || "Talent").trim();
+          var bName = (document.getElementById("calcBagian")?.value || "Private Session").trim();
+          window.openCnPaywallPage({
+            requiredAmount: totalAmount,
+            serviceLabel: tName + " • " + bName + " (" + formatRp(totalAmount) + ")"
+          });
           return;
         }
 
@@ -9078,7 +9727,7 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
           "• Total Pembayaran: " + formatRp(totalAmount) + "\n" +
           "• Saldo Saat Ini: " + formatRp(currentBal) + "\n" +
           "• Sisa Saldo Setelah Bayar: " + formatRp(currentBal - totalAmount) + "\n\n" +
-          "Lanjutkan potong saldo & buka Telegram sekarang?"
+          "Potong saldo otomatis & teruskan order ke Telegram?"
         );
 
         if (!okConfirm) {
@@ -9095,26 +9744,21 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
 
         var sessTok = getSessionToken();
         if (!sessTok) {
-          try {
-            var gRes = await fetch(WORKER_API + "/api/session/guest", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ username: u.username })
-            });
-            var gData = await gRes.json();
-            if (gData && gData.sessionToken) {
-              sessTok = gData.sessionToken;
-              localStorage.setItem("cn_session_token", sessTok);
-            }
-          } catch (_) {}
+          var gRes = await fetch(WORKER_API + "/api/session/guest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: u.username })
+          });
+          var gData = await gRes.json().catch(function() { return {}; });
+          if (gData && gData.sessionToken) {
+            sessTok = gData.sessionToken;
+            localStorage.setItem("cn_session_token", sessTok);
+          }
         }
 
         var spendRes = await fetch(WORKER_API + "/api/wallet/spend", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": sessTok
-          },
+          headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
           body: JSON.stringify({
             username: u.username,
             amount: totalAmount,
@@ -9132,19 +9776,19 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
             submitBtn.innerHTML = origBtnHtml;
           }
           if (spendRes.status === 402 || latestBal < totalAmount) {
-            redirectToTopupWithReason(u.username, latestBal, totalAmount);
+            window.openCnPaywallPage({
+              requiredAmount: totalAmount,
+              serviceLabel: (document.getElementById("calcTalent")?.value || "Talent") + " • " + (document.getElementById("calcBagian")?.value || "Service")
+            });
           } else {
-            alert("Gagal memproses pembayaran: " + (spendData.error || "Sesi kadaluarsa, silakan login ulang."));
+            alert("Gagal memproses pembayaran: " + (spendData.error || "Silakan coba lagi."));
           }
           return;
         }
 
-        // Pembayaran LUNAS terverifikasi di D1! Perbarui saldo lokal & catat kode bukti lunas
         var newBal = typeof spendData.balance === "number" ? spendData.balance : Math.max(0, currentBal - totalAmount);
         setLocalWalletBalance(u.username, newBal);
         var receiptId = "CN-PAID-" + Date.now();
-        paidBookingReceipts[receiptId] = true;
-
         var noteEl = document.getElementById("calcNote");
         if (noteEl && noteEl.value.indexOf("CN-PAID-") === -1) {
           noteEl.value = (noteEl.value ? noteEl.value + " | " : "") + "LUNAS WALLET (" + receiptId + ")";
@@ -9153,10 +9797,9 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
         renderPaymentGateBanner();
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Lunas! Mengarahkan ke Telegram...';
+          submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Lunas! Membuka Telegram...';
         }
 
-        // Jalankan fungsi asli copy & redirect ke Telegram setelah pembayaran LUNAS
         return await origFn.call(this, e);
       } catch (err) {
         if (submitBtn) {
@@ -9171,7 +9814,6 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     window.copyAndRedirectToBot = gatedFn;
   }
 
-  // Sinkronkan banner status saldo setiap kali kalkulator dibuka atau voucher diterapkan
   var origCalc = window.processToCalculator;
   if (typeof origCalc === "function" && !origCalc.__cnGateWrapped) {
     window.processToCalculator = function() {
@@ -9194,16 +9836,27 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     window.applyVoucherCode.__cnGateWrapped = true;
   }
 
-  setInterval(installHardPaymentGate, 400);
-  window.addEventListener("cn:wallet-updated", renderPaymentGateBanner);
+  setInterval(function() {
+    installHardPaymentGate();
+    injectWalletShortcutInActivity();
+  }, 500);
+
+  window.addEventListener("cn:wallet-updated", function(ev) {
+    renderPaymentGateBanner();
+    var actBal = document.getElementById("cnActWalletBalText");
+    if (actBal && ev && ev.detail) actBal.textContent = formatRp(ev.detail.balance);
+  });
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function() {
       installHardPaymentGate();
       renderPaymentGateBanner();
+      injectWalletShortcutInActivity();
     });
   } else {
     installHardPaymentGate();
     renderPaymentGateBanner();
+    injectWalletShortcutInActivity();
   }
 })();
 </script>
