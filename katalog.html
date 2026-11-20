@@ -7572,19 +7572,24 @@ window.addEventListener("storage", function(e) {
 
 
 
+
 <script id="cnTalentUnifiedProfileSyncJs">
 (function() {
   var AUTH_KEY = "cn_auth_session_v1";
   var PWA_KEY = "cn_pwa_session_v1";
 
-  function readTalentSession() {
-    var keys = ["cn_talent_session_v1", "cn_talent_session", "cn_active_talent", PWA_KEY, AUTH_KEY];
+  function readStrictSession() {
+    var keys = [AUTH_KEY, PWA_KEY, "cn_talent_session_v1", "cn_talent_session", "cn_active_talent"];
     for (var i = 0; i < keys.length; i++) {
       try {
         var raw = localStorage.getItem(keys[i]);
         if (!raw) continue;
         var parsed = JSON.parse(raw);
         if (parsed && (parsed.username || parsed.id)) {
+          // Pastikan hanya kunci khusus talent yang otomatis dianggap role 'talent' jika role kosong
+          if (!parsed.role) {
+            parsed.role = keys[i].indexOf("talent") !== -1 ? "talent" : "user";
+          }
           return parsed;
         }
       } catch (_) {}
@@ -7592,62 +7597,117 @@ window.addEventListener("storage", function(e) {
     return null;
   }
 
-  function syncTalentToUserProfileUI() {
-    var active = readTalentSession();
+  function applyStrictRbacActivityUI() {
+    var active = readStrictSession();
     if (!active || !active.username) return;
 
     var uname = String(active.username).replace(/^@/, "").toLowerCase();
-    var displayName = active.name || active.displayName || uname.charAt(0).toUpperCase() + uname.slice(1);
-    var role = active.role || "talent";
+    var role = String(active.role || "user").toLowerCase();
+    if (uname === "superadmin") role = "superadmin";
 
-    var curAuth = null;
-    try { curAuth = JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch (_) {}
+    var displayName = active.name || active.displayName || (uname.charAt(0).toUpperCase() + uname.slice(1));
+    var isApprovedTalent = (role === "talent" && active.approved !== false);
 
-    if (!curAuth || String(curAuth.username || "").toLowerCase() !== uname) {
-      var unified = {
-        id: active.id || ("tlt_" + uname),
-        name: displayName,
-        username: uname,
-        role: role,
-        status: active.status || "READY",
-        agency: active.agency || "Clubs'Night",
-        approved: true,
-        loggedInAt: active.loggedInAt || new Date().toISOString()
-      };
-      try {
-        localStorage.setItem(AUTH_KEY, JSON.stringify(unified));
-        localStorage.setItem(PWA_KEY, JSON.stringify(unified));
-      } catch (_) {}
-      window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: unified }));
-    }
+    // 1. Sinkronkan ke AUTH_KEY & PWA_KEY tanpa mengubah role asli akun!
+    var unified = Object.assign({}, active, {
+      id: active.id || ((role === "talent" ? "tlt_" : "usr_") + uname),
+      name: displayName,
+      username: uname,
+      role: role,
+      approved: role === "talent" ? (active.approved !== false) : true,
+      loggedInAt: active.loggedInAt || new Date().toISOString()
+    });
 
-    // Pastikan kartu AKUN & SESI REALTIME memiliki tombol Edit Profil & Biodata + Profil Publik
+    try {
+      var curStr = localStorage.getItem(AUTH_KEY);
+      var nextStr = JSON.stringify(unified);
+      if (curStr !== nextStr) {
+        localStorage.setItem(AUTH_KEY, nextStr);
+        localStorage.setItem(PWA_KEY, nextStr);
+      }
+    } catch (_) {}
+
     var page = document.getElementById("cnPageActivity");
     if (!page) return;
 
+    // 2. Kontrol visibilitas Panel Kontrol Talent (HANYA untuk role === 'talent')
+    var talentWrap = document.getElementById("cnTalentSelfServiceWrap");
+    if (talentWrap) {
+      if (role !== "talent") {
+        talentWrap.style.display = "none";
+      } else if (!isApprovedTalent) {
+        talentWrap.style.display = "block";
+        talentWrap.innerHTML =
+          '<div class="cn-activity-group-label" style="color:#f59e0b;">STATUS VERIFIKASI TALENT (@' + uname + ')</div>' +
+          '<div class="cn-activity-card" style="border:1px solid rgba(245,158,11,0.35);margin-bottom:14px;padding:12px 14px;font-size:12.5px;color:rgba(255,255,255,0.82);">' +
+            '<i class="fa-solid fa-clock" style="color:#f59e0b;margin-right:6px;"></i> ' +
+            'Pengajuan akun Talent Anda sedang <b>Menunggu Persetujuan Admin</b>. Panel Status Live akan terbuka setelah verifikasi selesai.' +
+          '</div>';
+      }
+    }
+
+    // 3. Kontrol visibilitas Panel Merch (HANYA untuk role === 'merch' atau 'superadmin')
+    var merchAdminWrap = document.getElementById("cnMerchRoleWrap");
+    if (role === "merch" || role === "merch_admin") {
+      if (!merchAdminWrap) {
+        merchAdminWrap = document.createElement("div");
+        merchAdminWrap.id = "cnMerchRoleWrap";
+        var firstLbl = page.querySelector(".cn-activity-group-label");
+        if (firstLbl && firstLbl.parentNode) firstLbl.parentNode.insertBefore(merchAdminWrap, firstLbl);
+      }
+      merchAdminWrap.style.display = "block";
+      merchAdminWrap.innerHTML =
+        '<div class="cn-activity-group-label" style="color:#38bdf8;">MANAJEMEN OFFICIAL MERCH</div>' +
+        '<div class="cn-activity-card" style="border:1px solid rgba(56,189,248,0.32);margin-bottom:14px;">' +
+          '<button type="button" class="cn-activity-row" onclick="window.openCnMerchDevModal && window.openCnMerchDevModal()">' +
+            '<span><i class="fa-solid fa-shirt" style="color:#38bdf8;"></i> Kelola Katalog &amp; Stok Merch</span>' +
+            '<i class="fa-solid fa-chevron-right"></i>' +
+          '</button>' +
+        '</div>';
+    } else if (merchAdminWrap) {
+      merchAdminWrap.style.display = "none";
+    }
+
+    // 4. Cari kartu AKUN & SESI REALTIME (bukan kartu Talent/Merch)
     var cards = page.querySelectorAll(".cn-activity-card");
     var accountCard = null;
     cards.forEach(function(c) {
-      if (c.closest("#cnTalentSelfServiceWrap")) return;
+      if (c.closest("#cnTalentSelfServiceWrap") || c.closest("#cnMerchRoleWrap") || c.id === "cnDevSectionCard") return;
       if (!accountCard) accountCard = c;
     });
-
     if (!accountCard) return;
 
-    // Jika kartu akun masih merender tombol "Masuk / Daftar", ganti dengan kartu profil aktif
+    var roleBadgeHtml =
+      role === "superadmin" || role === "admin" || role === "dev"
+        ? '<span style="color:#22d3ee;font-weight:700;">SuperAdmin / Web Master</span>'
+        : role === "merch" || role === "merch_admin"
+        ? '<span style="color:#38bdf8;font-weight:700;">Admin Official Merch</span>'
+        : role === "talent"
+        ? (isApprovedTalent
+            ? '<span style="color:#ff4081;font-weight:700;">Talent Terverifikasi</span>'
+            : '<span style="color:#f59e0b;font-weight:700;">Talent (Menunggu Verifikasi)</span>')
+        : '<span style="color:#a78bfa;font-weight:600;">Member VIP</span>';
+
     var loginPromptBtn = accountCard.querySelector("button[onclick*='openCnAuthModal']");
     if (loginPromptBtn && !accountCard.querySelector(".cn-session-box")) {
       var initial = displayName.charAt(0).toUpperCase();
+      var upgradeTalentRow = role === "user"
+        ? '<button type="button" class="cn-activity-row" onclick="window.openCnAuthModal && window.openCnAuthModal(\'register\'); setTimeout(function(){ window.switchCnRegRole && window.switchCnRegRole(\'talent\'); }, 80);">' +
+            '<span><i class="fa-solid fa-sparkles" style="color:#ff4081;"></i> Daftar Menjadi Talent (Khusus Wanita)</span>' +
+            '<i class="fa-solid fa-chevron-right"></i>' +
+          '</button>'
+        : "";
+
       accountCard.innerHTML =
         '<div class="cn-session-box" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
           '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
             '<div class="cn-session-avatar" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#ff1744,#9c27b0);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:#fff;flex-shrink:0;">' + initial + '</div>' +
             '<div style="min-width:0;">' +
               '<div style="font-weight:700;font-size:15px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + displayName + '</div>' +
-              '<div style="font-size:12px;color:rgba(255,255,255,0.62);">@' + uname + ' • <span style="color:#ff4081;font-weight:600;">Talent Terverifikasi</span></div>' +
+              '<div style="font-size:12px;color:rgba(255,255,255,0.62);">@' + uname + ' • ' + roleBadgeHtml + '</div>' +
             '</div>' +
           '</div>' +
-          '<button type="button" onclick="window.openCnPublicProfile && window.openCnPublicProfile('' + uname + '')" style="padding:6px 11px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);cursor:pointer;white-space:nowrap;">Profil Publik</button>' +
+          '<button type="button" onclick="window.openCnPublicProfile && window.openCnPublicProfile(\'' + uname + '\')" style="padding:6px 11px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);cursor:pointer;white-space:nowrap;">Profil Publik</button>' +
         '</div>' +
         '<button type="button" id="cnEditProfileRowBtn" class="cn-activity-row cn-edit-prof-row" onclick="window.openCnProfileEditor && window.openCnProfileEditor()">' +
           '<span class="cn-edit-prof-left">' +
@@ -7659,14 +7719,31 @@ window.addEventListener("storage", function(e) {
           '</span>' +
           '<i class="fa-solid fa-chevron-right"></i>' +
         '</button>' +
-        '<button type="button" class="cn-activity-row cn-logout-row" style="color:#ff5252;" onclick="window.cnTalentLogoutAll && window.cnTalentLogoutAll()">' +
+        upgradeTalentRow +
+        '<button type="button" class="cn-activity-row cn-logout-row" style="color:#ff5252;" onclick="window.cnUnifiedLogoutAll && window.cnUnifiedLogoutAll()">' +
           '<span><i class="fa-solid fa-right-from-bracket"></i> Keluar dari Sesi (@' + uname + ')</span>' +
           '<i class="fa-solid fa-chevron-right"></i>' +
         '</button>';
     }
   }
 
-  window.cnTalentLogoutAll = function() {
+  // 5. Sembunyikan field Agensi & Status Live Talent di modal Edit Profil jika yang login adalah User Biasa
+  var origOpenEditor = window.openCnProfileEditor;
+  if (typeof origOpenEditor === "function") {
+    window.openCnProfileEditor = function() {
+      origOpenEditor.apply(this, arguments);
+      var s = readStrictSession();
+      var isTalent = s && String(s.role || "").toLowerCase() === "talent";
+      ["cnProfAgency", "cnProfStatus"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el.parentElement) {
+          el.parentElement.style.display = isTalent ? "" : "none";
+        }
+      });
+    };
+  }
+
+  window.cnUnifiedLogoutAll = function() {
     ["cn_talent_session_v1", "cn_talent_session", "cn_active_talent", PWA_KEY, AUTH_KEY].forEach(function(k) {
       try { localStorage.removeItem(k); } catch (_) {}
     });
@@ -7675,13 +7752,13 @@ window.addEventListener("storage", function(e) {
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", syncTalentToUserProfileUI);
+    document.addEventListener("DOMContentLoaded", applyStrictRbacActivityUI);
   } else {
-    syncTalentToUserProfileUI();
+    applyStrictRbacActivityUI();
   }
-  setTimeout(syncTalentToUserProfileUI, 350);
+  setTimeout(applyStrictRbacActivityUI, 350);
   window.addEventListener("cn:session-changed", function() {
-    setTimeout(syncTalentToUserProfileUI, 60);
+    setTimeout(applyStrictRbacActivityUI, 60);
   });
 })();
 </script>
