@@ -9836,7 +9836,23 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     window.applyVoucherCode.__cnGateWrapped = true;
   }
 
+  // Capture-phase interceptor pada form booking agar mustahil lolos ke Telegram tanpa lunas
+  function captureFormInterceptor() {
+    var form = document.querySelector("#calculatorCardInline form");
+    if (!form || form.__cnCaptureBound) return;
+    form.__cnCaptureBound = true;
+    form.removeAttribute("onsubmit");
+    form.addEventListener("submit", function(ev) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      if (typeof window.copyAndRedirectToBot === "function") {
+        window.copyAndRedirectToBot(ev);
+      }
+    }, true);
+  }
+
   setInterval(function() {
+    captureFormInterceptor();
     installHardPaymentGate();
     injectWalletShortcutInActivity();
   }, 500);
