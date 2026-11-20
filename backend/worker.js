@@ -147,7 +147,9 @@ export default {
       "http://localhost:5173",
       "http://localhost:5174",
       "http://localhost:5175",
-      "http://127.0.0.1:5173"
+      "https://clubsnight.my.id",
+  "https://clubsnight-fullstack.clubsnight.workers.dev",
+  "http://127.0.0.1:5173"
     ];
     const origin = request.headers.get("Origin") || "";
     const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
@@ -185,7 +187,7 @@ export default {
     };
 
     // Wajib Origin resmi untuk seluruh POST (kecuali admin dengan Bearer Token sah)
-    if (request.method === "POST" && !isAllowedOrigin && !isAuthorized()) {
+    if (request.method === "POST" && url.pathname !== "/api/webhook/saweria" && !isAllowedOrigin && !isAuthorized()) {
       return new Response(JSON.stringify({ success: false, error: "Forbidden: Origin tidak diizinkan." }), {
         status: 403,
         headers: { ...securityHeaders, "Content-Type": "application/json" }
