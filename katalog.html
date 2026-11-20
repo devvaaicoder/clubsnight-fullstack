@@ -6603,5 +6603,38 @@
 })();
 </script>
 
+
+<script id="cnGateAutoUnlock">
+(function() {
+  function unlockHardGate() {
+    var gate = document.getElementById("cnHardAuthGate") || document.querySelector(".cn-hard-gate, .cn-auth-gate-overlay");
+    if (gate) {
+      gate.style.setProperty("display", "none", "important");
+      gate.style.setProperty("visibility", "hidden", "important");
+      gate.style.setProperty("pointer-events", "none", "important");
+      gate.classList.remove("active", "open", "is-open");
+    }
+    document.documentElement.classList.remove("cn-auth-locked");
+    document.body.classList.remove("cn-auth-locked");
+    document.body.style.overflow = "";
+  }
+
+  window.addEventListener("cn:session-changed", function(ev) {
+    if (ev && ev.detail && (ev.detail.tg_id || ev.detail.tgId || ev.detail.username)) {
+      unlockHardGate();
+    }
+  });
+
+  // Cek jika sesi sudah tersimpan di localStorage saat halaman baru dibuka
+  try {
+    var raw = localStorage.getItem("cn_auth_session_v1");
+    if (raw) {
+      var u = JSON.parse(raw);
+      if (u && (u.tg_id || u.tgId || u.username)) unlockHardGate();
+    }
+  } catch (_) {}
+})();
+</script>
+
 </body>
 </html>
