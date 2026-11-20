@@ -1949,6 +1949,153 @@ async function copyAndRedirectToBot(e) {
   const hargaBase = parseInt(document.getElementById('calcHarga')?.value || 0) || 0;
   if (hargaBase <= 0) { alert("Pilih layanan terlebih dahulu!"); return; }
 
+  // === HARD PAYMENT GATE (CN WALLET WAJIB SEBELUM TELEGRAM) ===
+  const WORKER_API = "https://clubsnight-fullstack.devvaaicoder.workers.dev";
+  const formatRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
+
+  const getActiveUser = () => {
+    const keys = ["cn_talent_session_v1", "cn_talent_session", "cn_active_talent", "cn_pwa_session_v1", "cn_auth_session_v1"];
+    for (const k of keys) {
+      try {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        const obj = JSON.parse(raw);
+        if (obj && obj.username) {
+          return {
+            username: String(obj.username).replace(/^@/, "").toLowerCase(),
+            name: obj.name || obj.displayName || obj.username,
+            token: obj.sessionToken || obj.token || ""
+          };
+        }
+      } catch (_) {}
+    }
+    return null;
+  };
+
+  const activeUser = getActiveUser();
+  if (!activeUser) {
+    alert("🔒 LOGIN DIPERLUKAN\n\nPemesanan kini menggunakan Saldo CN Wallet agar transaksi terverifikasi otomatis sebelum masuk ke Telegram.\n\nSilakan login terlebih dahulu.");
+    window.location.href = "/login.html";
+    return;
+  }
+
+  let discountedBase = hargaBase;
+  if (typeof activeAppliedVoucher !== "undefined" && activeAppliedVoucher) {
+    const disc = activeAppliedVoucher.fixedAmount
+      ? activeAppliedVoucher.fixedAmount
+      : Math.round((hargaBase * activeAppliedVoucher.discount) / 100);
+    discountedBase = Math.max(0, hargaBase - disc);
+  }
+  const totalTagihan = discountedBase + getAdminFee(discountedBase);
+
+  const submitBtn = document.querySelector("#calculatorCardInline .btn-submit-telegram");
+  const origBtnHtml = submitBtn ? submitBtn.innerHTML : "";
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa Saldo CN Wallet...';
+  }
+
+  try {
+    let currentBal = 0;
+    try {
+      const bRes = await fetch(`${WORKER_API}/api/wallet/balance?username=${encodeURIComponent(activeUser.username)}`);
+      const bData = await bRes.json();
+      if (bRes.ok && bData && bData.success && typeof bData.balance === "number") {
+        currentBal = bData.balance;
+      }
+    } catch (_) {}
+
+    if (currentBal < totalTagihan) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+      const tName = document.getElementById('calcTalent')?.value.trim() || 'Talent';
+      const bName = document.getElementById('calcBagian')?.value.trim() || 'Service';
+      if (typeof window.openCnPaywallPage === "function") {
+        window.openCnPaywallPage({
+          requiredAmount: totalTagihan,
+          serviceLabel: `${tName} • ${bName} (${formatRp(totalTagihan)})`
+        });
+      } else {
+        alert(`⚠️ SALDO CN WALLET TIDAK MENCUKUPI\n\nAlasan: Sistem pemesanan kini mewajibkan pembayaran via Saldo CN Wallet sebelum menuju Telegram.\n• Saldo Anda: ${formatRp(currentBal)}\n• Total Tagihan: ${formatRp(totalTagihan)}\n• Kurang: ${formatRp(totalTagihan - currentBal)}`);
+      }
+      return;
+    }
+
+    const okPay = confirm(
+      `KONFIRMASI PEMBAYARAN CN WALLET\n\n` +
+      `• Akun: @${activeUser.username}\n` +
+      `• Total Tagihan: ${formatRp(totalTagihan)}\n` +
+      `• Saldo Saat Ini: ${formatRp(currentBal)}\n` +
+      `• Sisa Saldo: ${formatRp(currentBal - totalTagihan)}\n\n` +
+      `Potong saldo sekarang & teruskan format order ke Telegram?`
+    );
+    if (!okPay) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+      return;
+    }
+
+    let sessTok = localStorage.getItem("cn_session_token") || activeUser.token || "";
+    if (!sessTok) {
+      const gRes = await fetch(`${WORKER_API}/api/session/guest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: activeUser.username })
+      });
+      const gData = await gRes.json().catch(() => ({}));
+      if (gData && gData.sessionToken) {
+        sessTok = gData.sessionToken;
+        localStorage.setItem("cn_session_token", sessTok);
+      }
+    }
+
+    const spendRes = await fetch(`${WORKER_API}/api/wallet/spend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
+      body: JSON.stringify({
+        username: activeUser.username,
+        amount: totalTagihan,
+        service: `${document.getElementById('calcTalent')?.value || 'Talent'} • ${document.getElementById('calcBagian')?.value || 'Service'}`
+      })
+    });
+    const spendData = await spendRes.json().catch(() => ({}));
+
+    if (!spendRes.ok || !spendData.success) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+      const latestBal = typeof spendData.balance === "number" ? spendData.balance : currentBal;
+      if (typeof window.openCnPaywallPage === "function") {
+        window.openCnPaywallPage({
+          requiredAmount: totalTagihan,
+          serviceLabel: `${document.getElementById('calcTalent')?.value || 'Talent'} • ${document.getElementById('calcBagian')?.value || 'Service'}`
+        });
+      } else {
+        alert(spendData.error || "Saldo tidak mencukupi untuk melanjutkan pesanan.");
+      }
+      return;
+    }
+
+    const receiptCode = "CN-PAID-" + Date.now();
+    const noteInput = document.getElementById('calcNote');
+    if (noteInput && !noteInput.value.includes("CN-PAID-")) {
+      noteInput.value = (noteInput.value ? noteInput.value + " | " : "") + `LUNAS WALLET (${receiptCode})`;
+    }
+  } catch (err) {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = origBtnHtml;
+    }
+    alert("Gagal memverifikasi saldo CN Wallet. Periksa koneksi Anda.");
+    return;
+  }
+  // === END HARD PAYMENT GATE ===
+
   const clientNameVal = document.getElementById('calcClient')?.value.trim() || 'Anonymous';
   const talentNameVal = document.getElementById('calcTalent')?.value.trim() || 'Talent';
   const serviceCatVal = document.getElementById('calcBagian')?.value.trim() || 'VC';
