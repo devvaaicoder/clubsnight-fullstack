@@ -2579,35 +2579,9 @@
       window.CN_PHOENIX_WS = window.CN_PHOENIX_WS || "";
 
       // 10 Talent Stories (diurutkan dari terbaru: ts terbesar di posisi #1)
-      var defaultStories = [
-        { id: "st_1", name: "Vallery", time: "5m lalu", ts: 10, color: "#ff2a5f", caption: "Ready untuk sesi private malam ini! DM via Telegram VIP ya ✨" },
-        { id: "st_2", name: "Eirene", time: "18m lalu", ts: 9, color: "#c084fc", caption: "Baru selesai photoshoot kostum baru, cek reels terbaru aku~" },
-        { id: "st_3", name: "Annie", time: "32m lalu", ts: 8, color: "#f97316", caption: "Open slot VCService & Deep Talk sampai jam 2 pagi 🌙" },
-        { id: "st_4", name: "Vania", time: "45m lalu", ts: 7, color: "#ec4899", caption: "Mood malam ini pengen ngobrol santai bareng VIP member." },
-        { id: "st_5", name: "Nadia", time: "1j lalu", ts: 6, color: "#8b5cf6", caption: "Weekend vibes! Slot RSVP COPS (Companion Offline Private Services) terbatas untuk minggu ini." },
-        { id: "st_6", name: "Sasha", time: "2j lalu", ts: 5, color: "#f43f5e", caption: "Terima kasih untuk semua review bintang 5 hari ini ❤️" },
-        { id: "st_7", name: "Bella", time: "3j lalu", ts: 4, color: "#a855f7", caption: "Cosplay night session dibuka! Request karakter favoritmu." },
-        { id: "st_8", name: "Klara", time: "4j lalu", ts: 3, color: "#fb7185", caption: "Online standby di agensi Clubs'Night, fast response!" },
-        { id: "st_9", name: "Mika", time: "5j lalu", ts: 2, color: "#d946ef", caption: "Sesi GFE hangat dan penuh privasi, khusus member terverifikasi." },
-        { id: "st_10", name: "Luna", time: "6j lalu", ts: 1, color: "#f59e0b", caption: "Selamat malam VIP! Jangan lupa klaim kode promo bulan ini." }
-      ];
+      var defaultStories = [];
 
-      var defaultPosts = [
-        {
-          id: "post_1",
-          author: "Vallery Official",
-          handle: "@vallery_cn",
-          role: "TALENT",
-          time: "Baru saja",
-          text: "Malam ini suasana di Clubs' Night Lounge benar-benar hangat. Buat semua VIP member yang kemarin sempat tanya jadwal open slot private video call maupun sesi curhat santai, malam ini aku sudah standby penuh sampai larut malam. Semua percakapan dan privasi dijamin aman terenkripsi, jadi langsung saja cek status ready di tab Talent atau sapa aku di sini ya!",
-          image: "",
-          likes: 24,
-          liked: false,
-          replies: [
-            { author: "Raka VIP", text: "Mantap, langsung meluncur cek slot malam ini!" }
-          ]
-        }
-      ];
+      var defaultPosts = [];
 
       function getViewedIds() {
         try { return JSON.parse(localStorage.getItem(VIEWED_KEY) || "[]"); } catch (e) { return []; }
@@ -2625,8 +2599,8 @@
       function getPosts() {
         try {
           var raw = localStorage.getItem(FEED_KEY);
-          return raw ? JSON.parse(raw) : defaultPosts;
-        } catch (e) { return defaultPosts; }
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) { return []; }
       }
 
       function savePosts(posts) {
@@ -3309,18 +3283,7 @@
       var activeSlideIdx = 0;
       var timerRef = null;
 
-      var baseTalents = [
-        { id: "st_1", name: "Vallery", time: "5m lalu", ts: 10, color: "#ff2a5f", caption: "Ready untuk sesi private malam ini! DM via Telegram VIP ya ✨" },
-        { id: "st_2", name: "Eirene", time: "18m lalu", ts: 9, color: "#c084fc", caption: "Baru selesai photoshoot kostum baru, cek reels terbaru aku~" },
-        { id: "st_3", name: "Annie", time: "32m lalu", ts: 8, color: "#f97316", caption: "Open slot VCService & Deep Talk sampai jam 2 pagi 🌙" },
-        { id: "st_4", name: "Vania", time: "45m lalu", ts: 7, color: "#ec4899", caption: "Mood malam ini pengen ngobrol santai bareng VIP member." },
-        { id: "st_5", name: "Nadia", time: "1j lalu", ts: 6, color: "#8b5cf6", caption: "Weekend vibes! Slot RSVP COPS (Companion Offline Private Services) terbatas untuk minggu ini." },
-        { id: "st_6", name: "Sasha", time: "2j lalu", ts: 5, color: "#f43f5e", caption: "Terima kasih untuk semua review bintang 5 hari ini ❤️" },
-        { id: "st_7", name: "Bella", time: "3j lalu", ts: 4, color: "#a855f7", caption: "Cosplay night session dibuka! Request karakter favoritmu." },
-        { id: "st_8", name: "Klara", time: "4j lalu", ts: 3, color: "#fb7185", caption: "Online standby di agensi Clubs'Night, fast response!" },
-        { id: "st_9", name: "Mika", time: "5j lalu", ts: 2, color: "#d946ef", caption: "Sesi GFE hangat dan penuh privasi, khusus member terverifikasi." },
-        { id: "st_10", name: "Luna", time: "6j lalu", ts: 1, color: "#f59e0b", caption: "Selamat malam VIP! Jangan lupa klaim kode promo bulan ini." }
-      ];
+      var baseTalents = [];
 
       function getTodayKey() {
         var d = new Date();
@@ -4613,18 +4576,7 @@
       var FEED_KEY = "cn_lounge_posts_v1";
       var tempAvatarDataUrl = "";
 
-      var seedProfiles = {
-        "vallery_cn": {
-          username: "vallery_cn",
-          name: "Vallery Official",
-          role: "TALENT",
-          agency: "Clubs'Night",
-          status: "READY",
-          moods: ["GFE", "Deep Talk", "Manja"],
-          bio: "Talent resmi Clubs'Night. Suka ngobrol santai, sesi private hangat, dan selalu menjaga privasi VIP member 100%.",
-          avatar: ""
-        }
-      };
+      var seedProfiles = {};
 
       function getProfiles() {
         try {
@@ -5075,11 +5027,7 @@
 
   <script id="cn-fase7-independent-pages">
     (function() {
-      var globalOrdersSeed = [
-        { id: "ORD-9921", user: "VIP #482", service: "VCService 30m — Vallery", status: "Selesai", time: "12 menit lalu", review: "Fast response, ramah banget dan privasi aman!" },
-        { id: "ORD-9918", user: "VIP #319", service: "Deep Talk — Eirene", status: "Selesai", time: "45 menit lalu", review: "Asik diajak ngobrol, sangat profesional." },
-        { id: "ORD-9914", user: "VIP #704", service: "Official Merch — Heavy Tee", status: "Dikirim", time: "2 jam lalu", review: "Packing rapi dan benar-benar anonim tanpa label." }
-      ];
+      var globalOrdersSeed = [];
 
       var officialArticles = [
         {
@@ -6669,5 +6617,111 @@ window.addEventListener("storage", function(e) {
   }
 });
 </script>
+
+<script id="cnProdPurgeAndDotsFix">
+(function() {
+  // A. Bersihkan sisa localStorage simulasi/test local satu kali (pertahankan sesi login & verifikasi usia)
+  var PURGE_FLAG = "cn_prod_clean_v2026_11";
+  try {
+    if (!localStorage.getItem(PURGE_FLAG)) {
+      var keepKeys = {
+        "cn_pwa_session_v1": true,
+        "cn_auth_session_v1": true,
+        "cn_age_verified": true,
+        "cn_tour_done_v1": true
+      };
+      Object.keys(localStorage).forEach(function(k) {
+        if (!keepKeys[k] && k.indexOf("cn_") === 0) {
+          localStorage.removeItem(k);
+        }
+      });
+      localStorage.setItem(PURGE_FLAG, "1");
+    }
+  } catch (_) {}
+
+  // B. Perbaiki tombol titik tiga (⋮) pada setiap kartu postingan Lounge
+  var menuEl = null;
+  function closeDotsMenu() {
+    if (menuEl && menuEl.parentNode) menuEl.parentNode.removeChild(menuEl);
+    menuEl = null;
+  }
+
+  document.addEventListener("click", function(e) {
+    var target = e.target;
+    if (!target || !target.closest) return;
+
+    // Deteksi klik pada tombol titik tiga di header kartu postingan Lounge
+    var dotsBtn = target.closest(".cn-post-head button, .cn-post-more, .cn-dots-btn, [data-post-menu]");
+    if (!dotsBtn) {
+      // Cek ikon fa-ellipsis-vertical / fa-ellipsis-v di dalam .cn-post-head
+      var icon = target.closest(".cn-post-head i.fa-ellipsis-vertical, .cn-post-head i.fa-ellipsis-v, .cn-post-head svg");
+      if (icon) dotsBtn = icon.parentElement;
+    }
+
+    if (dotsBtn && dotsBtn.closest(".cn-post-card")) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      var card = dotsBtn.closest(".cn-post-card");
+      var allCards = Array.from(document.querySelectorAll("#cnLoungeFeed .cn-post-card"));
+      var cardIdx = allCards.indexOf(card);
+      var postId = dotsBtn.getAttribute("data-post-id") || card.getAttribute("data-post-id") || "";
+
+      closeDotsMenu();
+
+      menuEl = document.createElement("div");
+      menuEl.className = "cn-dots-dropdown";
+      menuEl.style.cssText = "position:fixed;z-index:99999;background:#16101f;border:1px solid rgba(255,255,255,0.14);border-radius:12px;padding:6px;min-width:170px;box-shadow:0 12px 32px rgba(0,0,0,0.65);font-family:inherit;";
+
+      var rect = dotsBtn.getBoundingClientRect();
+      menuEl.style.top = Math.min(window.innerHeight - 110, rect.bottom + 6) + "px";
+      menuEl.style.left = Math.max(12, rect.right - 170) + "px";
+
+      menuEl.innerHTML =
+        '<button type="button" data-act="delete" style="display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:0;background:transparent;color:#ff4d6d;font-size:13px;font-weight:600;border-radius:8px;cursor:pointer;text-align:left;">' +
+          '<i class="fa-regular fa-trash-can"></i> Hapus Postingan' +
+        '</button>' +
+        '<button type="button" data-act="report" style="display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:0;background:transparent;color:#e2e8f0;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;text-align:left;">' +
+          '<i class="fa-regular fa-flag"></i> Laporkan Postingan' +
+        '</button>';
+
+      menuEl.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        var actBtn = ev.target.closest("button[data-act]");
+        if (!actBtn) return;
+        var act = actBtn.getAttribute("data-act");
+
+        if (act === "delete") {
+          try {
+            var posts = JSON.parse(localStorage.getItem("cn_lounge_posts_v1") || "[]");
+            if (postId) {
+              posts = posts.filter(function(p) { return p.id !== postId; });
+            } else if (cardIdx >= 0 && cardIdx < posts.length) {
+              posts.splice(cardIdx, 1);
+            }
+            localStorage.setItem("cn_lounge_posts_v1", JSON.stringify(posts));
+          } catch (_) {}
+          if (card && card.parentNode) card.parentNode.removeChild(card);
+          if (typeof window.refreshCnLoungeFeed === "function") window.refreshCnLoungeFeed();
+          if (typeof window.cnToast === "function") window.cnToast("Postingan berhasil dihapus.", "info");
+        } else if (act === "report") {
+          if (typeof window.cnToast === "function") window.cnToast("Laporan terkirim ke tim moderasi.", "info");
+        }
+        closeDotsMenu();
+      });
+
+      document.body.appendChild(menuEl);
+      return;
+    }
+
+    if (menuEl && !menuEl.contains(target)) {
+      closeDotsMenu();
+    }
+  }, true);
+
+  window.addEventListener("scroll", closeDotsMenu, { passive: true });
+})();
+</script>
+
 </body>
 </html>
