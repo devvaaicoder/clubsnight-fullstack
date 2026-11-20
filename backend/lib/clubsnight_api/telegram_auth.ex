@@ -28,7 +28,7 @@ defmodule ClubsnightApi.TelegramAuth do
 
   defp build_user(p) do
     tg_id = to_string(p["id"])
-    role = resolve_role(tg_id)
+    {role, permissions} = resolve_access(tg_id)
 
     %{
       tg_id: tg_id,
@@ -36,20 +36,25 @@ defmodule ClubsnightApi.TelegramAuth do
       name: String.trim("#{p["first_name"]} #{p["last_name"]}"),
       avatar_url: p["photo_url"] || "",
       role: role,
-      saVerified: role in ["owner", "admin_qc", "admin_merch"]
+      permissions: permissions,
+      saVerified: role in ["owner", "admin_qc_merch", "admin_qc", "admin_merch"]
     }
   end
 
-  defp resolve_role(tg_id) do
+  defp resolve_access(tg_id) do
     owners = parse_ids("OWNER_TELEGRAM_IDS")
     qc = parse_ids("ADMIN_QC_TELEGRAM_IDS")
     merch = parse_ids("ADMIN_MERCH_TELEGRAM_IDS")
 
+    in_qc = tg_id in qc
+    in_merch = tg_id in merch
+
     cond do
-      tg_id in owners -> "owner"
-      tg_id in qc -> "admin_qc"
-      tg_id in merch -> "admin_merch"
-      true -> "user"
+      tg_id in owners -> {"owner", ["all", "qc", "merch", "config"]}
+      in_qc and in_merch -> {"admin_qc_merch", ["qc", "merch"]}
+      in_qc -> {"admin_qc", ["qc"]}
+      in_merch -> {"admin_merch", ["merch"]}
+      true -> {"user", []}
     end
   end
 
