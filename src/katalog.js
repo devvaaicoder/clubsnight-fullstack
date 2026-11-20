@@ -1448,10 +1448,7 @@ function confirmAge() {
     ageModal.classList.remove("open", "active", "show");
   }
   document.body.style.overflow = "";
-  try {
-    , 600);
-    }
-  } catch (_) {}
+  
 }
 
 // ==================== FILTER TALENTS ====================
