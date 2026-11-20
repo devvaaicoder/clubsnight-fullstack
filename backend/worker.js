@@ -150,6 +150,102 @@ export default {
         });
       }
 
+      
+      // Helper SHA-256 Password Hashing
+      const hashPassword = async (plain) => {
+        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("cn_salt_v1:" + String(plain)));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+      };
+
+      // 5. Seed / Update Akun Talent ke D1 (Wajib ADMIN_SECRET_TOKEN)
+      if (url.pathname === "/api/talent/seed" && request.method === "POST") {
+        if (!isAuthorized()) {
+          return new Response(JSON.stringify({ success: false, error: "Akses ditolak: Token tidak sah" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json();
+        const list = Array.isArray(body && body.talents) ? body.talents : [];
+        let count = 0;
+        for (const item of list) {
+          if (!item.username || !item.password || !item.name) continue;
+          const uname = String(item.username).trim().toLowerCase().replace(/^@/, "");
+          const pHash = await hashPassword(String(item.password).trim());
+          await env.DB.prepare(
+            "INSERT INTO talent_accounts (username, password_hash, name, agency, status, moods, avatar, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name, agency = excluded.agency, status = excluded.status, moods = excluded.moods, avatar = excluded.avatar, updated_at = excluded.updated_at"
+          ).bind(
+            uname,
+            pHash,
+            String(item.name),
+            String(item.agency || "Clubs'Night"),
+            String(item.status || "READY"),
+            JSON.stringify(item.moods || ["GFE"]),
+            String(item.avatar || ""),
+            new Date().toISOString()
+          ).run();
+          count++;
+        }
+        return new Response(JSON.stringify({ success: true, seeded: count }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // 6. Login Resmi Talent (Server-Side D1 Verification - Zero Frontend Exposure)
+      if (url.pathname === "/api/talent/login" && request.method === "POST") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json().catch(() => ({}));
+        const uname = String(body.username || "").trim().toLowerCase().replace(/^@/, "");
+        const pass = String(body.password || "").trim();
+        if (!uname || !pass) {
+          return new Response(JSON.stringify({ success: false, error: "Username dan password wajib diisi." }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const row = await env.DB.prepare(
+          "SELECT username, password_hash, name, agency, status, moods, avatar FROM talent_accounts WHERE username = ?"
+        ).bind(uname).first();
+
+        if (!row) {
+          return new Response(JSON.stringify({ success: false, notFound: true, error: "Akun tidak ditemukan." }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        const inputHash = await hashPassword(pass);
+        if (inputHash !== row.password_hash) {
+          await new Promise(r => setTimeout(r, 800));
+          return new Response(JSON.stringify({ success: false, error: "Password talent salah." }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        let parsedMoods = ["GFE"];
+        try { parsedMoods = JSON.parse(row.moods || "[]"); } catch (_) {}
+
+        return new Response(JSON.stringify({
+          success: true,
+          user: {
+            username: row.username,
+            name: row.name,
+            role: "talent",
+            approved: true,
+            agency: row.agency || "Clubs'Night",
+            status: row.status || "READY",
+            moods: parsedMoods,
+            avatar: row.avatar || ""
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
       return new Response("Not Found", { status: 404, headers: corsHeaders });
 
     } catch (err) {
