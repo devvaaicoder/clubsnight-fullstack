@@ -7422,9 +7422,9 @@ window.addEventListener("storage", function(e) {
         var stories = JSON.parse(localStorage.getItem(STORY_KEY) || "[]");
         await fetch(WORKER_API + "/api/lounge/save", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Session-Token": actor.sessionToken || "" },
           body: JSON.stringify({
-            actor: { username: actor.username, name: actor.name, role: actor.role },
+            actor: { username: actor.username, name: actor.name, role: actor.role, sessionToken: actor.sessionToken || "" },
             posts: posts,
             stories: stories
           })
