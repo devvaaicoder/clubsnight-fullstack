@@ -7475,5 +7475,60 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<script id="cnOrderCloudBridgeScript">
+(function() {
+  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var syncedOrderIds = {};
+
+  function getMemberSession() {
+    try {
+      return (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession())
+        || JSON.parse(localStorage.getItem("cn_pwa_session_v1") || "null")
+        || JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
+    } catch (_) { return null; }
+  }
+
+  window.sendCnOrderToCloud = async function(orderObj) {
+    if (!orderObj || !orderObj.service) return;
+    var oid = String(orderObj.id || ("ORD-" + Date.now()));
+    if (syncedOrderIds[oid]) return;
+    syncedOrderIds[oid] = true;
+
+    var sess = getMemberSession();
+    try {
+      await fetch(WORKER_API + "/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: oid,
+          customerUsername: (sess && sess.username) || orderObj.user || "vip_member",
+          customerName: (sess && sess.name) || orderObj.user || "VIP Member",
+          service: orderObj.service,
+          amount: Number(orderObj.amount || 0),
+          voucher: orderObj.voucher || "-",
+          note: orderObj.note || orderObj.review || "",
+          status: orderObj.status || "Menunggu Konfirmasi"
+        })
+      });
+    } catch (_) {}
+  };
+
+  // Intercept setiap penyimpanan ke localStorage key order (cn_my_orders* / cn_global_orders*)
+  var origSet = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(key, val) {
+    origSet.apply(this, arguments);
+    if (this === window.localStorage && typeof key === "string" && (key.indexOf("cn_my_orders") === 0 || key.indexOf("cn_global_orders") === 0)) {
+      try {
+        var list = JSON.parse(val || "[]");
+        if (Array.isArray(list) && list.length > 0) {
+          window.sendCnOrderToCloud(list[0]);
+        }
+      } catch (_) {}
+    }
+  };
+})();
+</script>
+
 </body>
 </html>

@@ -44,6 +44,9 @@ export default {
         await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS lounge_store (id INTEGER PRIMARY KEY, posts TEXT, stories TEXT, updated_at TEXT)"
         ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS orders_store (id TEXT PRIMARY KEY, customer_username TEXT, customer_name TEXT, service TEXT, amount INTEGER, voucher TEXT, note TEXT, status TEXT, created_at TEXT)"
+        ).run();
       }
     };
 
@@ -417,6 +420,92 @@ export default {
         ).bind(JSON.stringify(nextPosts), JSON.stringify(nextStories), new Date().toISOString()).run();
 
         return new Response(JSON.stringify({ success: true, countPosts: nextPosts.length, countStories: nextStories.length }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      
+      // 10. Buat Order Baru -> Simpan ke D1 + Kirim Notifikasi Telegram Admin (Server-Side)
+      if (url.pathname === "/api/orders/create" && request.method === "POST") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json().catch(() => ({}));
+        const orderId = String(body.id || ("ORD-" + Math.floor(100000 + Math.random() * 900000)));
+        const custUser = String(body.customerUsername || "guest").trim();
+        const custName = String(body.customerName || "VIP Member").trim();
+        const service = String(body.service || "").trim();
+        const amount = Number(body.amount || 0);
+        const voucher = String(body.voucher || "-").trim();
+        const note = String(body.note || "").trim();
+        const status = String(body.status || "Menunggu Konfirmasi").trim();
+        const createdAt = new Date().toISOString();
+
+        if (!service) {
+          return new Response(JSON.stringify({ success: false, error: "Detail layanan/produk wajib diisi." }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        await env.DB.prepare(
+          "INSERT INTO orders_store (id, customer_username, customer_name, service, amount, voucher, note, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status"
+        ).bind(orderId, custUser, custName, service, amount, voucher, note, status, createdAt).run();
+
+        // Kirim Notifikasi ke Telegram Admin jika secret tersedia di Cloudflare Worker
+        let telegramSent = false;
+        if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID) {
+          const textLines = [
+            "🔔 <b>ORDER BARU — CLUBS' NIGHT</b>",
+            "",
+            "🆔 <b>ID Order:</b> <code>" + orderId + "</code>",
+            "👤 <b>Member:</b> " + custName + " (@" + custUser.replace(/^@/, "") + ")",
+            "✨ <b>Layanan:</b> " + service,
+            amount > 0 ? ("💰 <b>Nominal:</b> Rp " + amount.toLocaleString("id-ID")) : "",
+            voucher && voucher !== "-" ? ("🎟️ <b>Voucher:</b> " + voucher) : "",
+            note ? ("📝 <b>Catatan:</b> " + note) : "",
+            "📌 <b>Status:</b> " + status
+          ].filter(Boolean).join("\n");
+
+          try {
+            const tgRes = await fetch("https://api.telegram.org/bot" + env.TELEGRAM_BOT_TOKEN + "/sendMessage", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+                text: textLines,
+                parse_mode: "HTML"
+              })
+            });
+            telegramSent = tgRes.ok;
+          } catch (_) {}
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          orderId,
+          telegramSent
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // 11. Daftar Semua Order dari D1 (Khusus Admin / Token Developer)
+      if (url.pathname === "/api/orders/list" && request.method === "GET") {
+        if (!isAuthorized()) {
+          return new Response(JSON.stringify({ success: false, error: "Akses ditolak: Token tidak sah" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const res = await env.DB.prepare(
+          "SELECT id, customer_username, customer_name, service, amount, voucher, note, status, created_at FROM orders_store ORDER BY created_at DESC LIMIT 200"
+        ).all();
+        return new Response(JSON.stringify({
+          success: true,
+          orders: (res && res.results) ? res.results : []
+        }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
