@@ -7393,5 +7393,87 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<script id="cnLoungeCloudSyncScript">
+(function() {
+  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var FEED_KEY = "cn_lounge_posts_v1";
+  var STORY_KEY = "cn_talent_stories_v1";
+  var isPullingFromCloud = false;
+  var pushTimer = null;
+
+  function getActorSession() {
+    try {
+      return (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession())
+        || JSON.parse(localStorage.getItem("cn_pwa_session_v1") || "null")
+        || JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
+    } catch (_) { return null; }
+  }
+
+  function schedulePushToCloud() {
+    if (isPullingFromCloud) return;
+    var actor = getActorSession();
+    if (!actor || !actor.username) return;
+
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(async function() {
+      try {
+        var posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]");
+        var stories = JSON.parse(localStorage.getItem(STORY_KEY) || "[]");
+        await fetch(WORKER_API + "/api/lounge/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actor: { username: actor.username, name: actor.name, role: actor.role },
+            posts: posts,
+            stories: stories
+          })
+        });
+      } catch (_) {}
+    }, 350);
+  }
+
+  // Intercept setiap penyimpanan lokal Lounge & Story agar otomatis sinkron ke D1
+  var origSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(key, value) {
+    origSetItem.apply(this, arguments);
+    if (this === window.localStorage && (key === FEED_KEY || key === STORY_KEY)) {
+      schedulePushToCloud();
+    }
+  };
+
+  async function pullLoungeFromCloud() {
+    try {
+      var res = await fetch(WORKER_API + "/api/lounge/get", { cache: "no-store" });
+      if (!res.ok) return;
+      var data = await res.json();
+      if (!data || !data.success) return;
+
+      var remotePostsStr = JSON.stringify(data.posts || []);
+      var remoteStoriesStr = JSON.stringify(data.stories || []);
+      var localPostsStr = localStorage.getItem(FEED_KEY) || "[]";
+      var localStoriesStr = localStorage.getItem(STORY_KEY) || "[]";
+
+      if (remotePostsStr !== localPostsStr || remoteStoriesStr !== localStoriesStr) {
+        isPullingFromCloud = true;
+        try {
+          origSetItem.call(localStorage, FEED_KEY, remotePostsStr);
+          origSetItem.call(localStorage, STORY_KEY, remoteStoriesStr);
+        } finally {
+          isPullingFromCloud = false;
+        }
+        if (typeof window.refreshCnLoungeFeed === "function") window.refreshCnLoungeFeed();
+        if (typeof window.renderCnStories === "function") window.renderCnStories();
+      }
+    } catch (_) {}
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    pullLoungeFromCloud();
+    setInterval(pullLoungeFromCloud, 15000);
+  });
+})();
+</script>
+
 </body>
 </html>

@@ -41,6 +41,9 @@ export default {
         await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS talent_accounts (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, name TEXT NOT NULL, agency TEXT, status TEXT, moods TEXT, avatar TEXT, updated_at TEXT)"
         ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS lounge_store (id INTEGER PRIMARY KEY, posts TEXT, stories TEXT, updated_at TEXT)"
+        ).run();
       }
     };
 
@@ -349,6 +352,71 @@ export default {
             avatar: row.avatar || ""
           }
         }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      
+      // 8. Ambil Postingan & Story Lounge dari D1 (Publik - Cross-Device Sync)
+      if (url.pathname === "/api/lounge/get" && request.method === "GET") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const row = await env.DB.prepare("SELECT posts, stories, updated_at FROM lounge_store WHERE id = 1").first();
+        let posts = [];
+        let stories = [];
+        if (row) {
+          try { posts = JSON.parse(row.posts || "[]"); } catch (_) {}
+          try { stories = JSON.parse(row.stories || "[]"); } catch (_) {}
+        }
+        // Filter otomatis Story yang masih aktif (< 24 jam)
+        const now = Date.now();
+        const activeStories = Array.isArray(stories)
+          ? stories.filter(st => !st.createdAt || (now - Number(st.createdAt)) < 86400000)
+          : [];
+
+        return new Response(JSON.stringify({
+          success: true,
+          posts: Array.isArray(posts) ? posts : [],
+          stories: activeStories,
+          updatedAt: row ? row.updated_at : null
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // 9. Simpan / Sinkronkan Postingan & Story Lounge ke D1 (Untuk Member / Talent Login)
+      if (url.pathname === "/api/lounge/save" && request.method === "POST") {
+        if (!env.DB) throw new Error("Binding D1 (DB) belum terpasang");
+        await ensureTableExists();
+        const body = await request.json().catch(() => ({}));
+        const actor = body && body.actor;
+        if (!actor || !actor.username) {
+          return new Response(JSON.stringify({ success: false, error: "Wajib login untuk memposting atau berinteraksi." }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
+        let curPosts = [];
+        let curStories = [];
+        if (row) {
+          try { curPosts = JSON.parse(row.posts || "[]"); } catch (_) {}
+          try { curStories = JSON.parse(row.stories || "[]"); } catch (_) {}
+        }
+
+        const nextPosts = Array.isArray(body.posts) ? body.posts.slice(0, 120) : curPosts;
+        const now = Date.now();
+        const rawStories = Array.isArray(body.stories) ? body.stories : curStories;
+        const nextStories = rawStories
+          .filter(st => !st.createdAt || (now - Number(st.createdAt)) < 86400000)
+          .slice(0, 60);
+
+        await env.DB.prepare(
+          "INSERT INTO lounge_store (id, posts, stories, updated_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET posts = excluded.posts, stories = excluded.stories, updated_at = excluded.updated_at"
+        ).bind(JSON.stringify(nextPosts), JSON.stringify(nextStories), new Date().toISOString()).run();
+
+        return new Response(JSON.stringify({ success: true, countPosts: nextPosts.length, countStories: nextStories.length }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
