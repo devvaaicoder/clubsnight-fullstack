@@ -5105,9 +5105,32 @@
         }
       }
 
+            function getActiveEditorSession() {
+        if (window.cnAuth && typeof window.cnAuth.getSession === "function") {
+          var legacy = window.cnAuth.getSession();
+          if (legacy && legacy.username) return legacy;
+        }
+        var keys = ["cn_talent_session_v1", "cn_talent_session", "cn_active_talent", "cn_pwa_session_v1", "cn_auth_session_v1"];
+        for (var i = 0; i < keys.length; i++) {
+          try {
+            var raw = localStorage.getItem(keys[i]);
+            if (!raw) continue;
+            var obj = JSON.parse(raw);
+            if (obj && obj.username) {
+              return {
+                username: String(obj.username).replace(/^@/, "").toLowerCase(),
+                name: obj.name || obj.displayName || obj.username,
+                role: obj.role || (keys[i].indexOf("talent") !== -1 ? "talent" : "user")
+              };
+            }
+          } catch (_) {}
+        }
+        return null;
+      }
+
       // 3. Buka & Simpan Editor Profil
       window.openCnProfileEditor = function() {
-        var s = window.cnAuth && window.cnAuth.getSession();
+        var s = getActiveEditorSession();
         if (!s) {
           if (window.openCnAuthModal) window.openCnAuthModal("login");
           return;
@@ -5176,7 +5199,7 @@
 
       window.handleCnProfileSave = function(e) {
         e.preventDefault();
-        var s = window.cnAuth && window.cnAuth.getSession();
+        var s = getActiveEditorSession();
         if (!s) return;
 
         var cleanUser = s.username.replace(/^@/, "").toLowerCase();
