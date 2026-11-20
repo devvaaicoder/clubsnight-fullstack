@@ -7951,5 +7951,74 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<script id="cnGlobalGetSessionBridgeJs">
+(function() {
+  function resolveActiveSession() {
+    var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_talent_session", "cn_active_talent"];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var raw = localStorage.getItem(keys[i]);
+        if (!raw) continue;
+        var parsed = JSON.parse(raw);
+        if (parsed && (parsed.username || parsed.id)) {
+          var uname = String(parsed.username || parsed.id).replace(/^@/, "").toLowerCase();
+          var role = parsed.role || (keys[i].indexOf("talent") !== -1 ? "talent" : "user");
+          if (uname === "superadmin") role = "superadmin";
+          return Object.assign({}, parsed, {
+            id: parsed.id || ((role === "talent" ? "tlt_" : "usr_") + uname),
+            username: uname,
+            name: parsed.name || parsed.displayName || (uname.charAt(0).toUpperCase() + uname.slice(1)),
+            role: role,
+            approved: role === "talent" ? (parsed.approved !== false) : true
+          });
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  // Pastikan window.cnAuth selalu ada dan getSession() selalu mengembalikan sesi aktif yang valid
+  window.cnAuth = window.cnAuth || {};
+  window.cnAuth.getSession = resolveActiveSession;
+
+  // Perbarui tampilan Riwayat Order segera setelah sesi terdeteksi
+  function refreshOrdersIfOpen() {
+    var s = resolveActiveSession();
+    var personalPane = document.getElementById("cnOrderPersonalPane");
+    if (!s || !personalPane) return;
+
+    var myKey = "cn_orders_" + s.username;
+    var myOrders = [];
+    try { myOrders = JSON.parse(localStorage.getItem(myKey) || "[]"); } catch (_) {}
+
+    if (myOrders.length === 0) {
+      personalPane.innerHTML =
+        '<div class="cn-pwa-placeholder-box">' +
+          '<i class="fa-solid fa-receipt"></i>' +
+          '<span>Belum ada riwayat order pribadi untuk akun <b>@' + s.username + '</b>.</span>' +
+        '</div>';
+    } else {
+      personalPane.innerHTML = myOrders.map(function(o) {
+        return '<div class="cn-order-card">' +
+          '<div class="cn-order-top"><b>' + (o.service || "Booking Layanan") + '</b><span class="cn-order-badge">' + (o.status || "Aktif") + '</span></div>' +
+          '<div class="cn-order-meta">' + (o.id || "-") + ' • ' + (o.time || "-") + '</div>' +
+        '</div>';
+      }).join("");
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", refreshOrdersIfOpen);
+  } else {
+    refreshOrdersIfOpen();
+  }
+  setTimeout(refreshOrdersIfOpen, 350);
+  window.addEventListener("cn:session-changed", function() {
+    setTimeout(refreshOrdersIfOpen, 60);
+  });
+})();
+</script>
+
 </body>
 </html>
