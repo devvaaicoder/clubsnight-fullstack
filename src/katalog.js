@@ -241,15 +241,7 @@ function checkAndStartWebsiteTour() {
   }
 }
 
-function startWebsiteTour() {
-  currentTourStep = 0;
-  document.body.classList.add('tour-active');
-  const overlay = document.getElementById('cnTourSvgOverlay');
-  const box = document.getElementById('cnTourBox');
-  if (overlay) overlay.style.display = 'block';
-  if (box) box.style.display = 'block';
-  renderTourStep();
-}
+function startWebsiteTour() { return; }
 
 function renderTourStep() {
   document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
@@ -1457,8 +1449,7 @@ function confirmAge() {
   }
   document.body.style.overflow = "";
   try {
-    if (!localStorage.getItem(TOUR_STORAGE_KEY)) {
-      setTimeout(() => { startWebsiteTour(); }, 600);
+    , 600);
     }
   } catch (_) {}
 }
