@@ -7601,5 +7601,54 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<style id="cnBottomNavTouchFixCss">
+  /* Pastikan semua modal/overlay tertutup tidak mencegat sentuhan */
+  .overlay-modal[style*="display: none"],
+  .overlay-modal[style*="display:none"],
+  #cnTourSvgOverlay[style*="display: none"],
+  #cnTourSvgOverlay[style*="display:none"],
+  #cnSplashLoader.cn-hide {
+    pointer-events: none !important;
+  }
+
+  /* Kunci navigasi bawah di lapisan paling atas & pastikan seluruh area tombol responsif */
+  nav:has(.cn-bnav-item),
+  .cn-bottom-nav,
+  #cnBottomNav {
+    z-index: 2147483000 !important;
+    pointer-events: auto !important;
+  }
+  .cn-bnav-item {
+    position: relative !important;
+    z-index: 2147483001 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cn-bnav-item * {
+    pointer-events: none !important;
+  }
+</style>
+<script id="cnBottomNavTouchFixJs">
+(function() {
+  function triggerNavTab(ev) {
+    var target = ev.target && ev.target.closest ? ev.target.closest(".cn-bnav-item[data-pwa-tab]") : null;
+    if (!target) return;
+    var tab = target.getAttribute("data-pwa-tab");
+    if (!tab) return;
+    if (ev.type === "touchend") {
+      ev.preventDefault();
+    }
+    if (typeof window.switchPwaTab === "function") {
+      window.switchPwaTab(tab, target);
+    }
+  }
+  document.addEventListener("touchend", triggerNavTab, { capture: true, passive: false });
+  document.addEventListener("click", triggerNavTab, true);
+})();
+</script>
+
 </body>
 </html>
