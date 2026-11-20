@@ -7733,11 +7733,11 @@ window.addEventListener("storage", function(e) {
     window.openCnProfileEditor = function() {
       origOpenEditor.apply(this, arguments);
       var s = readStrictSession();
-      var isTalent = s && String(s.role || "").toLowerCase() === "talent";
+      var r = s ? String(s.role || "").toLowerCase() : ""; var isSpecialOrTalent = ["talent", "superadmin", "admin", "dev", "merch", "merch_admin"].indexOf(r) !== -1;
       ["cnProfAgency", "cnProfStatus"].forEach(function(id) {
         var el = document.getElementById(id);
         if (el && el.parentElement) {
-          el.parentElement.style.display = isTalent ? "" : "none";
+          el.parentElement.style.display = isSpecialOrTalent ? "" : "none";
         }
       });
     };
@@ -7760,6 +7760,58 @@ window.addEventListener("storage", function(e) {
   window.addEventListener("cn:session-changed", function() {
     setTimeout(applyStrictRbacActivityUI, 60);
   });
+})();
+</script>
+
+
+<script id="cnProfileBackendSyncJs">
+(function() {
+  var origSave = window.saveCnProfileEditor;
+  if (typeof origSave === "function") {
+    window.saveCnProfileEditor = async function(e) {
+      await origSave.apply(this, arguments);
+      try {
+        var s = JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
+        if (!s || !s.username) return;
+        var uname = String(s.username).toLowerCase();
+        var profMap = JSON.parse(localStorage.getItem("cn_user_profiles_v1") || "{}");
+        var prof = profMap[uname] || {};
+
+        // Perbarui nama & avatar di session aktif
+        if (prof.name) s.name = prof.name;
+        if (prof.avatar) s.avatar = prof.avatar;
+        localStorage.setItem("cn_auth_session_v1", JSON.stringify(s));
+        localStorage.setItem("cn_pwa_session_v1", JSON.stringify(s));
+        window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: s }));
+
+        // Perbarui tampilan kartu profil di tab Aktivitas secara instan
+        var avaEl = document.querySelector("#cnPageActivity .cn-session-avatar");
+        if (avaEl && prof.avatar) {
+          avaEl.style.backgroundImage = "url(" + prof.avatar + ")";
+          avaEl.style.backgroundSize = "cover";
+          avaEl.style.backgroundPosition = "center";
+          avaEl.textContent = "";
+        }
+
+        // Kirim pembaruan profil ke backend Elixir (non-blocking)
+        fetch("https://clubsnight-api.onrender.com/api/profile", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: uname,
+            role: s.role || "user",
+            name: prof.name || s.name,
+            bio: prof.bio || "",
+            avatar: prof.avatar || "",
+            agency: prof.agency || "",
+            status: prof.status || "",
+            moods: prof.moods || []
+          })
+        }).catch(function() {});
+      } catch (_) {}
+    };
+  }
 })();
 </script>
 
