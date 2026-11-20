@@ -6946,9 +6946,8 @@
         overlay.remove();
       }
     }
- else {
-    kill();
   }
+  kill();
   setTimeout(kill, 200);
 })();
 </script>
@@ -7571,30 +7570,6 @@ window.addEventListener("storage", function(e) {
 
 
 
-
-<script id="cnHistoryBackSyncJs">
-(function() {
-  var baseSwitch = window.switchPwaTab;
-  if (typeof baseSwitch === "function") {
-    window.switchPwaTab = function(tab, btnEl, fromPopState) {
-      baseSwitch(tab, btnEl);
-      if (!fromPopState && tab && window.history && window.history.pushState) {
-        var targetHash = tab === "home" ? window.location.pathname : "#" + tab;
-        window.history.pushState({ cnTab: tab }, "", targetHash);
-      }
-    };
-  }
-
-  window.addEventListener("popstate", function(ev) {
-    var st = ev.state;
-    if (st && st.cnTab && typeof window.switchPwaTab === "function") {
-      window.switchPwaTab(st.cnTab, null, true);
-    } else if (typeof window.switchPwaTab === "function") {
-      window.switchPwaTab("home", null, true);
-    }
-  });
-})();
-</script>
 
 </body>
 </html>
