@@ -7815,5 +7815,141 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<style id="cnStandaloneBookingDetailCss">
+  /* Pastikan #detailView selalu tampil penuh layar sebagai halaman mandiri ketika aktif */
+  #detailView.cn-standalone-active {
+    display: block !important;
+    position: relative !important;
+    z-index: 50 !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    padding: 76px 14px 110px 14px !important;
+    background: transparent !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+  #detailView.cn-standalone-active .detail-card {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+</style>
+<script id="cnStandaloneBookingDetailJs">
+(function() {
+  var lastTabBeforeDetail = "home";
+
+  function ensureDetailTopLevel() {
+    var detail = document.getElementById("detailView");
+    var anchor = document.getElementById("cnPageTalent");
+    if (detail && anchor && anchor.parentNode && detail.parentNode !== anchor.parentNode) {
+      anchor.parentNode.insertBefore(detail, anchor);
+    }
+    return detail;
+  }
+
+  function activateDetailStandalone() {
+    var detail = ensureDetailTopLevel();
+    if (!detail) return;
+
+    // Catat tab aktif sebelum masuk ke Detail Booking agar tombol Kembali tepat sasaran
+    var activeNav = document.querySelector(".cn-bnav-item.active");
+    if (activeNav && activeNav.getAttribute("data-pwa-tab")) {
+      lastTabBeforeDetail = activeNav.getAttribute("data-pwa-tab");
+    }
+
+    // Sembunyikan semua halaman PWA lainnya agar tidak tumpang tindih
+    document.querySelectorAll(".cn-pwa-page").forEach(function(sec) {
+      sec.style.display = "none";
+    });
+    var gallery = document.getElementById("galleryView");
+    if (gallery) gallery.style.display = "none";
+
+    // Paksa #detailView tampil penuh sebagai halaman mandiri
+    detail.classList.remove("hidden");
+    detail.classList.add("cn-standalone-active");
+    detail.style.setProperty("display", "block", "important");
+
+    // Pastikan tombol Kembali di atas #detailView mengembalikan ke halaman asal
+    var backBtn = detail.querySelector(".btn-back-gallery");
+    if (backBtn) {
+      backBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Kembali';
+      backBtn.onclick = function(ev) {
+        if (ev) ev.preventDefault();
+        closeDetailStandalone();
+      };
+    }
+
+    if (window.history && window.history.pushState) {
+      window.history.pushState({ cnDetailOpen: true, prevTab: lastTabBeforeDetail }, "", "#booking-detail");
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function closeDetailStandalone(fromPopState) {
+    var detail = document.getElementById("detailView");
+    if (detail) {
+      detail.classList.remove("cn-standalone-active");
+      detail.style.display = "none";
+    }
+    document.body.classList.remove("cn-detail-open");
+
+    if (typeof window.switchPwaTab === "function") {
+      window.switchPwaTab(lastTabBeforeDetail || "home", null, true);
+    } else if (typeof window.showGallery === "function") {
+      window.showGallery();
+    }
+
+    if (!fromPopState && window.location.hash === "#booking-detail" && window.history && window.history.back) {
+      try { window.history.back(); } catch (_) {}
+    }
+  }
+
+  // Pantau setiap kali #detailView dibuka oleh openDetail() / openDetailById() / openCnDirectOrder()
+  function bindDetailObserver() {
+    var detail = ensureDetailTopLevel();
+    if (!detail) return;
+
+    var obs = new MutationObserver(function() {
+      var isShown = detail.style.display === "block" || document.body.classList.contains("cn-detail-open");
+      if (isShown && !detail.classList.contains("cn-standalone-active")) {
+        activateDetailStandalone();
+      }
+    });
+    obs.observe(detail, { attributes: true, attributeFilter: ["style", "class"] });
+    obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  // Tangani tombol Back HP saat halaman mandiri Detail Booking sedang terbuka
+  window.addEventListener("popstate", function() {
+    var detail = document.getElementById("detailView");
+    if (detail && detail.classList.contains("cn-standalone-active")) {
+      closeDetailStandalone(true);
+    }
+  });
+
+  // Pastikan klik Bottom Nav langsung menutup halaman mandiri Detail Booking
+  var prevSwitch = window.switchPwaTab;
+  if (typeof prevSwitch === "function") {
+    window.switchPwaTab = function(tab, btnEl, fromPop) {
+      var detail = document.getElementById("detailView");
+      if (detail) {
+        detail.classList.remove("cn-standalone-active");
+        detail.style.display = "none";
+      }
+      document.body.classList.remove("cn-detail-open");
+      prevSwitch(tab, btnEl, fromPop);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindDetailObserver);
+  } else {
+    bindDetailObserver();
+  }
+})();
+</script>
+
 </body>
 </html>
