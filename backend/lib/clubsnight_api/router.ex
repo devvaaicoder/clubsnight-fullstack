@@ -157,14 +157,15 @@ defmodule ClubsnightApi.Router do
       img = Map.get(conn.body_params, "image_url", "")
       allow_reply = if Map.get(conn.body_params, "allow_reply", true), do: 1, else: 0
 
-      D1.query(
-        "INSERT INTO posts (id, author_tg_id, author_name, author_handle, author_role, content, image_url, allow_reply) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, user.tg_id, user.name, "@#{user.username}", String.upcase(user.role), String.trim(content), img, allow_reply]
-      )
-
-      D1.query("DELETE FROM posts WHERE id NOT IN (SELECT id FROM posts ORDER BY created_at DESC LIMIT 20)")
-
-      send_json(conn, 201, %{ok: true, id: id})
+      with {:ok, _} <- D1.query(
+             "INSERT INTO posts (id, author_tg_id, author_name, author_handle, author_role, content, image_url, allow_reply) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+             [id, user.tg_id, user.name, "@#{user.username}", String.upcase(user.role), String.trim(content), img, allow_reply]
+           ),
+           {:ok, _} <- D1.query("DELETE FROM posts WHERE id NOT IN (SELECT id FROM posts ORDER BY created_at DESC LIMIT 20)") do
+        send_json(conn, 201, %{ok: true, id: id})
+      else
+        {:error, _} -> send_json(conn, 500, %{error: "Gagal menyimpan post"})
+      end
     else
       {:error, _} -> send_json(conn, 401, %{error: "Unauthorized"})
       _ -> send_json(conn, 422, %{error: "Konten tidak valid"})

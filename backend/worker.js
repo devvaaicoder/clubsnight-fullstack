@@ -103,12 +103,13 @@ async function verifyPassword(plain, storedHash) {
 }
 
 async function signSessionToken(secret, username, role, tokenVersion = 1, ttlMs = 7 * 24 * 60 * 60 * 1000) {
+  if (!secret) throw new Error("ADMIN_SECRET_TOKEN belum dikonfigurasi");
   const exp = Date.now() + ttlMs;
   const nonce = toHex(crypto.getRandomValues(new Uint8Array(8)));
   const payload = username + ":" + role + ":" + tokenVersion + ":" + exp + ":" + nonce;
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode("cn_hmac_v3:" + (secret || "fallback_secret")),
+    new TextEncoder().encode("cn_hmac_v3:" + secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
@@ -119,6 +120,7 @@ async function signSessionToken(secret, username, role, tokenVersion = 1, ttlMs 
 
 async function verifySessionToken(secret, token) {
   try {
+    if (!secret) return null;
     const parts = String(token || "").split(".");
     if (parts.length !== 2) return null;
     const payload = atob(parts[0]);
@@ -126,7 +128,7 @@ async function verifySessionToken(secret, token) {
     if (!username || !role || Number(expStr) < Date.now()) return null;
     const key = await crypto.subtle.importKey(
       "raw",
-      new TextEncoder().encode("cn_hmac_v3:" + (secret || "fallback_secret")),
+      new TextEncoder().encode("cn_hmac_v3:" + secret),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"]
@@ -320,7 +322,8 @@ export default {
         await ensureTableExists();
         const body = stripDangerousKeys(await request.json().catch(() => ({})));
         const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
-        const ownerUsername = normalizeUsername((vActor && vActor.username) || body.ownerUsername);
+        if (!vActor && !isAuthorized()) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        const ownerUsername = normalizeUsername(vActor ? vActor.username : body.ownerUsername);
         const image = String(body.image || "").trim();
         if (!ownerUsername || !image || (!image.startsWith("https://") && !image.startsWith("data:image/"))) return jsonOut({ success: false, error: "Data story tidak valid." }, 400);
         const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
@@ -343,7 +346,8 @@ export default {
         await ensureTableExists();
         const body = stripDangerousKeys(await request.json().catch(() => ({})));
         const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
-        const actorUsername = normalizeUsername((vActor && vActor.username) || body.ownerUsername);
+        if (!vActor && !isAuthorized()) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        const actorUsername = normalizeUsername(vActor ? vActor.username : body.ownerUsername);
         const targetId = sanitizeText(body.id || "", 80);
         if (!targetId || !actorUsername) return jsonOut({ success: false, error: "ID story dan pemilik wajib diisi." }, 400);
         const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
@@ -368,7 +372,10 @@ export default {
         await ensureTableExists();
         const body = stripDangerousKeys(await request.json().catch(() => ({})));
         const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
-        const username = normalizeUsername((vActor && vActor.username) || body.username);
+        if (!vActor && !isAuthorized()) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        const requestedUsername = normalizeUsername(body.username);
+        const username = normalizeUsername(vActor ? vActor.username : requestedUsername);
+        if (requestedUsername && requestedUsername !== username && !isAuthorized()) return jsonOut({ success: false, error: "Forbidden: Identitas profil tidak cocok." }, 403);
         const name = sanitizeText(body.name || "", 50);
         const bio = sanitizeText(body.bio || "", 200);
         const avatar = String(body.avatar || "").trim().slice(0, 200000);
@@ -652,6 +659,11 @@ export default {
             headers: { ...securityHeaders, "Content-Type": "application/json" }
           });
         }
+        const sessTok = request.headers.get("X-Session-Token") || "";
+        const verifiedActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, sessTok);
+        if (!verifiedActor && !isAuthorized()) {
+          return jsonOut({ success: false, error: "Unauthorized: Sesi talent tidak valid." }, 401);
+        }
         const lock = await checkPersistentLockout("talent_update");
         if (lock.locked) {
           return new Response(JSON.stringify({ success: false, error: "Akses dikunci sementara (" + lock.retryAfterSec + "d)." }), {
@@ -674,6 +686,12 @@ export default {
             headers: { ...securityHeaders, "Content-Type": "application/json" }
           });
         }
+        if (verifiedActor && verifiedActor.role === "talent" && verifiedActor.username !== uname) {
+          return new Response(JSON.stringify({ success: false, error: "Forbidden: Identitas talent tidak cocok." }), {
+            status: 403,
+            headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
 
         const row = await env.DB.prepare(
           "SELECT username, password_hash, name, agency, status, moods, avatar, token_version FROM talent_accounts WHERE username = ?"
@@ -681,6 +699,13 @@ export default {
         if (!row) {
           return new Response(JSON.stringify({ success: false, error: "Akun talent tidak ditemukan." }), {
             status: 404,
+            headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        if (verifiedActor && verifiedActor.role === "talent" &&
+            Number(row.token_version || 1) !== verifiedActor.tokenVersion) {
+          return new Response(JSON.stringify({ success: false, error: "Sesi kedaluwarsa. Silakan login ulang." }), {
+            status: 401,
             headers: { ...securityHeaders, "Content-Type": "application/json" }
           });
         }
@@ -1118,6 +1143,11 @@ export default {
 
       // 15. WEBHOOK OTOMATIS SAWERIA (WAJIB Secret Token + Brute-Force Lockout + Atomic Anti-Replay)
       if (url.pathname === "/api/webhook/saweria" && request.method === "POST") {
+        if (!env.SAWERIA_WEBHOOK_TOKEN) {
+          return new Response(JSON.stringify({ success: false, error: "Webhook belum dikonfigurasi." }), {
+            status: 503, headers: { "Content-Type": "application/json" }
+          });
+        }
         const lock = await checkPersistentLockout("saweria_wh");
         if (lock.locked) {
           return new Response(JSON.stringify({ success: false, error: "Too many invalid webhook attempts." }), {
@@ -1125,7 +1155,7 @@ export default {
           });
         }
 
-        const expectedWebhookToken = env.SAWERIA_WEBHOOK_TOKEN || "cn_whk_de0f6c7042244d71b01ad997c1be5ec8fba0";
+        const expectedWebhookToken = env.SAWERIA_WEBHOOK_TOKEN;
         const providedToken = (url.searchParams.get("token") || request.headers.get("X-Webhook-Token") || "").trim();
 
         if (!providedToken || !safeEqual(providedToken, expectedWebhookToken)) {

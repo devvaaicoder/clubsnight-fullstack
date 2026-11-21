@@ -2,7 +2,11 @@ defmodule ClubsnightApi.TelegramAuth do
   def verify(params) when is_map(params) do
     bot_token = System.fetch_env!("TELEGRAM_BOT_TOKEN")
     received_hash = Map.get(params, "hash", "")
-    auth_date = params |> Map.get("auth_date", "0") |> to_string() |> String.to_integer()
+    auth_date =
+      case params |> Map.get("auth_date", "0") |> to_string() |> Integer.parse() do
+        {value, ""} -> value
+        _ -> 0
+      end
 
     if System.system_time(:second) - auth_date > 86_400 do
       {:error, :expired}
