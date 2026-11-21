@@ -1,4 +1,4 @@
-const CACHE_NAME = "clubsnight-pwa-v4";
+const CACHE_NAME = "clubsnight-pwa-v6";
 const CORE_ASSETS = [
   "/katalog.html",
   "/manifest.json",

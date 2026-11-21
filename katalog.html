@@ -572,31 +572,47 @@
   }
 </style>
 <style id="cnSidebarIconsAndTopupCss">
+  .cn-blood-sidebar .cn-nav-item {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: none !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+    transition: background 0.16s ease, border-color 0.16s ease !important;
+  }
+  .cn-blood-sidebar .cn-nav-item:hover {
+    background: rgba(255, 255, 255, 0.07) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+  }
+  .cn-blood-sidebar .cn-nav-item.active {
+    background: rgba(255, 255, 255, 0.09) !important;
+    border-color: rgba(255, 42, 95, 0.65) !important;
+    color: #ffffff !important;
+  }
   .cn-nav-ico-box {
     width: 30px;
     height: 30px;
-    border-radius: 10px;
+    border-radius: 9px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 13.5px;
+    font-size: 13px;
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: #ff80ab;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f5c26b;
   }
   .cn-nav-item.active .cn-nav-ico-box {
-    background: rgba(255, 255, 255, 0.18);
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 42, 95, 0.2);
+    border-color: rgba(255, 42, 95, 0.5);
+    color: #ff80ab;
   }
-  .cn-nav-item.item-topup-highlight {
-    background: linear-gradient(135deg, rgba(255, 23, 68, 0.32) 0%, rgba(139, 92, 246, 0.34) 55%, rgba(245, 158, 11, 0.26) 100%) !important;
+  .cn-blood-sidebar .cn-nav-item.item-topup-highlight {
+    background: linear-gradient(135deg, rgba(255, 23, 68, 0.28) 0%, rgba(139, 92, 246, 0.28) 100%) !important;
     border: 1px solid rgba(255, 128, 171, 0.65) !important;
-    box-shadow: 0 6px 20px rgba(255, 23, 68, 0.25), inset 0 0 12px rgba(245, 194, 107, 0.16) !important;
-    position: relative;
+    box-shadow: 0 6px 18px rgba(255, 23, 68, 0.2) !important;
+    color: #ffffff !important;
   }
-  .cn-nav-item.item-topup-highlight .cn-nav-ico-box {
+  .cn-blood-sidebar .cn-nav-item.item-topup-highlight .cn-nav-ico-box {
     background: linear-gradient(135deg, #ff1744, #f59e0b);
     color: #fff;
     border: none;
@@ -611,6 +627,52 @@
     font-weight: 900;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+  }
+  .cn-x-article-feed {
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    margin-top: 8px;
+  }
+  .cn-x-post {
+    padding: 18px 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 11px;
+  }
+  .cn-x-post-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    object-fit: cover;
+  }
+  .cn-x-post-line {
+    width: 2px;
+    flex: 1;
+    background: rgba(255, 255, 255, 0.14);
+    margin: 6px auto 0;
+    min-height: 20px;
+  }
+  .cn-x-post h4 {
+    font-size: 16.5px;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #fff;
+    margin: 4px 0 8px;
+    letter-spacing: -0.2px;
+  }
+  .cn-x-post p {
+    font-size: 13.8px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.86);
+    margin-bottom: 10px;
+  }
+  .cn-x-hairline-row {
+    padding: 12px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    font-size: 13.4px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.84);
   }
 </style>
 </head>
@@ -892,27 +954,30 @@
 
     <!-- SECTION BLOG & STATUS SISTEM DENGAN DOKUMEN HYBRID -->
     <div id="blogView" class="blog-container" style="display: none;">
-      <div class="calculator-card">
-        
-        <div class="blog-status-banner">
+      <div class="calculator-card" style="background:transparent;border:none;padding:6px 2px;box-shadow:none;">
+
+        <div class="blog-status-banner" style="border-radius:0;background:transparent;border-left:none;border-right:none;border-top:1px solid rgba(255,255,255,0.14);border-bottom:1px solid rgba(255,255,255,0.14);padding:10px 4px;">
           <div class="system-status-indicator">
             <span class="status-dot-ready"></span>
-            <span class="system-status-text">Status Sistem: <b>Semua Layanan Berjalan Normal (Operational)</b></span>
+            <span class="system-status-text">Status Sistem: <b>Semua Layanan Berjalan Normal</b></span>
           </div>
-          <span class="system-ping-badge"><i class="fa-solid fa-bolt"></i> Server 99.9% Uptime</span>
+          <span class="system-ping-badge"><i class="fa-solid fa-bolt"></i> 99.9% Uptime</span>
         </div>
 
-        <div class="blog-header-box" style="margin-bottom: 14px;">
-          <h3 class="section-title" style="margin-bottom: 4px;">
+        <div class="blog-header-box" style="margin: 14px 4px;">
+          <h3 class="section-title" style="margin-bottom: 4px;font-size:18px;">
             <i class="fa-solid fa-book-bookmark" style="color:var(--crimson-red);"></i>
-            <span>Pusat Berita & Artikel Resmi</span>
+            <span>Pusat Berita, Artikel &amp; Info Server</span>
           </h3>
-          <p class="section-sub-desc">Baca konsep merchandise, peraturan agensi, dan info server resmi langsung tanpa perlu mengunduh file.</p>
+          <p class="section-sub-desc" style="font-size:13px;">Eksplorasi New Article Project (Ch. 1–4), perbedaan Clubs'Night &amp; Night Clubs, peraturan agensi, dan dokumen resmi.</p>
         </div>
 
         <div class="article-tabs-scroller">
-          <button class="article-tab-btn active" onclick="showPdfTab('https://drive.google.com/file/d/1ZVizUPpn-ivGkJIbVP1LG4JmI6-y_duk/preview', 'Project Plan Merchandise Clubs\'Night', this)">
-            <i class="fa-solid fa-shirt"></i> Project Plan Merch
+          <button class="article-tab-btn active" id="tabBtnEditorial" onclick="showEditorialArticlesTab(this)">
+            <i class="fa-solid fa-feather-pointed"></i> Artikel Clubs'Night (2)
+          </button>
+          <button class="article-tab-btn" id="tabBtnDrivePdf" onclick="showPdfTab('', 'Dokumen PDF Resmi (Google Drive)', this)">
+            <i class="fa-solid fa-file-pdf"></i> Dokumen PDF
           </button>
           <button class="article-tab-btn" onclick="showRulesTab(this)">
             <i class="fa-solid fa-file-shield"></i> Aturan Agensi
@@ -922,20 +987,102 @@
           </button>
         </div>
 
-        <div class="active-article-title-bar">
-          <span id="activeArticleName"><i class="fa-solid fa-file-lines"></i> Project Plan Merchandise Clubs'Night</span>
-          <a id="btnPdfFullscreen" href="https://drive.google.com/file/d/1ZVizUPpn-ivGkJIbVP1LG4JmI6-y_duk/view" target="_blank" rel="noopener noreferrer" class="btn-pdf-fullscreen" title="Buka Tab Penuh">
-            <i class="fa-solid fa-up-right-from-square"></i> Fullscreen
+        <div class="active-article-title-bar" style="border-radius:0;background:transparent;border-left:none;border-right:none;border-top:1px solid rgba(255,255,255,0.14);border-bottom:1px solid rgba(255,255,255,0.14);padding:10px 4px;">
+          <span id="activeArticleName"><i class="fa-solid fa-feather-pointed"></i> Editorial: New Article Project &amp; Clubs'Night</span>
+          <a id="btnPdfFullscreen" href="/artikel.html" target="_blank" rel="noopener noreferrer" class="btn-pdf-fullscreen" title="Buka Halaman Full Artikel">
+            <i class="fa-solid fa-up-right-from-square"></i> Halaman Penuh
           </a>
         </div>
 
-        <div id="pdfViewerFrame" class="pdf-viewer-frame">
-          <iframe 
-            id="pdfEmbedFrame" 
-            src="https://drive.google.com/file/d/1ZVizUPpn-ivGkJIbVP1LG4JmI6-y_duk/preview" 
-            allow="autoplay"
-            loading="lazy">
-          </iframe>
+        <div id="editorialArticlesBox" class="cn-x-article-feed">
+          <article class="cn-x-post">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" alt="Clubs'Night" class="cn-x-post-avatar" />
+              <div class="cn-x-post-line"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:6px;">
+                <b style="color:#fff;">Clubs'Night Editorial</b>
+                <i class="fa-solid fa-circle-check" style="color:#ff2a5f;"></i>
+                <span>· New Article Project (Ch. 1–4)</span>
+              </div>
+              <h4>CLUBS NIGHT — Four Chapters of Desire &amp; Modern-Classic Intimacy</h4>
+              <p>
+                Eksplorasi empat babak cerita visual: <b>Chapter I (Obsession Fixation)</b>, <b>Chapter 2 (Flirting)</b>, <b>Chapter 3 (Foreplay)</b>, dan <b>Chapter 4 (Intimacy)</b> yang dirangkai dari aset visual eksklusif Clubs'Night.
+              </p>
+
+              <div class="cn-x-hairline-row">
+                <b style="color:#f5c26b;">Opening — Four Chapters of Night</b>
+                <img src="https://media-cn.my.id/articles/articles1-opening.png" alt="Opening" style="width:100%;border-radius:12px;margin-top:8px;border:1px solid rgba(255,255,255,0.12);" loading="lazy" />
+              </div>
+
+              <div class="cn-x-hairline-row">
+                <b style="color:#f5c26b;">Chapter I — OBSESSION FIXATION</b>
+                <p style="margin-top:4px;font-style:italic;color:#fda4af;">"I can't stop thinking about you."</p>
+                <p>At first, it was just a face I noticed. Then a name I remembered. Then a voice I wanted to hear again. Somehow, without asking for permission, you became the thought I carried everywhere.</p>
+                <img src="https://media-cn.my.id/articles/articles2-bagian2.png" alt="Chapter 1 Obsession Fixation" style="width:100%;border-radius:12px;margin-top:8px;border:1px solid rgba(255,255,255,0.12);" loading="lazy" />
+              </div>
+
+              <div class="cn-x-hairline-row">
+                <b style="color:#f5c26b;">Chapter 2 — FLIRTING.</b>
+                <p style="margin-top:4px;font-style:italic;color:#fda4af;">"Now you know I want you."</p>
+                <p>We started talking without saying much. A look lasted a little longer. A smile meant something it shouldn't. Neither of us asked what this was. We both already knew.</p>
+                <img src="https://media-cn.my.id/articles/articles3-bagian3.png" alt="Chapter 2 Flirting" style="width:100%;border-radius:12px;margin-top:8px;border:1px solid rgba(255,255,255,0.12);" loading="lazy" />
+              </div>
+
+              <div class="cn-x-hairline-row">
+                <b style="color:#f5c26b;">Chapter 3 — FOREPLAY</b>
+                <p style="margin-top:4px;font-style:italic;color:#fda4af;">"The distance disappears."</p>
+                <p>We stopped pretending there was still a distance between us. A hand found mine. A face came closer. The room became quieter. And for a moment, nothing existed outside of us.</p>
+                <img src="https://media-cn.my.id/articles/articles4-bagian4.png" alt="Chapter 3 Foreplay" style="width:100%;border-radius:12px;margin-top:8px;border:1px solid rgba(255,255,255,0.12);" loading="lazy" />
+              </div>
+
+              <div class="cn-x-hairline-row">
+                <b style="color:#f5c26b;">Chapter 4 — INTIMACY</b>
+                <p style="margin-top:4px;font-style:italic;color:#fda4af;">"There is nothing left between us."</p>
+                <p>The night became quiet. There were no more games, no more questions, no more distance. Just two people choosing to stay close. And when the morning came, something between us had changed forever.</p>
+                <img src="https://media-cn.my.id/articles/articles5-bagian5.png" alt="Chapter 4 Intimacy" style="width:100%;border-radius:12px;margin-top:8px;border:1px solid rgba(255,255,255,0.12);" loading="lazy" />
+              </div>
+
+              <div class="cn-x-hairline-row">
+                <b style="color:#f5c26b;">Closing Epilogue — Beyond Dawn</b>
+                <p style="margin-top:4px;">When the first light of morning touches the room, what began as a fleeting glance has quietly rewritten everything. Di <b>Clubs'Night</b>, setiap pengalaman dirancang dalam privasi mutlak dan kurasi berkelas.</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="cn-x-post">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" alt="Clubs'Night" class="cn-x-post-avatar" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:6px;">
+                <b style="color:#fff;">Clubs'Night Official</b>
+                <i class="fa-solid fa-circle-check" style="color:#ff2a5f;"></i>
+                <span>· Artikel 2 dari 2</span>
+              </div>
+              <h4>Perbedaan Mendasar antara Clubs'Night (Clubs Night) dan Night Clubs Konvensional</h4>
+              <p>
+                <b>Night Clubs Konvensional</b> terikat pada gedung fisik terbuka dengan keramaian publik dan biaya meja fluktuatif, sedangkan <b>Clubs'Night</b> menghadirkan ekosistem digital terkurasi 24/7 dengan transparansi tarif di awal, kebijakan privasi anti-rekam, serta pembayaran otomatis melalui <b>CN Wallet</b>.
+              </p>
+              <div style="margin-top:10px;">
+                <a href="/artikel.html" style="color:#ff80ab;font-size:13px;font-weight:700;text-decoration:none;">
+                  Buka Halaman Full Artikel Interaktif (SEO Google Search) <i class="fa-solid fa-arrow-right"></i>
+                </a>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div id="pdfViewerFrame" class="pdf-viewer-frame" style="display:none;">
+          <div id="pdfPlaceholderNotice" style="padding:28px 16px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.14);">
+            <i class="fa-regular fa-file-pdf" style="font-size:28px;color:#ff80ab;margin-bottom:10px;display:block;"></i>
+            <div style="font-size:14.5px;font-weight:800;color:#fff;margin-bottom:6px;">Menunggu Tautan Google Drive PDF Baru</div>
+            <p style="font-size:12.5px;color:rgba(255,255,255,0.7);max-width:380px;margin:0 auto;">
+              Kirimkan tautan Google Drive PDF yang baru kapan saja untuk langsung ditampilkan di tab ini.
+            </p>
+          </div>
+          <iframe id="pdfEmbedFrame" src="about:blank" style="display:none;" allow="autoplay" loading="lazy"></iframe>
         </div>
 
         <div id="rulesContentBox" class="blog-article-content" style="display: none;">
@@ -943,44 +1090,27 @@
             <h4 style="color:var(--crimson-red); margin-bottom: 10px; font-size: 1.05rem;">
               <i class="fa-solid fa-shield-halved"></i> PERATURAN RESMI CLUBS'NIGHT AGENCY
             </h4>
-            <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom: 12px;">Pembaruan Terakhir: 18 Oktober 2026</p>
-            
-            <div class="rule-item-card">
-              <b>1. Privasi & Keamanan Ketat</b>
-              <p>Dilarang keras merekam layar (screen record), memotret (screenshot), atau menyebarluaskan sesi panggilan privat dalam bentuk apapun. Pelanggaran berakibat pemblokiran permanen dan sanksi blacklist.</p>
+            <div class="cn-x-hairline-row">
+              <b>1. Privasi &amp; Keamanan Ketat</b>
+              <p style="margin-top:4px;">Dilarang keras merekam layar (screen record), memotret (screenshot), atau menyebarluaskan sesi panggilan privat dalam bentuk apapun.</p>
             </div>
-
-            <div class="rule-item-card">
+            <div class="cn-x-hairline-row">
               <b>2. Ketentuan Usia (18+)</b>
-              <p>Seluruh talent dan pengunjung wajib berusia minimal 18 tahun. Layanan ini eksklusif bagi pengguna dewasa yang telah memverifikasi batasan umur.</p>
+              <p style="margin-top:4px;">Seluruh talent dan pengunjung wajib berusia minimal 18 tahun.</p>
             </div>
-
-            <div class="rule-item-card">
-              <b>3. Sistem Pembayaran & Konfirmasi</b>
-              <p>Semua transaksi hanya sah bila dilakukan melalui verifikasi bot Telegram resmi atau rekening agensi yang tertera pada kalkulator website.</p>
+            <div class="cn-x-hairline-row">
+              <b>3. Sistem Pembayaran &amp; Konfirmasi CN Wallet</b>
+              <p style="margin-top:4px;">Semua transaksi pemesanan wajib melalui saldo CN Wallet terverifikasi sebelum format order diteruskan ke Telegram resmi agensi.</p>
             </div>
-
-            <div class="rule-item-card">
-              <b>4. Etika Komunikasi Sesi</b>
-              <p>Saling menghormati batas privasi dan kesepakatan durasi waktu sesi antara talent dan client demi kenyamanan bersama.</p>
-            </div>
-
-            <a href="https://telegra.ph/PERATURAN-AGENCY-10-18" target="_blank" rel="noopener" class="btn-outline" style="margin-top: 14px; width: 100%;">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> Baca Versi Lengkap di Telegraph
-            </a>
           </div>
         </div>
 
         <div id="serverContentBox" class="blog-article-content" style="display: none;">
           <div class="article-inner-body">
-            <h4 style="color:var(--neon-green); margin-bottom: 10px; font-size: 1.05rem;">
-              <i class="fa-solid fa-server"></i> STATUS INFRASTRUKTUR & SERVER
+            <h4 style="color:var(--neon-cyan); margin-bottom: 10px; font-size: 1.05rem;">
+              <i class="fa-solid fa-server"></i> STATUS SERVER &amp; KEAMANAN JARINGAN
             </h4>
-            <div class="server-stat-grid">
-              <div class="server-stat-card">
-                <span class="stat-label">Web Core Node</span>
-                <span class="stat-value" style="color:var(--neon-green);">🟢 Online (Edge CDN)</span>
-              </div>
+            <div class="server-stats-grid">
               <div class="server-stat-card">
                 <span class="stat-label">Telegram Sync API</span>
                 <span class="stat-value" style="color:var(--neon-green);">🟢 Connected (24ms)</span>
@@ -994,9 +1124,6 @@
                 <span class="stat-value" style="color:var(--neon-green);">🟢 Cloudflare D1 Replicated</span>
               </div>
             </div>
-            <p style="font-size:0.76rem; color:var(--text-muted); margin-top: 14px; line-height: 1.5;">
-              Sistem beroperasi pada jaringan terdistribusi dengan perlindungan proteksi DDoS aktif serta sinkronisasi data instan antar cabang agensi partner resmi.
-            </p>
           </div>
         </div>
 

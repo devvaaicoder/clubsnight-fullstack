@@ -2513,9 +2513,25 @@ function resetBlogTabs(activeBtn) {
   const rulesBox = document.getElementById('rulesContentBox');
   const serverBox = document.getElementById('serverContentBox');
 
+  const editorialBox = document.getElementById('editorialArticlesBox');
+  if (editorialBox) editorialBox.style.display = 'none';
   if (pdfFrame) pdfFrame.style.display = 'none';
   if (rulesBox) rulesBox.style.display = 'none';
   if (serverBox) serverBox.style.display = 'none';
+}
+
+function showEditorialArticlesTab(btnElement) {
+  resetBlogTabs(btnElement);
+  const editorialBox = document.getElementById('editorialArticlesBox');
+  const titleEl = document.getElementById('activeArticleName');
+  const fullscreenBtn = document.getElementById('btnPdfFullscreen');
+  if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-feather-pointed"></i> Editorial: New Article Project &amp; Clubs\'Night';
+  if (fullscreenBtn) {
+    fullscreenBtn.style.display = 'inline-flex';
+    fullscreenBtn.href = '/artikel.html';
+    fullscreenBtn.innerHTML = '<i class="fa-solid fa-up-right-from-square"></i> Halaman Penuh';
+  }
+  if (editorialBox) editorialBox.style.display = 'block';
 }
 
 function showPdfTab(pdfUrl, articleTitle, btnElement) {
@@ -2568,7 +2584,7 @@ Object.assign(window, {
   skipTour, nextTourStep, startWebsiteTour, closeMediaAdPermanently, trackMediaAdClick,
   confirmAge, verifyDevPin, closeDevPinModal, closeCommentsModal, submitComment,
   handleLogoClick, changeCurrency, showHomeReels, showVcsGallery, showTestimonials,
-  showBlogView, showGallery, showPdfTab, showRulesTab, showServerInfoTab,
+  showBlogView, showGallery, showEditorialArticlesTab, showPdfTab, showRulesTab, showServerInfoTab,
   logoutDevPanel, closeDevPanel, openAddTalentForm, openBannerManager, openVoucherManager,
   exportDataJSON, triggerImportJSON, importDataJSON, saveVoucherData, hideVoucherForm,
   deleteVoucher, saveBannerData, hideBannerForm, deleteBanner, saveTalentData,
