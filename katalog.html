@@ -9139,14 +9139,32 @@ window.addEventListener("storage", function(e) {
       noteEl.style.display = "block";
     }
 
+    function applyLocalFallback() {
+      var localCode = Math.floor(Math.random() * 499) + 1;
+      var total = baseNominal + localCode;
+      if (typeof origSetAmount === "function") origSetAmount(total);
+      var refEl = document.getElementById("cnQrisRefCode");
+      if (refEl) refEl.innerHTML = "Kode Unik: <b>+" + formatRp(localCode) + "</b>";
+      if (noteEl) {
+        noteEl.style.color = "#fbbf24";
+        noteEl.innerHTML = "Scan &amp; bayar sesuai nominal unik <b>" + formatRp(total) + "</b> (Kode unik +" + localCode + ").";
+        noteEl.style.display = "block";
+      }
+      startAutoBalancePolling();
+    }
+
     try {
+      var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      var tOut = setTimeout(function() { if (ctrl) ctrl.abort(); }, 4500);
+
       var sessTok = (u && u.sessionToken) || localStorage.getItem("cn_session_token") || "";
       if (!sessTok) {
         try {
           var gRes = await fetch(WORKER_API + "/api/session/guest", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: u.username })
+            body: JSON.stringify({ username: u.username }),
+            signal: ctrl ? ctrl.signal : undefined
           });
           var gData = await gRes.json();
           if (gData && gData.sessionToken) {
@@ -9155,6 +9173,7 @@ window.addEventListener("storage", function(e) {
           }
         } catch (_) {}
       }
+
       var res = await fetch(WORKER_API + "/api/wallet/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
@@ -9163,30 +9182,30 @@ window.addEventListener("storage", function(e) {
           baseAmount: baseNominal,
           mode: bookingCtx ? "booking" : "topup",
           service: bookingCtx ? bookingCtx.service : ("Top-Up Saldo CN Wallet (" + formatRp(baseNominal) + ")")
-        })
+        }),
+        signal: ctrl ? ctrl.signal : undefined
       });
-      var data = await res.json();
+      clearTimeout(tOut);
+
+      var data = await res.json().catch(function() { return {}; });
       if (res.ok && data && data.success && data.intent) {
         activeIntent = data.intent;
-        if (typeof window.setCnQrisAmount === "function") {
-          window.setCnQrisAmount(activeIntent.totalAmount);
-        }
+        if (typeof origSetAmount === "function") origSetAmount(activeIntent.totalAmount);
         var refEl = document.getElementById("cnQrisRefCode");
         if (refEl) {
           refEl.innerHTML = "ID: <b>" + activeIntent.id + "</b> • Kode Unik: <b>+" + formatRp(activeIntent.uniqueCode) + "</b>";
         }
         if (noteEl) {
           noteEl.style.color = "#fbbf24";
-          noteEl.innerHTML = "Scan & bayar sesuai nominal unik <b>" + formatRp(activeIntent.totalAmount) + "</b>. Saldo otomatis masuk dalam 3–10 detik setelah transfer.";
+          noteEl.innerHTML = "Scan &amp; bayar sesuai nominal unik <b>" + formatRp(activeIntent.totalAmount) + "</b>. Saldo otomatis masuk dalam 3–10 detik setelah transfer.";
           noteEl.style.display = "block";
         }
         startAutoBalancePolling();
+      } else {
+        applyLocalFallback();
       }
     } catch (_) {
-      var localCode = Math.floor(Math.random() * 499) + 1;
-      if (typeof window.setCnQrisAmount === "function") {
-        window.setCnQrisAmount(baseNominal + localCode);
-      }
+      applyLocalFallback();
     }
   }
 
