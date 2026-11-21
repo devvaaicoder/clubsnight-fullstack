@@ -9836,7 +9836,7 @@ window.addEventListener("storage", function(e) {
     }
     var base = Number(document.getElementById("calcHarga")?.value || 0) || 0;
     if (base <= 0) return 0;
-    var fee = base < 100000 ? 10000 : (base >= 250000 ? 20000 : 15000);
+    var fee = base <= 150000 ? 20000 : (base <= 250000 ? 25000 : 30000 + Math.floor((base - 250001) / 100000) * 5000);
     return base + fee;
   }
 

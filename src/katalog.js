@@ -929,9 +929,9 @@ function getMinPrice(talent) {
 
 function getAdminFee(basePrice) {
   if (basePrice <= 0) return 0;
-  if (basePrice < 100000) return 10000;
-  if (basePrice >= 100000 && basePrice < 250000) return 15000;
-  return 20000;
+  if (basePrice <= 150000) return 20000;
+  if (basePrice <= 250000) return 25000;
+  return 30000 + Math.floor((basePrice - 250001) / 100000) * 5000;
 }
 
 function renderBanners() {
