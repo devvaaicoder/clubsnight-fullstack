@@ -7887,7 +7887,7 @@ window.addEventListener("storage", function(e) {
     }
   };
 
-  async function pullLoungeFromCloud() {
+  async function pullLoungeFromCloud(forceRender) {
     try {
       var res = await fetch(WORKER_API + "/api/lounge/get", { cache: "no-store" });
       if (!res.ok) return;
@@ -7899,7 +7899,10 @@ window.addEventListener("storage", function(e) {
       var localPostsStr = localStorage.getItem(FEED_KEY) || "[]";
       var localStoriesStr = localStorage.getItem(STORY_KEY) || "[]";
 
-      if (remotePostsStr !== localPostsStr || remoteStoriesStr !== localStoriesStr) {
+      var feedEl = document.getElementById("cnLoungeFeed");
+      var storyEl = document.getElementById("cnStoryBar");
+      var isEmptyDom = (feedEl && feedEl.children.length === 0) || (storyEl && storyEl.children.length === 0);
+      if (forceRender || isEmptyDom || remotePostsStr !== localPostsStr || remoteStoriesStr !== localStoriesStr) {
         isPullingFromCloud = true;
         try {
           origSetItem.call(localStorage, FEED_KEY, remotePostsStr);
@@ -7913,8 +7916,9 @@ window.addEventListener("storage", function(e) {
     } catch (_) {}
   }
 
+  window.pullLoungeFromCloud = pullLoungeFromCloud;
   document.addEventListener("DOMContentLoaded", function() {
-    pullLoungeFromCloud();
+    pullLoungeFromCloud(true);
     setInterval(pullLoungeFromCloud, 15000);
   });
 })();
@@ -10838,6 +10842,48 @@ window.addEventListener("storage", function(e) {
     purgeDeletedStoriesFromStorage();
     fixStoryViewerUI();
   }, 500);
+})();
+</script>
+
+
+<script id="cnUniversalReadAccessFix">
+(function() {
+  function ensurePublicReadVisibility() {
+    // Kontainer feed & story WAJIB selalu terlihat oleh semua role (Universal/VIP, Guest, Talent, Merch, Admin, Dev)
+    var storyBar = document.getElementById("cnStoryBar");
+    if (storyBar && storyBar.style.display === "none") {
+      storyBar.style.display = "flex";
+    }
+    var loungeFeed = document.getElementById("cnLoungeFeed");
+    if (loungeFeed && loungeFeed.style.display === "none") {
+      loungeFeed.style.display = "";
+    }
+  }
+
+  function forceSyncAllViews() {
+    ensurePublicReadVisibility();
+    if (typeof window.pullLoungeFromCloud === "function") {
+      window.pullLoungeFromCloud(true);
+    } else {
+      if (typeof window.refreshCnLoungeFeed === "function") window.refreshCnLoungeFeed();
+      if (typeof window.renderCnStories === "function") window.renderCnStories();
+    }
+  }
+
+  // Tarik ulang otomatis saat sesi berubah atau user masuk ke tab Lounge
+  window.addEventListener("cn:session-changed", function() {
+    setTimeout(forceSyncAllViews, 200);
+  });
+
+  document.addEventListener("click", function(ev) {
+    var tabBtn = ev.target && ev.target.closest ? ev.target.closest("[data-pwa-tab=lounge]") : null;
+    if (tabBtn) {
+      setTimeout(forceSyncAllViews, 150);
+    }
+  }, true);
+
+  setTimeout(forceSyncAllViews, 800);
+  setInterval(ensurePublicReadVisibility, 1200);
 })();
 </script>
 
