@@ -10138,6 +10138,22 @@ window.addEventListener("storage", function(e) {
         })
       }).catch(function() {});
 
+      fetch("/api/withdraw-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticket: wdTicket,
+          username: u.username,
+          amount: amt,
+          fee: CN_WITHDRAW_CONFIG.adminFee,
+          netAmount: net,
+          method: method,
+          accNo: accNo,
+          accName: accName,
+          note: note
+        })
+      }).catch(function() {});
+
       var newBal = await fetchServerBalance(u.username);
       var balEl = document.getElementById("cnWdAvailBal");
       if (balEl) balEl.textContent = formatRp(newBal);
@@ -10156,7 +10172,7 @@ window.addEventListener("storage", function(e) {
         msg.style.display = "block";
         msg.style.background = "rgba(16,185,129,0.14)";
         msg.style.border = "1px solid rgba(16,185,129,0.4)";
-        msg.innerHTML = "✅ Tiket <b>" + wdTicket + "</b> berhasil dibuat! Saldo terpotong <b>" + formatRp(amt) + "</b>.<br/>" +
+        msg.innerHTML = "✅ Tiket <b>" + wdTicket + "</b> berhasil dibuat &amp; otomatis diteruskan ke Grup Admin! Saldo terpotong <b>" + formatRp(amt) + "</b>.<br/>" +
           "<a href=\"https://t.me/clubsnight_admin?text=" + waText + "\" target=\"_blank\" style=\"display:inline-block;margin-top:8px;padding:8px 12px;border-radius:8px;background:#0ea5e9;color:#fff;font-weight:700;text-decoration:none;\">Kirim Bukti Tiket ke Admin Telegram</a>";
       }
     } catch (err) {
