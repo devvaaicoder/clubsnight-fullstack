@@ -7895,7 +7895,14 @@ window.addEventListener("storage", function(e) {
       if (!data || !data.success) return;
 
       var remotePostsStr = JSON.stringify(data.posts || []);
-      var remoteStoriesStr = JSON.stringify(data.stories || []);
+      var _delSt = []; try { _delSt = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]"); } catch(_) {}
+      var _cleanStories = (data.stories || []).filter(function(st) {
+        if (!st) return false;
+        var u = st.image || st.img || st.mediaUrl || st.url || "";
+        var id = st.id ? String(st.id) : "";
+        return _delSt.indexOf(u) === -1 && _delSt.indexOf(id) === -1;
+      });
+      var remoteStoriesStr = JSON.stringify(_cleanStories);
       var localPostsStr = localStorage.getItem(FEED_KEY) || "[]";
       var localStoriesStr = localStorage.getItem(STORY_KEY) || "[]";
 
@@ -11045,6 +11052,205 @@ window.addEventListener("storage", function(e) {
       lastY = 0;
     }
   }, true);
+})();
+</script>
+
+
+<style id="cnFinalFixV3Css">
+  #mainHeader, .cn-monarchy-header, .cn-top-ticker-hide {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    will-change: transform;
+  }
+  .cn-header-slid-up {
+    transform: translateY(-165%) !important;
+    pointer-events: none !important;
+  }
+</style>
+<script id="cnFinalFixV3Js">
+(function() {
+  // === [FIX 1] SMART AUTO-HIDE #mainHeader + TOP TICKER DI SEMUA SCROLL CONTAINER (TERMASUK REELS) ===
+  var scrollPosMap = new WeakMap();
+  var headerHidden = false;
+
+  function getHeaderNodes() {
+    var nodes = [];
+    var mh = document.getElementById("mainHeader");
+    if (mh) {
+      nodes.push(mh);
+      if (mh.previousElementSibling) {
+        var prev = mh.previousElementSibling;
+        var pst = window.getComputedStyle(prev);
+        if (pst.position === "fixed" || pst.position === "sticky") {
+          prev.classList.add("cn-top-ticker-hide");
+          nodes.push(prev);
+        }
+      }
+    }
+    return nodes;
+  }
+
+  function toggleHeader(hide) {
+    if (headerHidden === hide) return;
+    headerHidden = hide;
+    getHeaderNodes().forEach(function(el) {
+      el.classList.toggle("cn-header-slid-up", hide);
+    });
+  }
+
+  function onAnyScroll(ev) {
+    var target = ev.target === document ? document.documentElement : ev.target;
+    if (!target || target.nodeType !== 1) return;
+    // Abaikan modal/drawer
+    if (target.closest && target.closest(".cn-auth-modal, [class*=modal], [class*=drawer]")) return;
+
+    var curY = (target === document.documentElement || target === document.body)
+      ? (window.scrollY || document.documentElement.scrollTop || 0)
+      : (target.scrollTop || 0);
+
+    var prevY = scrollPosMap.has(target) ? scrollPosMap.get(target) : curY;
+    var diff = curY - prevY;
+
+    if (curY <= 25) {
+      toggleHeader(false);
+    } else if (diff > 6 && curY > 50) {
+      toggleHeader(true);
+    } else if (diff < -6) {
+      toggleHeader(false);
+    }
+    scrollPosMap.set(target, curY < 0 ? 0 : curY);
+  }
+
+  document.addEventListener("scroll", onAnyScroll, true);
+  window.addEventListener("scroll", function() { onAnyScroll({ target: document }); }, { passive: true });
+
+  // === [FIX 2] PERBAIKI TOMBOL SIMPAN PERUBAHAN PROFIL (#cnEditProfileForm) ===
+  function bindProfileSaveFailsafe() {
+    var form = document.getElementById("cnEditProfileForm");
+    if (!form || form.__v3Bound) return;
+    form.__v3Bound = true;
+
+    var submitBtn = form.querySelector("button[type=submit]");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.style.pointerEvents = "auto";
+    }
+
+    form.addEventListener("submit", function(e) {
+      // Jalankan failsafe jika modal tidak tertutup otomatis dalam 250ms
+      setTimeout(function() {
+        var modal = document.getElementById("cnEditProfileModal");
+        if (!modal || modal.style.display === "none" || modal.getAttribute("aria-hidden") === "true") return;
+
+        var nameIn = form.querySelector("#cnEditName, input[name=name], input[type=text]");
+        var bioIn = form.querySelector("#cnEditBio, textarea");
+        var newName = nameIn ? nameIn.value.trim() : "";
+        var newBio = bioIn ? bioIn.value.trim() : "";
+
+        var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"];
+        keys.forEach(function(k) {
+          try {
+            var u = JSON.parse(localStorage.getItem(k) || "null");
+            if (!u) return;
+            if (newName) u.name = newName;
+            if (newBio) u.bio = newBio;
+            localStorage.setItem(k, JSON.stringify(u));
+          } catch (_) {}
+        });
+
+        try {
+          fetch("https://clubsnight-api.onrender.com/api/profile", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: newName, bio: newBio })
+          }).catch(function() {});
+        } catch (_) {}
+
+        if (typeof window.closeCnProfileEditor === "function") window.closeCnProfileEditor();
+        else {
+          modal.style.display = "none";
+          modal.setAttribute("aria-hidden", "true");
+        }
+        window.dispatchEvent(new CustomEvent("cn:session-changed"));
+        if (typeof window.cnToast === "function") window.cnToast("Profil berhasil diperbarui!", "info");
+      }, 250);
+    }, false);
+  }
+
+  // === [FIX 3] HAPUS STORY PERMANEN (cn_talent_stories_v1 + CLOUD SYNC + renderCnStories) ===
+  function bindStoryDeleteV3() {
+    var delBtn = document.getElementById("cnStoryDeleteBtn");
+    var viewer = document.getElementById("cnStoryViewer");
+    if (!delBtn || !viewer || delBtn.__v3Bound) return;
+    delBtn.__v3Bound = true;
+
+    delBtn.onclick = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!confirm("Hapus story ini secara permanen?")) return;
+
+      var curImg = viewer.querySelector("img.cn-story-media, img#cnStoryMedia, img");
+      var curSrc = curImg ? curImg.src : "";
+      var viewerTxt = (viewer.textContent || "").toLowerCase();
+
+      // Simpan ke blocklist agar tidak balik lagi saat pull cloud
+      try {
+        var delList = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]");
+        if (curSrc && delList.indexOf(curSrc) === -1) delList.push(curSrc);
+        localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(delList.slice(-150)));
+      } catch (_) {}
+
+      // Hapus dari cn_talent_stories_v1 (akan otomatis memicu cloud push lewat interceptor setItem)
+      try {
+        var arr = JSON.parse(localStorage.getItem("cn_talent_stories_v1") || "[]");
+        if (Array.isArray(arr)) {
+          var next = arr.filter(function(st) {
+            if (!st) return false;
+            var img = st.image || st.img || st.mediaUrl || st.url || "";
+            if (curSrc && img && (img === curSrc || curSrc.indexOf(img) !== -1 || img.indexOf(curSrc) !== -1)) {
+              if (st.id) {
+                var dl = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]");
+                dl.push(String(st.id));
+                localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(dl.slice(-150)));
+              }
+              return false;
+            }
+            return true;
+          });
+          // Fallback jika URL tidak persis sama: hapus story milik author yang sedang tampil
+          if (next.length === arr.length) {
+            var removedOne = false;
+            next = arr.filter(function(st) {
+              var uname = String((st && (st.username || st.author || st.name)) || "").toLowerCase();
+              if (!removedOne && uname && viewerTxt.indexOf(uname) !== -1) {
+                removedOne = true;
+                if (st.id) {
+                  var dl = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]");
+                  dl.push(String(st.id));
+                  localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(dl.slice(-150)));
+                }
+                return false;
+              }
+              return true;
+            });
+          }
+          localStorage.setItem("cn_talent_stories_v1", JSON.stringify(next));
+        }
+      } catch (_) {}
+
+      if (typeof window.closeCnStoryViewer === "function") window.closeCnStoryViewer();
+      else viewer.style.display = "none";
+
+      if (typeof window.renderCnStories === "function") window.renderCnStories();
+      if (typeof window.broadcastCnRealtimeEvent === "function") window.broadcastCnRealtimeEvent("story_deleted", { ts: Date.now() });
+      if (typeof window.cnToast === "function") window.cnToast("Story berhasil dihapus permanen.", "info");
+    };
+  }
+
+  setInterval(function() {
+    bindProfileSaveFailsafe();
+    bindStoryDeleteV3();
+  }, 500);
 })();
 </script>
 
