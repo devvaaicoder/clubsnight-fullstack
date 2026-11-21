@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Allow: /katalog
+Allow: /artikel
+Allow: /privasi
+Allow: /legalitas
+Disallow: /login
+Disallow: /api/
 
 Sitemap: https://clubsnight.my.id/sitemap.xml
