@@ -10973,5 +10973,80 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<style id="cnAutoHideHeaderCss">
+  .cn-autohide-target {
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    will-change: transform;
+  }
+  .cn-autohide-hidden {
+    transform: translateY(-160%) !important;
+    pointer-events: none !important;
+  }
+</style>
+<script id="cnAutoHideHeaderJs">
+(function() {
+  var lastY = window.scrollY || 0;
+  var isHidden = false;
+  var ticking = false;
+
+  function getTopHeaderElements() {
+    var targets = [];
+    var candidates = document.querySelectorAll("header, nav, .top-bar, .marquee, .marquee-bar, .cn-marquee, .cn-header, .cn-topbar, [class*=marquee], [class*=header], [class*=navbar]");
+    candidates.forEach(function(el) {
+      if (!el || el.closest(".cn-bottom-nav, .cn-bnav, [class*=modal], [class*=drawer], [class*=sidebar]")) return;
+      var st = window.getComputedStyle(el);
+      if (st.position !== "fixed" && st.position !== "sticky") return;
+      var rect = el.getBoundingClientRect();
+      if (rect.height > 0 && rect.height <= 140 && rect.top <= 70 && rect.bottom <= 180) {
+        el.classList.add("cn-autohide-target");
+        targets.push(el);
+      }
+    });
+    return targets;
+  }
+
+  function setHeaderHidden(hide) {
+    if (isHidden === hide) return;
+    isHidden = hide;
+    var els = getTopHeaderElements();
+    els.forEach(function(el) {
+      el.classList.toggle("cn-autohide-hidden", hide);
+    });
+  }
+
+  function handleScroll() {
+    var curY = window.scrollY || document.documentElement.scrollTop || 0;
+    var diff = curY - lastY;
+
+    if (curY <= 40) {
+      setHeaderHidden(false);
+    } else if (diff > 8 && curY > 70) {
+      setHeaderHidden(true);
+    } else if (diff < -8) {
+      setHeaderHidden(false);
+    }
+
+    lastY = curY < 0 ? 0 : curY;
+    ticking = false;
+  }
+
+  window.addEventListener("scroll", function() {
+    if (!ticking) {
+      ticking = true;
+      window.requestAnimationFrame(handleScroll);
+    }
+  }, { passive: true });
+
+  // Pastikan header muncul kembali saat pindah tab
+  document.addEventListener("click", function(e) {
+    if (e.target && e.target.closest && e.target.closest("[data-pwa-tab]")) {
+      setHeaderHidden(false);
+      lastY = 0;
+    }
+  }, true);
+})();
+</script>
+
 </body>
 </html>
