@@ -9563,6 +9563,8 @@ window.addEventListener("storage", function(e) {
       }
     });
     if (pwPage) {
+      var mainEl = document.querySelector("main");
+      if (mainEl && mainEl.parentNode && pwPage.previousElementSibling !== mainEl) mainEl.parentNode.insertBefore(pwPage, mainEl.nextSibling);
       pwPage.style.display = "block";
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
