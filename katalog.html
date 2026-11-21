@@ -8880,7 +8880,7 @@ window.addEventListener("storage", function(e) {
 
     tags.forEach(function(t) {
       if (t.id === "63") return; // CRC dihitung ulang di akhir
-      if (t.id === "62") return; // Hapus reference sesi lama agar tidak bentrok dengan nominal baru
+      // Tag 62 dipertahankan agar validasi Terminal ID ShopeePay tidak ditolak (4090000)
       if (t.id === "01") {
         rebuilt += formatTlv("01", "12"); // Paksa Dinamis (12)
         return;
