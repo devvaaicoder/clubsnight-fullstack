@@ -11480,5 +11480,413 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<style id="cnProfileRedesignCss">
+  #cnProEditOverlay {
+    position: fixed; inset: 0; z-index: 999990;
+    background: #141110; color: #f5f5f4;
+    display: none; flex-direction: column;
+    font-family: inherit; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #cnProEditOverlay.open { display: flex; }
+  .cn-pe-header {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: rgba(20,17,16,0.95);
+    backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .cn-pe-back {
+    width: 36px; height: 36px; border: 0; background: transparent;
+    color: #f5f5f4; font-size: 18px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+  }
+  .cn-pe-back:active { background: rgba(255,255,255,0.08); }
+  .cn-pe-title { font-size: 16px; font-weight: 700; letter-spacing: 0.2px; }
+  .cn-pe-body {
+    width: 100%; max-width: 480px; margin: 0 auto;
+    padding: 20px 18px 36px; box-sizing: border-box;
+  }
+  .cn-pe-avatar-wrap {
+    display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;
+  }
+  .cn-pe-avatar-box {
+    position: relative; width: 96px; height: 96px; cursor: pointer;
+  }
+  .cn-pe-avatar-img {
+    width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
+    background: #272220; border: 2px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 800; color: #fff; overflow: hidden;
+  }
+  .cn-pe-cam-badge {
+    position: absolute; right: 0; bottom: 0;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #c83e3b; color: #fff; border: 2px solid #141110;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .cn-pe-change-lbl {
+    margin-top: 10px; font-size: 13px; font-weight: 600; color: #d9534f;
+    background: none; border: 0; cursor: pointer;
+  }
+  .cn-pe-group { margin-bottom: 16px; }
+  .cn-pe-label {
+    display: block; font-size: 12.5px; font-weight: 600;
+    color: #a8a29e; margin-bottom: 7px;
+  }
+  .cn-pe-input-box {
+    display: flex; align-items: center; gap: 10px;
+    background: #211d1b; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 0 14px; transition: border-color 0.2s;
+  }
+  .cn-pe-input-box:focus-within { border-color: #c83e3b; }
+  .cn-pe-input-box i { color: #78716c; font-size: 14px; width: 16px; text-align: center; }
+  .cn-pe-input, .cn-pe-textarea {
+    width: 100%; background: transparent; border: 0; outline: none;
+    color: #f5f5f4; font-size: 14px; padding: 13px 0; font-family: inherit;
+  }
+  .cn-pe-input[readonly] { color: #a8a29e; }
+  .cn-pe-textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
+  .cn-pe-hint { font-size: 11.5px; color: #78716c; margin-top: 6px; }
+  .cn-pe-save-btn {
+    width: 100%; margin-top: 14px; padding: 14px;
+    border: 0; border-radius: 12px; background: #c83e3b; color: #fff;
+    font-size: 14.5px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .cn-pe-save-btn:active { transform: scale(0.98); opacity: 0.9; }
+
+  /* Cropper Modal */
+  #cnAvatarCropModal {
+    position: fixed; inset: 0; z-index: 999999;
+    background: rgba(10, 8, 8, 0.94); display: none;
+    flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+  }
+  #cnAvatarCropModal.open { display: flex; }
+  .cn-crop-card {
+    width: 100%; max-width: 360px; background: #1c1917;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 18px;
+    padding: 18px; text-align: center; color: #f5f5f4;
+  }
+  .cn-crop-stage {
+    position: relative; width: 260px; height: 260px; margin: 14px auto;
+    border-radius: 50%; overflow: hidden; background: #0c0a09;
+    border: 2px solid #c83e3b; touch-action: none; cursor: grab;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.25) inset;
+  }
+  .cn-crop-stage:active { cursor: grabbing; }
+  .cn-crop-stage img {
+    position: absolute; top: 50%; left: 50%; user-select: none;
+    -webkit-user-drag: none; pointer-events: none; transform-origin: center center;
+  }
+  .cn-crop-zoom-row {
+    display: flex; align-items: center; gap: 10px; margin: 14px 4px 18px;
+    color: #a8a29e; font-size: 13px;
+  }
+  .cn-crop-zoom-row input[type=range] {
+    flex: 1; accent-color: #c83e3b; cursor: pointer;
+  }
+  .cn-crop-actions { display: flex; gap: 10px; }
+  .cn-crop-btn {
+    flex: 1; padding: 11px; border-radius: 10px; border: 0;
+    font-weight: 700; font-size: 13.5px; cursor: pointer;
+  }
+  .cn-crop-btn.cancel { background: #292524; color: #d6d3d1; }
+  .cn-crop-btn.apply { background: #c83e3b; color: #fff; }
+</style>
+
+<div id="cnProEditOverlay" aria-hidden="true">
+  <div class="cn-pe-header">
+    <button type="button" class="cn-pe-back" id="cnPeCloseBtn" aria-label="Kembali">
+      <i class="fa-solid fa-arrow-left"></i>
+    </button>
+    <div class="cn-pe-title">Edit Profil</div>
+    <div style="width:36px;"></div>
+  </div>
+  <form id="cnProEditForm" class="cn-pe-body">
+    <div class="cn-pe-avatar-wrap">
+      <div class="cn-pe-avatar-box" id="cnPeAvatarTrigger">
+        <div class="cn-pe-avatar-img" id="cnPeAvatarPreview">U</div>
+        <div class="cn-pe-cam-badge"><i class="fa-solid fa-camera"></i></div>
+      </div>
+      <button type="button" class="cn-pe-change-lbl" id="cnPeChangePhotoBtn">Ganti Foto Profil</button>
+      <input type="file" id="cnPePhotoInput" accept="image/*" style="display:none;" />
+    </div>
+
+    <div class="cn-pe-group">
+      <label class="cn-pe-label" for="cnPeName">Nama Lengkap</label>
+      <div class="cn-pe-input-box">
+        <i class="fa-regular fa-user"></i>
+        <input type="text" id="cnPeName" class="cn-pe-input" placeholder="Nama tampilan Anda" required maxlength="40" />
+      </div>
+      <div class="cn-pe-hint">Nama tampilan ini akan terlihat di Lounge, Story, dan Profil Publik.</div>
+    </div>
+
+    <div class="cn-pe-group">
+      <label class="cn-pe-label" for="cnPeUsername">Username</label>
+      <div class="cn-pe-input-box">
+        <i class="fa-solid fa-at"></i>
+        <input type="text" id="cnPeUsername" class="cn-pe-input" readonly />
+      </div>
+      <div class="cn-pe-hint">Username terhubung dengan identitas akun Anda.</div>
+    </div>
+
+    <div class="cn-pe-group">
+      <label class="cn-pe-label" for="cnPeBio">Bio</label>
+      <div class="cn-pe-input-box" style="align-items:flex-start;">
+        <textarea id="cnPeBio" class="cn-pe-textarea" placeholder="Tulis bio singkat tentang diri Anda..." maxlength="180"></textarea>
+      </div>
+    </div>
+
+    <button type="submit" id="cnPeSaveBtn" class="cn-pe-save-btn">
+      <i class="fa-solid fa-check"></i> Simpan Perubahan
+    </button>
+  </form>
+</div>
+
+<div id="cnAvatarCropModal" aria-hidden="true">
+  <div class="cn-crop-card">
+    <div style="font-size:15px;font-weight:700;">Sesuaikan Foto Profil</div>
+    <div style="font-size:12px;color:#a8a29e;margin-top:3px;">Geser &amp; perbesar foto agar pas di dalam lingkaran</div>
+    <div class="cn-crop-stage" id="cnCropStage">
+      <img id="cnCropImg" alt="Crop Preview" />
+    </div>
+    <div class="cn-crop-zoom-row">
+      <i class="fa-solid fa-magnifying-glass-minus"></i>
+      <input type="range" id="cnCropZoom" min="1" max="3" step="0.02" value="1" />
+      <i class="fa-solid fa-magnifying-glass-plus"></i>
+    </div>
+    <div class="cn-crop-actions">
+      <button type="button" class="cn-crop-btn cancel" id="cnCropCancelBtn">Batal</button>
+      <button type="button" class="cn-crop-btn apply" id="cnCropApplyBtn">Terapkan Foto</button>
+    </div>
+  </div>
+</div>
+
+<script id="cnProfileRedesignJs">
+(function() {
+  var overlay = document.getElementById("cnProEditOverlay");
+  var form = document.getElementById("cnProEditForm");
+  var photoInput = document.getElementById("cnPePhotoInput");
+  var avatarPreview = document.getElementById("cnPeAvatarPreview");
+  var cropModal = document.getElementById("cnAvatarCropModal");
+  var cropStage = document.getElementById("cnCropStage");
+  var cropImg = document.getElementById("cnCropImg");
+  var cropZoom = document.getElementById("cnCropZoom");
+
+  var pendingAvatarDataUrl = "";
+  var imgNaturalW = 1, imgNaturalH = 1, baseScale = 1;
+  var curZoom = 1, offsetX = 0, offsetY = 0;
+  var dragging = false, startX = 0, startY = 0;
+
+  function getActiveUser() {
+    var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var u = JSON.parse(localStorage.getItem(keys[i]) || "null");
+        if (u && (u.username || u.name)) return u;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function renderAvatarBox(src, name) {
+    if (src && (src.indexOf("data:image") === 0 || src.indexOf("http") === 0)) {
+      avatarPreview.innerHTML = '<img src="' + src.replace(/"/g, "&quot;") + '" style="width:100%;height:100%;object-fit:cover;" />';
+    } else {
+      avatarPreview.textContent = (name || "U").trim().charAt(0).toUpperCase();
+    }
+  }
+
+  function applyGlobalAvatarAndName(u) {
+    if (!u) return;
+    if (u.name) {
+      document.querySelectorAll("#cnAccName, .cn-acc-name, .cn-profile-name").forEach(function(el) {
+        el.textContent = u.name;
+      });
+    }
+    if (u.avatar && (u.avatar.indexOf("data:image") === 0 || u.avatar.indexOf("http") === 0)) {
+      document.querySelectorAll("#cnAccAvatar, .cn-acc-avatar, .cn-profile-avatar").forEach(function(el) {
+        if (el.tagName === "IMG") {
+          el.src = u.avatar;
+        } else {
+          el.style.backgroundImage = "url(" + u.avatar + ")";
+          el.style.backgroundSize = "cover";
+          el.style.backgroundPosition = "center";
+          el.textContent = "";
+        }
+      });
+    }
+  }
+
+  function openNewProfileEditor() {
+    var u = getActiveUser();
+    if (!u) {
+      if (typeof window.cnOpenAuthModal === "function") window.cnOpenAuthModal();
+      return;
+    }
+    pendingAvatarDataUrl = u.avatar || "";
+    document.getElementById("cnPeName").value = u.name || "";
+    document.getElementById("cnPeUsername").value = String(u.username || "").replace(/^@/, "");
+    document.getElementById("cnPeBio").value = u.bio || "";
+    renderAvatarBox(pendingAvatarDataUrl, u.name || u.username);
+
+    overlay.classList.add("open");
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeNewProfileEditor() {
+    overlay.classList.remove("open");
+    overlay.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  window.openCnProfileEditor = openNewProfileEditor;
+  window.closeCnProfileEditor = closeNewProfileEditor;
+
+  document.getElementById("cnPeCloseBtn").onclick = closeNewProfileEditor;
+  document.getElementById("cnPeAvatarTrigger").onclick = function() { photoInput.click(); };
+  document.getElementById("cnPeChangePhotoBtn").onclick = function() { photoInput.click(); };
+
+  function updateCropTransform() {
+    var totalScale = baseScale * curZoom;
+    var dispW = imgNaturalW * totalScale;
+    var dispH = imgNaturalH * totalScale;
+    var maxX = Math.max(0, (dispW - 260) / 2);
+    var maxY = Math.max(0, (dispH - 260) / 2);
+    offsetX = Math.max(-maxX, Math.min(maxX, offsetX));
+    offsetY = Math.max(-maxY, Math.min(maxY, offsetY));
+    cropImg.style.width = imgNaturalW + "px";
+    cropImg.style.height = imgNaturalH + "px";
+    cropImg.style.transform = "translate(-50%, -50%) translate(" + offsetX + "px, " + offsetY + "px) scale(" + totalScale + ")";
+  }
+
+  photoInput.onchange = function(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      cropImg.onload = function() {
+        imgNaturalW = cropImg.naturalWidth || 300;
+        imgNaturalH = cropImg.naturalHeight || 300;
+        baseScale = Math.max(260 / imgNaturalW, 260 / imgNaturalH);
+        curZoom = 1; offsetX = 0; offsetY = 0;
+        cropZoom.value = "1";
+        updateCropTransform();
+        cropModal.classList.add("open");
+        cropModal.setAttribute("aria-hidden", "false");
+      };
+      cropImg.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    photoInput.value = "";
+  };
+
+  cropZoom.oninput = function() {
+    curZoom = parseFloat(cropZoom.value) || 1;
+    updateCropTransform();
+  };
+
+  function startDrag(cx, cy) { dragging = true; startX = cx - offsetX; startY = cy - offsetY; }
+  function moveDrag(cx, cy) { if (!dragging) return; offsetX = cx - startX; offsetY = cy - startY; updateCropTransform(); }
+  function endDrag() { dragging = false; }
+
+  cropStage.addEventListener("mousedown", function(e) { startDrag(e.clientX, e.clientY); });
+  window.addEventListener("mousemove", function(e) { moveDrag(e.clientX, e.clientY); });
+  window.addEventListener("mouseup", endDrag);
+
+  cropStage.addEventListener("touchstart", function(e) {
+    if (e.touches.length === 1) startDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  cropStage.addEventListener("touchmove", function(e) {
+    if (dragging && e.touches.length === 1) {
+      e.preventDefault();
+      moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: false });
+  cropStage.addEventListener("touchend", endDrag);
+
+  document.getElementById("cnCropCancelBtn").onclick = function() {
+    cropModal.classList.remove("open");
+    cropModal.setAttribute("aria-hidden", "true");
+  };
+
+  document.getElementById("cnCropApplyBtn").onclick = function() {
+    var outSize = 320;
+    var canvas = document.createElement("canvas");
+    canvas.width = outSize;
+    canvas.height = outSize;
+    var ctx = canvas.getContext("2d");
+    var ratio = outSize / 260;
+    var totalScale = baseScale * curZoom * ratio;
+    var drawW = imgNaturalW * totalScale;
+    var drawH = imgNaturalH * totalScale;
+    var dx = (outSize - drawW) / 2 + offsetX * ratio;
+    var dy = (outSize - drawH) / 2 + offsetY * ratio;
+
+    ctx.fillStyle = "#141110";
+    ctx.fillRect(0, 0, outSize, outSize);
+    ctx.drawImage(cropImg, dx, dy, drawW, drawH);
+
+    pendingAvatarDataUrl = canvas.toDataURL("image/jpeg", 0.86);
+    renderAvatarBox(pendingAvatarDataUrl, document.getElementById("cnPeName").value);
+    cropModal.classList.remove("open");
+    cropModal.setAttribute("aria-hidden", "true");
+  };
+
+  form.onsubmit = function(e) {
+    e.preventDefault();
+    var newName = document.getElementById("cnPeName").value.trim();
+    var newBio = document.getElementById("cnPeBio").value.trim();
+    if (!newName) return;
+
+    var updatedUser = null;
+    var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"];
+    keys.forEach(function(k) {
+      try {
+        var u = JSON.parse(localStorage.getItem(k) || "null");
+        if (!u) return;
+        u.name = newName;
+        u.bio = newBio;
+        if (pendingAvatarDataUrl) u.avatar = pendingAvatarDataUrl;
+        localStorage.setItem(k, JSON.stringify(u));
+        updatedUser = u;
+      } catch (_) {}
+    });
+
+    if (updatedUser && updatedUser.username) {
+      try {
+        var pMap = JSON.parse(localStorage.getItem("cn_global_profiles_v1") || "{}");
+        pMap[String(updatedUser.username).toLowerCase()] = {
+          name: newName, bio: newBio, avatar: pendingAvatarDataUrl || updatedUser.avatar || "", updatedAt: Date.now()
+        };
+        localStorage.setItem("cn_global_profiles_v1", JSON.stringify(pMap));
+      } catch (_) {}
+    }
+
+    try {
+      fetch("https://clubsnight-api.onrender.com/api/profile", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, bio: newBio, avatar: pendingAvatarDataUrl })
+      }).catch(function() {});
+    } catch (_) {}
+
+    applyGlobalAvatarAndName(updatedUser);
+    window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: updatedUser }));
+    if (typeof window.broadcastCnRealtimeEvent === "function") {
+      window.broadcastCnRealtimeEvent("profile_updated", { username: updatedUser && updatedUser.username });
+    }
+    closeNewProfileEditor();
+    if (typeof window.cnToast === "function") window.cnToast("Profil & foto berhasil diperbarui!", "info");
+  };
+
+  setTimeout(function() { applyGlobalAvatarAndName(getActiveUser()); }, 400);
+})();
+</script>
+
 </body>
 </html>
