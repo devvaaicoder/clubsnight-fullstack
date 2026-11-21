@@ -9984,6 +9984,218 @@ window.addEventListener("storage", function(e) {
     setTimeout(injectEditBtn, 400);
   })();
 
+  
+  var CN_WITHDRAW_CONFIG = {
+    minAmount: 10000,
+    adminFee: 2500,
+    methods: ["BCA", "BRI", "Mandiri", "BNI", "DANA", "OVO", "GoPay", "ShopeePay"]
+  };
+
+  function isExternalWithdrawAllowed() {
+    var u = typeof getUnifiedUser === "function" ? getUnifiedUser() : null;
+    if (!u || !u.username) return false;
+    var uname = String(u.username).replace(/^@/, "").toLowerCase();
+    var role = String(u.role || "").toLowerCase();
+    var internalRoles = ["talent", "merch", "merch_admin", "admin", "superadmin", "dev", "developer"];
+    if (uname === "dewaaeoo" || internalRoles.indexOf(role) !== -1) return false;
+    return true;
+  }
+
+  function ensureWithdrawModal() {
+    if (document.getElementById("cnWithdrawModal")) return;
+    var opts = CN_WITHDRAW_CONFIG.methods.map(function(m) {
+      return "<option value=\"" + m + "\">" + m + "</option>";
+    }).join("");
+    var wrap = document.createElement("div");
+    wrap.id = "cnWithdrawModal";
+    wrap.style.cssText = "display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;padding:16px;";
+    wrap.innerHTML =
+      "<div style=\"width:100%;max-width:420px;background:#140c1c;border:1px solid rgba(255,255,255,0.14);border-radius:18px;padding:18px;color:#fff;max-height:90vh;overflow-y:auto;\">" +
+        "<div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;\">" +
+          "<h3 style=\"margin:0;font-size:16px;font-weight:800;\"><i class=\"fa-solid fa-money-bill-transfer\" style=\"color:#34d399;\"></i> Tarik / Refund Kelebihan Saldo</h3>" +
+          "<button type=\"button\" onclick=\"window.closeCnWithdrawModal()\" style=\"background:none;border:none;color:#fff;font-size:20px;cursor:pointer;\">&times;</button>" +
+        "</div>" +
+        "<p style=\"font-size:11.5px;color:rgba(255,255,255,0.7);margin:0 0 12px;line-height:1.45;\">Khusus pengembalian kelebihan / salah nominal top-up. Biaya admin flat <b>Rp 2.500</b> (min. Rp 10.000).</p>" +
+        "<div style=\"padding:10px 12px;border-radius:12px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;\">" +
+          "<span style=\"font-size:11.5px;color:rgba(255,255,255,0.75);\">Saldo Tersedia</span>" +
+          "<b id=\"cnWdAvailBal\" style=\"font-size:15px;color:#34d399;\">Rp 0</b>" +
+        "</div>" +
+        "<form id=\"cnWithdrawForm\" onsubmit=\"window.submitCnWithdraw(event)\" style=\"display:flex;flex-direction:column;gap:10px;\">" +
+          "<div><label style=\"font-size:11.5px;color:rgba(255,255,255,0.75);display:block;margin-bottom:4px;\">Nominal Penarikan (Rp)</label>" +
+            "<input type=\"number\" id=\"cnWdAmount\" min=\"10000\" step=\"1000\" required placeholder=\"Contoh: 100000\" oninput=\"window.updateCnWdPreview()\" style=\"width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);color:#fff;font-size:13.5px;\" /></div>" +
+          "<div style=\"display:grid;grid-template-columns:1fr 1.3fr;gap:8px;\">" +
+            "<div><label style=\"font-size:11.5px;color:rgba(255,255,255,0.75);display:block;margin-bottom:4px;\">Bank / E-Wallet</label>" +
+              "<select id=\"cnWdMethod\" style=\"width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:#1f132b;color:#fff;font-size:13px;\">" + opts + "</select></div>" +
+            "<div><label style=\"font-size:11.5px;color:rgba(255,255,255,0.75);display:block;margin-bottom:4px;\">No. Rekening / HP</label>" +
+              "<input type=\"text\" id=\"cnWdAccNo\" required placeholder=\"08xx / No. Rek\" style=\"width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);color:#fff;font-size:13px;\" /></div>" +
+          "</div>" +
+          "<div><label style=\"font-size:11.5px;color:rgba(255,255,255,0.75);display:block;margin-bottom:4px;\">Nama Pemilik Rekening</label>" +
+            "<input type=\"text\" id=\"cnWdAccName\" required placeholder=\"Atas nama rekening\" style=\"width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);color:#fff;font-size:13px;\" /></div>" +
+          "<div><label style=\"font-size:11.5px;color:rgba(255,255,255,0.75);display:block;margin-bottom:4px;\">Catatan / Alasan</label>" +
+            "<input type=\"text\" id=\"cnWdNote\" value=\"Salah nominal top-up / kelebihan saldo\" style=\"width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);color:#fff;font-size:12.5px;\" /></div>" +
+          "<div id=\"cnWdSummary\" style=\"padding:10px 12px;border-radius:10px;background:rgba(255,255,255,0.04);font-size:12px;line-height:1.5;color:rgba(255,255,255,0.82);\">Diterima bersih: <b>Rp 0</b> (Admin Rp 2.500)</div>" +
+          "<div id=\"cnWdMsg\" style=\"display:none;font-size:12px;padding:10px;border-radius:10px;\"></div>" +
+          "<button type=\"submit\" id=\"cnWdSubmitBtn\" style=\"padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;\">Ajukan Penarikan Saldo</button>" +
+        "</form>" +
+      "</div>";
+    document.body.appendChild(wrap);
+  }
+
+  window.updateCnWdPreview = function() {
+    var amt = Number(document.getElementById("cnWdAmount")?.value || 0) || 0;
+    var net = Math.max(0, amt - CN_WITHDRAW_CONFIG.adminFee);
+    var sum = document.getElementById("cnWdSummary");
+    if (sum) sum.innerHTML = "Nominal ditarik: <b>" + formatRp(amt) + "</b> • Admin: <b>" + formatRp(CN_WITHDRAW_CONFIG.adminFee) + "</b><br/>Diterima bersih: <b style=\"color:#34d399;\">" + formatRp(net) + "</b>";
+  };
+
+  window.openCnWithdrawModal = async function() {
+    if (!isExternalWithdrawAllowed()) {
+      alert("Fitur penarikan kelebihan saldo hanya tersedia untuk akun Eksternal.");
+      return;
+    }
+    ensureWithdrawModal();
+    var u = getUnifiedUser();
+    var modal = document.getElementById("cnWithdrawModal");
+    var msg = document.getElementById("cnWdMsg");
+    if (msg) msg.style.display = "none";
+    modal.style.display = "flex";
+    var balEl = document.getElementById("cnWdAvailBal");
+    if (balEl) balEl.textContent = "Memuat...";
+    try {
+      var bal = await fetchServerBalance(u.username);
+      if (balEl) balEl.textContent = formatRp(bal);
+    } catch (_) {
+      if (balEl) balEl.textContent = formatRp(getLocalWalletBalance(u.username));
+    }
+  };
+
+  window.closeCnWithdrawModal = function() {
+    var modal = document.getElementById("cnWithdrawModal");
+    if (modal) modal.style.display = "none";
+  };
+
+  window.submitCnWithdraw = async function(e) {
+    e.preventDefault();
+    if (!isExternalWithdrawAllowed()) return;
+    var u = getUnifiedUser();
+    var amt = Math.round(Number(document.getElementById("cnWdAmount")?.value || 0));
+    var method = (document.getElementById("cnWdMethod")?.value || "").trim();
+    var accNo = (document.getElementById("cnWdAccNo")?.value || "").trim();
+    var accName = (document.getElementById("cnWdAccName")?.value || "").trim();
+    var note = (document.getElementById("cnWdNote")?.value || "Salah nominal top-up").trim();
+    var btn = document.getElementById("cnWdSubmitBtn");
+    var msg = document.getElementById("cnWdMsg");
+
+    if (amt < CN_WITHDRAW_CONFIG.minAmount) {
+      alert("Minimal penarikan adalah " + formatRp(CN_WITHDRAW_CONFIG.minAmount));
+      return;
+    }
+    var net = amt - CN_WITHDRAW_CONFIG.adminFee;
+    if (btn) { btn.disabled = true; btn.textContent = "Memproses penarikan..."; }
+
+    try {
+      var curBal = await fetchServerBalance(u.username);
+      if (curBal < amt) {
+        alert("Saldo tidak mencukupi. Saldo aktif Anda: " + formatRp(curBal));
+        if (btn) { btn.disabled = false; btn.textContent = "Ajukan Penarikan Saldo"; }
+        return;
+      }
+      var sessTok = typeof getSessionToken === "function" ? getSessionToken() : "";
+      if (!sessTok) {
+        var gRes = await fetch(WORKER_API + "/api/session/guest", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u.username })
+        });
+        var gData = await gRes.json().catch(function() { return {}; });
+        if (gData && gData.sessionToken) {
+          sessTok = gData.sessionToken;
+          localStorage.setItem("cn_session_token", sessTok);
+        }
+      }
+      var wdTicket = "WD-" + Date.now().toString().slice(-6);
+      var spendRes = await fetch(WORKER_API + "/api/wallet/spend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
+        body: JSON.stringify({
+          username: u.username,
+          amount: amt,
+          service: "REFUND TOPUP [" + wdTicket + "] " + method + " " + accNo + " a/n " + accName
+        })
+      });
+      var spendData = await spendRes.json().catch(function() { return {}; });
+      if (!spendRes.ok || spendData.error) {
+        throw new Error(spendData.error || "Gagal memotong saldo untuk penarikan.");
+      }
+
+      fetch(WORKER_API + "/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: u.username,
+          service: "WITHDRAW REFUND " + wdTicket,
+          amount: net,
+          note: method + " • " + accNo + " a/n " + accName + " | " + note
+        })
+      }).catch(function() {});
+
+      var newBal = await fetchServerBalance(u.username);
+      var balEl = document.getElementById("cnWdAvailBal");
+      if (balEl) balEl.textContent = formatRp(newBal);
+
+      var waText = encodeURIComponent(
+        "PERMINTAAN REFUND / TARIK KELEBIHAN SALDO\n" +
+        "Tiket: " + wdTicket + "\n" +
+        "Akun: @" + u.username + "\n" +
+        "Nominal Potong: " + formatRp(amt) + "\n" +
+        "Admin Refund: " + formatRp(CN_WITHDRAW_CONFIG.adminFee) + "\n" +
+        "Transfer Bersih: " + formatRp(net) + "\n" +
+        "Tujuan: " + method + " - " + accNo + " (a/n " + accName + ")\n" +
+        "Catatan: " + note
+      );
+      if (msg) {
+        msg.style.display = "block";
+        msg.style.background = "rgba(16,185,129,0.14)";
+        msg.style.border = "1px solid rgba(16,185,129,0.4)";
+        msg.innerHTML = "✅ Tiket <b>" + wdTicket + "</b> berhasil dibuat! Saldo terpotong <b>" + formatRp(amt) + "</b>.<br/>" +
+          "<a href=\"https://t.me/clubsnight_admin?text=" + waText + "\" target=\"_blank\" style=\"display:inline-block;margin-top:8px;padding:8px 12px;border-radius:8px;background:#0ea5e9;color:#fff;font-weight:700;text-decoration:none;\">Kirim Bukti Tiket ke Admin Telegram</a>";
+      }
+    } catch (err) {
+      alert(err.message || "Terjadi kesalahan saat memproses penarikan.");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Ajukan Penarikan Saldo"; }
+    }
+  };
+
+  // Inject tombol Tarik / Refund Saldo di halaman Aktivitas (HANYA untuk akun Eksternal)
+  (function injectExternalWithdrawRow() {
+    function mountBtn() {
+      var actPage = document.getElementById("cnPageActivity");
+      var existing = document.getElementById("cnExternalWithdrawRow");
+      if (!isExternalWithdrawAllowed()) {
+        if (existing) existing.remove();
+        return;
+      }
+      if (!actPage || existing) return;
+      var editRow = document.getElementById("cnEditProfileRowBtn");
+      if (!editRow || !editRow.parentNode) return;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "cnExternalWithdrawRow";
+      btn.className = "cn-activity-row";
+      btn.onclick = function() { window.openCnWithdrawModal(); };
+      btn.innerHTML =
+        "<span style=\"display:flex;align-items:center;gap:10px;\">" +
+          "<i class=\"fa-solid fa-money-bill-transfer\" style=\"color:#34d399;\"></i>" +
+          "<span style=\"text-align:left;\"><b style=\"display:block;font-size:13.5px;color:#fff;\">Tarik / Refund Kelebihan Saldo</b>" +
+          "<small style=\"font-size:11px;color:rgba(255,255,255,0.58);\">Salah nominal top-up? Tarik kembali (Admin Rp 2.500)</small></span>" +
+        "</span>" +
+        "<i class=\"fa-solid fa-chevron-right\"></i>";
+      editRow.parentNode.insertBefore(btn, editRow.nextSibling);
+    }
+    setInterval(mountBtn, 900);
+    window.addEventListener("hashchange", function() { setTimeout(mountBtn, 200); });
+  })();
+
   function installHardPaymentGate() {
     var origFn = window.copyAndRedirectToBot;
     if (typeof origFn !== "function" || origFn.__cnPaymentGated) return;
