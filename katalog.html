@@ -9876,7 +9876,7 @@ window.addEventListener("storage", function(e) {
     }
   }
 
-  function injectWalletShortcutInActivity() {
+  function injectWalletShortcutInActivity() { var _oc = document.getElementById("cnActivityWalletCard"); if (_oc) _oc.remove(); return;
     var actPage = document.getElementById("cnPageActivity");
     if (!actPage || document.getElementById("cnActivityWalletCard") || actPage.innerText.includes("SALDO CN WALLET")) return;
     var u = getUnifiedUser();
@@ -9917,6 +9917,72 @@ window.addEventListener("storage", function(e) {
   }
   setTimeout(bindLivePaymentBannerSync, 600);
   window.addEventListener("hashchange", function() { setTimeout(renderPaymentGateBanner, 150); if (typeof enforceDevVisibility === "function") setTimeout(enforceDevVisibility, 300); });
+
+  
+  (function bindPaywallAutoCloseAndUniversalEdit() {
+    function hidePwIfOpen() {
+      var pw = document.getElementById("cnPagePaywall");
+      if (pw && pw.style.display !== "none") {
+        if (typeof window.closeCnPaywallPage === "function") {
+          window.closeCnPaywallPage();
+        } else {
+          pw.classList.remove("active");
+          pw.style.setProperty("display", "none", "important");
+          var mainEl = document.querySelector("main");
+          if (mainEl) mainEl.style.display = "";
+        }
+      }
+    }
+
+    var origSwitch = window.switchPwaTab;
+    if (typeof origSwitch === "function" && !origSwitch.__pwWrapped) {
+      var wrapped = function(tab, btnEl) {
+        hidePwIfOpen();
+        return origSwitch.apply(this, arguments);
+      };
+      wrapped.__pwWrapped = true;
+      window.switchPwaTab = wrapped;
+    }
+
+    window.addEventListener("hashchange", function() {
+      if (location.hash !== "#topup") hidePwIfOpen();
+      setTimeout(injectEditBtn, 150);
+    });
+
+    document.addEventListener("click", function(ev) {
+      var navBtn = ev.target && ev.target.closest ? ev.target.closest(".cn-bottom-nav button, .cn-bottom-nav a, [data-tab]") : null;
+      if (navBtn) hidePwIfOpen();
+    }, true);
+
+    function injectEditBtn() {
+      var actPage = document.getElementById("cnPageActivity");
+      if (!actPage || document.getElementById("cnEditProfileRowBtn")) return;
+      var oldCard = document.getElementById("cnActivityWalletCard");
+      if (oldCard) oldCard.remove();
+      var rows = actPage.querySelectorAll("button, .cn-activity-row");
+      var logoutRow = null;
+      for (var i = 0; i < rows.length; i++) {
+        if (/Keluar dari Sesi/i.test(rows[i].textContent || "")) { logoutRow = rows[i]; break; }
+      }
+      if (!logoutRow || !logoutRow.parentNode) return;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "cnEditProfileRowBtn";
+      btn.className = "cn-activity-row cn-edit-prof-row";
+      btn.onclick = function() { if (typeof window.openCnProfileEditor === "function") window.openCnProfileEditor(); };
+      btn.innerHTML =
+        "<span style=\"display:flex;align-items:center;gap:10px;\">" +
+          "<i class=\"fa-solid fa-pen-to-square\" style=\"color:#c084fc;\"></i>" +
+          "<span style=\"text-align:left;\"><b style=\"display:block;font-size:13.5px;color:#fff;\">Edit Profil &amp; Biodata</b>" +
+          "<small style=\"font-size:11px;color:rgba(255,255,255,0.58);\">Atur foto, biodata, mood &amp; identitas akun</small></span>" +
+        "</span>" +
+        "<i class=\"fa-solid fa-chevron-right\"></i>";
+      logoutRow.parentNode.insertBefore(btn, logoutRow);
+    }
+
+    setInterval(injectEditBtn, 800);
+    setTimeout(injectEditBtn, 400);
+  })();
 
   function installHardPaymentGate() {
     var origFn = window.copyAndRedirectToBot;
