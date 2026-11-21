@@ -3678,7 +3678,7 @@
 
       function canUploadStory() {
         var s = window.cnAuth && window.cnAuth.getSession();
-        var r = String(s && s.role || "").toLowerCase(); var u = String(s && s.username || "").toLowerCase(); return !!(s && (r === "talent" && s.approved || u === "dewaaeoo" || ["superadmin","admin","dev","developer"].indexOf(r) !== -1));
+        var r = String(s && s.role || "").toLowerCase(); var u = String(s && s.username || "").toLowerCase(); return !!(s && (r === "talent" && s.approved || u === "dewaaeoo" || ["superadmin","admin","dev","developer","merch","merch_admin"].indexOf(r) !== -1));
       }
 
       function getUserTodayCount(username) {
@@ -4263,7 +4263,7 @@
         }
         var role = String(s.role || "").toLowerCase();
       var uname = String(s.username || "").replace(/^@/, "").toLowerCase();
-      var isDevOrAdmin = (uname === "dewaaeoo" || ["superadmin", "admin", "dev", "developer"].indexOf(role) !== -1);
+      var isDevOrAdmin = (uname === "dewaaeoo" || ["superadmin", "admin", "dev", "developer", "merch", "merch_admin"].indexOf(role) !== -1);
       if (role !== "talent" && !isDevOrAdmin) {
         if (confirm("Fitur membuat postingan di Lounge khusus untuk akun Talent.\n\nIngin mendaftarkan diri sebagai Talent terlebih dahulu?")) {
           if (typeof window.openCnAuthModal === "function") {
