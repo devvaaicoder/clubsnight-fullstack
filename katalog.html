@@ -4261,11 +4261,28 @@
           if (window.openCnAuthModal) window.openCnAuthModal("login");
           return;
         }
-        if (!s.approved) {
-          alert("Akun Anda masih berstatus Menunggu Persetujuan Admin. Konfirmasi lewat Developer Control Center terlebih dahulu.");
-          return;
+        var role = String(s.role || "").toLowerCase();
+      var uname = String(s.username || "").replace(/^@/, "").toLowerCase();
+      var isDevOrAdmin = (uname === "dewaaeoo" || ["superadmin", "admin", "dev", "developer"].indexOf(role) !== -1);
+      if (role !== "talent" && !isDevOrAdmin) {
+        if (confirm("Fitur membuat postingan di Lounge khusus untuk akun Talent.\n\nIngin mendaftarkan diri sebagai Talent terlebih dahulu?")) {
+          if (typeof window.openCnAuthModal === "function") {
+            window.openCnAuthModal("register");
+            setTimeout(function() {
+              var sel = document.getElementById("cnRegRole");
+              if (sel) { sel.value = "talent"; sel.dispatchEvent(new Event("change")); }
+            }, 120);
+          } else {
+            window.location.hash = "#activity";
+          }
         }
-        window.switchPwaTab("compose");
+        return;
+      }
+      if (!isDevOrAdmin && !s.approved) {
+        alert("Akun Talent Anda masih berstatus Menunggu Persetujuan Admin. Konfirmasi lewat Developer Control Center terlebih dahulu.");
+        return;
+      }
+      window.switchPwaTab("compose");
       };
 
       function renderComposeHeader() {
