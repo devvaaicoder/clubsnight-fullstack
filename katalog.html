@@ -678,7 +678,7 @@
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
   <!-- CN-SPLASH-BODY-START -->
-  <button type="button" id="cnSplashLoader" aria-label="Memuat Clubs'Night" onclick="if(typeof window.switchPwaTab==='function'){window.switchPwaTab('lounge');}">
+  <div id="cnSplashLoader" aria-label="Memuat Clubs'Night">
     <div class="cn-splash-logo-wrap">
       <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" alt="Clubs'Night" class="cn-splash-logo">
     </div>
@@ -902,11 +902,11 @@
             <span>E2E PRIVATE</span>
           </div>
         </div>
-        <button type="button" id="cnBtnLihatReady" class="cn-ed-cta" onclick="window.jumpToReadyReels(event);">
+        <button type="button" id="cnBtnLihatReady" class="cn-ed-cta" onclick="if(typeof window.switchPwaTab==='function'){window.switchPwaTab('lounge');}">
           <span>Jelajah Lounge</span>
           <i class="fa-solid fa-arrow-right"></i>
         </button>
-      </button>
+      </div>
     </section>
 
     <!-- HERO BANNER SLIDER (UTUH & BERSIH TANPA TERTIMPA TEKS) -->
