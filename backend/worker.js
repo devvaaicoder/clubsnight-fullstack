@@ -142,7 +142,7 @@ async function verifySessionToken(secret, token) {
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      fetch("https://GANTI-URL-RENDER-KAMU.onrender.com", {
+      fetch("https://clubsnight-api.onrender.com", {
         method: "GET",
         headers: { "User-Agent": "ClubsNight-KeepAlive/1.0" }
       }).catch(() => null)
