@@ -4031,7 +4031,44 @@
         return true;
       };
 
+      
+      window.cnGetStoryMeta = function() {
+        var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null;
+        var allowed = canUploadStory();
+        var used = (s && s.username) ? getUserTodayCount(s.username) : 0;
+        return { allowed: allowed, used: used, max: MAX_DAILY, session: s };
+      };
+
+      window.cnPublishStoryDirect = function(imgDataUrl, captionText) {
+        if (!canUploadStory() || !imgDataUrl) return false;
+        var s = window.cnAuth.getSession();
+        if (getUserTodayCount(s.username) >= MAX_DAILY) {
+          if (typeof window.cnToast === "function") window.cnToast("Kuota story harian (3/3) sudah penuh.", "error");
+          return false;
+        }
+        var list = getUploadedStories();
+        var newId = "ust_" + Date.now();
+        list.push({
+          id: newId,
+          ownerUsername: s.username,
+          ownerName: s.name || s.username,
+          color: "#ff2a5f",
+          image: imgDataUrl,
+          caption: (captionText || "").trim(),
+          createdAt: Date.now(),
+          dateKey: getTodayKey()
+        });
+        saveUploadedStories(list);
+        renderStoryBarWithUpload();
+        if (typeof window.broadcastCnRealtimeEvent === "function") {
+          window.broadcastCnRealtimeEvent("story_uploaded", { id: newId, ts: Date.now() });
+        }
+        if (typeof window.cnToast === "function") window.cnToast("Story berhasil dipublikasikan!", "info");
+        return true;
+      };
+
       window.addEventListener("cn:session-changed", renderStoryBarWithUpload);
+
 
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", renderStoryBarWithUpload);
@@ -11885,6 +11922,518 @@ window.addEventListener("storage", function(e) {
   };
 
   setTimeout(function() { applyGlobalAvatarAndName(getActiveUser()); }, 400);
+})();
+</script>
+
+
+<style id="cnWaStoryCss">
+  /* === SHEET 1: TAMBAH STORY (PICKER) === */
+  #cnWaStoryPicker {
+    position: fixed; inset: 0; z-index: 999992;
+    background: #090507; color: #f8fafc;
+    display: none; flex-direction: column;
+    font-family: inherit;
+  }
+  #cnWaStoryPicker.open { display: flex; }
+  .cn-ws-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .cn-ws-iconbtn {
+    width: 38px; height: 38px; border-radius: 50%; border: 0;
+    background: rgba(255,255,255,0.08); color: #fff; font-size: 16px;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .cn-ws-iconbtn:active { transform: scale(0.94); }
+  .cn-ws-title { font-size: 17px; font-weight: 700; }
+  .cn-ws-quota {
+    font-size: 11.5px; color: #fda4af; background: rgba(225,29,72,0.16);
+    border: 1px solid rgba(225,29,72,0.35); padding: 4px 10px; border-radius: 999px;
+    font-weight: 600;
+  }
+  .cn-ws-body {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 28px 20px; max-width: 460px; width: 100%; margin: 0 auto; box-sizing: border-box;
+  }
+  .cn-ws-mode-row {
+    display: flex; justify-content: center; gap: 28px; margin-bottom: 30px;
+  }
+  .cn-ws-mode-item {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    background: none; border: 0; color: #e2e8f0; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .cn-ws-mode-circle {
+    width: 62px; height: 62px; border-radius: 50%;
+    background: #1a0e13; border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: #fff; transition: background 0.2s, border-color 0.2s;
+  }
+  .cn-ws-mode-item:active .cn-ws-mode-circle {
+    background: #e11d48; border-color: #ff2a5f;
+  }
+  .cn-ws-gallery-card {
+    width: 100%; flex: 1; max-height: 320px;
+    background: #140b0f; border: 1.5px dashed rgba(255,42,95,0.38);
+    border-radius: 20px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    cursor: pointer; padding: 24px; text-align: center; box-sizing: border-box;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .cn-ws-gallery-card:active { background: #1c0f15; border-color: #ff2a5f; }
+  .cn-ws-gallery-ico {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: rgba(225,29,72,0.15); color: #ff2a5f;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+  }
+
+  /* === SHEET 2: EDITOR FOTO FULL-SCREEN (WHATSAPP STYLE) === */
+  #cnWaStoryEditor {
+    position: fixed; inset: 0; z-index: 999994;
+    background: #000; color: #fff;
+    display: none; flex-direction: column;
+    font-family: inherit; user-select: none;
+  }
+  #cnWaStoryEditor.open { display: flex; }
+  .cn-we-top {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent);
+  }
+  .cn-we-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: 0;
+    background: rgba(15,15,18,0.55); backdrop-filter: blur(8px);
+    color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cn-we-btn.active { background: #e11d48; }
+  .cn-we-stage {
+    position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+    overflow: hidden; background: #000;
+  }
+  #cnWePreviewImg {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    transition: filter 0.2s ease;
+  }
+  /* Overlay Teks Aa di atas foto */
+  #cnWeOverlayTextBox {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    z-index: 15; max-width: 86%; text-align: center; display: none;
+  }
+  #cnWeOverlayTextBox.show { display: block; }
+  #cnWeOverlayInput {
+    background: rgba(0,0,0,0.58); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px; padding: 10px 14px; font-size: 20px; font-weight: 700;
+    text-align: center; outline: none; min-width: 180px; max-width: 82vw;
+    font-family: inherit; resize: none;
+  }
+  /* Bottom Controls: ^ Filter + Caption + Send */
+  .cn-we-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+    padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, rgba(0,0,0,0.88) 65%, transparent);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .cn-we-filter-toggle {
+    align-self: center; background: none; border: 0; color: rgba(255,255,255,0.88);
+    font-size: 12.5px; font-weight: 600; cursor: pointer;
+    display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .cn-we-filter-tray {
+    display: none; gap: 8px; overflow-x: auto; padding: 4px 2px;
+    scrollbar-width: none;
+  }
+  .cn-we-filter-tray.open { display: flex; }
+  .cn-we-filter-chip {
+    flex: 0 0 auto; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18); background: rgba(20,11,15,0.8);
+    color: #e2e8f0; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .cn-we-filter-chip.active {
+    background: #e11d48; border-color: #ff2a5f; color: #fff;
+  }
+  .cn-we-send-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cn-we-caption-wrap {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    background: rgba(28,22,25,0.88); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 999px; padding: 6px 14px;
+  }
+  .cn-we-swap-btn {
+    background: none; border: 0; color: #cbd5e1; font-size: 16px;
+    cursor: pointer; padding: 4px; display: inline-flex; align-items: center;
+  }
+  #cnWeCaptionInput {
+    flex: 1; background: transparent; border: 0; outline: none;
+    color: #fff; font-size: 14px; padding: 6px 0; font-family: inherit;
+  }
+  .cn-we-send-btn {
+    width: 46px; height: 46px; border-radius: 50%; border: 0;
+    background: #e11d48; color: #fff; font-size: 17px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(225,29,72,0.45);
+  }
+  .cn-we-send-btn:active { transform: scale(0.94); }
+
+  /* === SHEET 3: STORY TEKS (WHATSAPP TEXT STATUS) === */
+  #cnWaTextStory {
+    position: fixed; inset: 0; z-index: 999995;
+    display: none; flex-direction: column;
+    font-family: inherit; transition: background 0.25s ease;
+  }
+  #cnWaTextStory.open { display: flex; }
+  .cn-wt-stage {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 28px;
+  }
+  #cnWtInput {
+    width: 100%; max-width: 420px; background: transparent; border: 0; outline: none;
+    color: #fff; font-size: 26px; font-weight: 700; text-align: center;
+    line-height: 1.38; resize: none; font-family: inherit;
+  }
+  #cnWtInput::placeholder { color: rgba(255,255,255,0.55); }
+  .cn-wt-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+</style>
+
+<!-- SHEET 1: TAMBAH STORY -->
+<div id="cnWaStoryPicker" aria-hidden="true">
+  <div class="cn-ws-topbar">
+    <button type="button" class="cn-ws-iconbtn" id="cnWsCloseBtn" aria-label="Tutup">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="cn-ws-title">Tambah Story</div>
+    <div class="cn-ws-quota" id="cnWsQuotaBadge">0 / 3</div>
+  </div>
+  <div class="cn-ws-body">
+    <div class="cn-ws-mode-row">
+      <button type="button" class="cn-ws-mode-item" id="cnWsOpenTextBtn">
+        <div class="cn-ws-mode-circle"><i class="fa-solid fa-pen"></i></div>
+        <span>Teks</span>
+      </button>
+    </div>
+
+    <div class="cn-ws-gallery-card" id="cnWsPickGalleryBtn">
+      <div class="cn-ws-gallery-ico"><i class="fa-regular fa-images"></i></div>
+      <div style="font-size:15px;font-weight:700;color:#fff;">Pilih Foto dari Galeri</div>
+      <div style="font-size:12.5px;color:#94a3b8;line-height:1.5;">
+        Pilih foto dari perangkat Anda, lalu tambahkan teks (Aa), filter, atau keterangan sebelum kirim.
+      </div>
+    </div>
+    <input type="file" id="cnWsFileInput" accept="image/*" style="display:none;" />
+  </div>
+</div>
+
+<!-- SHEET 2: EDITOR FOTO FULL-SCREEN -->
+<div id="cnWaStoryEditor" aria-hidden="true">
+  <div class="cn-we-top">
+    <button type="button" class="cn-we-btn" id="cnWeCloseBtn" aria-label="Tutup">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <button type="button" class="cn-we-btn" id="cnWeTextToggleBtn" aria-label="Tambah Teks" title="Tambah Teks">
+      Aa
+    </button>
+  </div>
+
+  <div class="cn-we-stage">
+    <img id="cnWePreviewImg" alt="Preview Story" />
+    <div id="cnWeOverlayTextBox">
+      <textarea id="cnWeOverlayInput" rows="2" placeholder="Ketik teks di foto..." maxlength="120"></textarea>
+    </div>
+  </div>
+
+  <div class="cn-we-bottom">
+    <button type="button" class="cn-we-filter-toggle" id="cnWeFilterToggleBtn">
+      <i class="fa-solid fa-chevron-up" id="cnWeFilterChev"></i>
+      <span>Filter</span>
+    </button>
+
+    <div class="cn-we-filter-tray" id="cnWeFilterTray"></div>
+
+    <div class="cn-we-send-row">
+      <div class="cn-we-caption-wrap">
+        <button type="button" class="cn-we-swap-btn" id="cnWeSwapImgBtn" title="Ganti Foto">
+          <i class="fa-regular fa-image"></i>
+        </button>
+        <input type="text" id="cnWeCaptionInput" placeholder="Tambah keterangan..." maxlength="160" />
+      </div>
+      <button type="button" class="cn-we-send-btn" id="cnWeSendBtn" aria-label="Kirim Story">
+        <i class="fa-solid fa-paper-plane"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SHEET 3: STORY TEKS -->
+<div id="cnWaTextStory" aria-hidden="true">
+  <div class="cn-we-top" style="background:none;">
+    <button type="button" class="cn-we-btn" id="cnWtCloseBtn" aria-label="Tutup">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <button type="button" class="cn-we-btn" id="cnWtColorBtn" aria-label="Ganti Warna Latar" title="Ganti Warna">
+      <i class="fa-solid fa-palette"></i>
+    </button>
+  </div>
+  <div class="cn-wt-stage">
+    <textarea id="cnWtInput" rows="5" placeholder="Ketik status..." maxlength="240"></textarea>
+  </div>
+  <div class="cn-wt-footer">
+    <div style="font-size:12px;color:rgba(255,255,255,0.75);">Story Teks • 24 Jam</div>
+    <button type="button" class="cn-we-send-btn" id="cnWtSendBtn" aria-label="Kirim Story Teks">
+      <i class="fa-solid fa-paper-plane"></i>
+    </button>
+  </div>
+</div>
+
+<script id="cnWaStoryJs">
+(function() {
+  var picker = document.getElementById("cnWaStoryPicker");
+  var editor = document.getElementById("cnWaStoryEditor");
+  var textSheet = document.getElementById("cnWaTextStory");
+  var fileInput = document.getElementById("cnWsFileInput");
+  var previewImg = document.getElementById("cnWePreviewImg");
+  var overlayBox = document.getElementById("cnWeOverlayTextBox");
+  var overlayInput = document.getElementById("cnWeOverlayInput");
+  var captionInput = document.getElementById("cnWeCaptionInput");
+  var filterTray = document.getElementById("cnWeFilterTray");
+  var filterChev = document.getElementById("cnWeFilterChev");
+  var quotaBadge = document.getElementById("cnWsQuotaBadge");
+  var wtInput = document.getElementById("cnWtInput");
+
+  var FILTERS = [
+    { name: "Asli", css: "none" },
+    { name: "Cinema", css: "contrast(1.15) saturate(1.22) brightness(0.96)" },
+    { name: "Warm", css: "sepia(0.28) saturate(1.3) brightness(1.03)" },
+    { name: "Noir", css: "grayscale(1) contrast(1.25)" },
+    { name: "Vivid", css: "saturate(1.55) contrast(1.08)" },
+    { name: "Fade", css: "contrast(0.88) brightness(1.08) saturate(0.85)" }
+  ];
+
+  var TEXT_BGS = [
+    "linear-gradient(145deg, #2a0a16 0%, #881337 100%)",
+    "linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%)",
+    "linear-gradient(145deg, #140b0f 0%, #e11d48 100%)",
+    "linear-gradient(145deg, #064e3b 0%, #0f172a 100%)",
+    "linear-gradient(145deg, #3b0764 0%, #9d174d 100%)"
+  ];
+
+  var activeFilterIdx = 0;
+  var activeTextBgIdx = 0;
+  var loadedImgObj = null;
+
+  // Render chip filter
+  FILTERS.forEach(function(f, idx) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "cn-we-filter-chip" + (idx === 0 ? " active" : "");
+    b.textContent = f.name;
+    b.onclick = function() {
+      activeFilterIdx = idx;
+      previewImg.style.filter = f.css;
+      filterTray.querySelectorAll(".cn-we-filter-chip").forEach(function(el, i) {
+        el.classList.toggle("active", i === idx);
+      });
+    };
+    filterTray.appendChild(b);
+  });
+
+  function closeAllStorySheets() {
+    picker.classList.remove("open");
+    editor.classList.remove("open");
+    textSheet.classList.remove("open");
+    picker.setAttribute("aria-hidden", "true");
+    editor.setAttribute("aria-hidden", "true");
+    textSheet.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  function openWaStoryComposer() {
+    var meta = (typeof window.cnGetStoryMeta === "function") ? window.cnGetStoryMeta() : { allowed: true, used: 0, max: 3 };
+    if (!meta.allowed) {
+      if (typeof window.cnToast === "function") window.cnToast("Hanya akun Talent, Merch, Admin, atau Developer yang dapat membuat Story.", "error");
+      return;
+    }
+    if (meta.used >= meta.max) {
+      if (typeof window.cnToast === "function") window.cnToast("Kuota story hari ini sudah penuh (" + meta.used + "/" + meta.max + ").", "error");
+      return;
+    }
+    quotaBadge.textContent = meta.used + " / " + meta.max + " hari ini";
+    picker.classList.add("open");
+    picker.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  // Override pembuka composer story lama
+  window.openCnStoryComposer = openWaStoryComposer;
+  window.closeCnStoryComposer = closeAllStorySheets;
+
+  document.getElementById("cnWsCloseBtn").onclick = closeAllStorySheets;
+  document.getElementById("cnWeCloseBtn").onclick = function() {
+    editor.classList.remove("open");
+    editor.setAttribute("aria-hidden", "true");
+    picker.classList.add("open");
+    picker.setAttribute("aria-hidden", "false");
+  };
+  document.getElementById("cnWtCloseBtn").onclick = function() {
+    textSheet.classList.remove("open");
+    textSheet.setAttribute("aria-hidden", "true");
+    picker.classList.add("open");
+    picker.setAttribute("aria-hidden", "false");
+  };
+
+  // Pilih Galeri
+  document.getElementById("cnWsPickGalleryBtn").onclick = function() { fileInput.click(); };
+  document.getElementById("cnWeSwapImgBtn").onclick = function() { fileInput.click(); };
+
+  fileInput.onchange = function(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        loadedImgObj = img;
+        activeFilterIdx = 0;
+        previewImg.src = e.target.result;
+        previewImg.style.filter = "none";
+        overlayInput.value = "";
+        captionInput.value = "";
+        overlayBox.classList.remove("show");
+        document.getElementById("cnWeTextToggleBtn").classList.remove("active");
+        filterTray.classList.remove("open");
+        filterChev.className = "fa-solid fa-chevron-up";
+        filterTray.querySelectorAll(".cn-we-filter-chip").forEach(function(el, i) { el.classList.toggle("active", i === 0); });
+
+        picker.classList.remove("open");
+        editor.classList.add("open");
+        editor.setAttribute("aria-hidden", "false");
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    fileInput.value = "";
+  };
+
+  // Toggle Aa Teks Overlay
+  document.getElementById("cnWeTextToggleBtn").onclick = function() {
+    var active = overlayBox.classList.toggle("show");
+    this.classList.toggle("active", active);
+    if (active) overlayInput.focus();
+  };
+
+  // Toggle Filter Tray
+  document.getElementById("cnWeFilterToggleBtn").onclick = function() {
+    var open = filterTray.classList.toggle("open");
+    filterChev.className = open ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-up";
+  };
+
+  // Kirim Story Foto (dengan Filter + Teks Aa dibakar ke Canvas)
+  document.getElementById("cnWeSendBtn").onclick = function() {
+    if (!loadedImgObj) return;
+    var maxSide = 1080;
+    var w = loadedImgObj.naturalWidth || 720;
+    var h = loadedImgObj.naturalHeight || 1280;
+    if (w > maxSide || h > maxSide) {
+      var ratio = Math.min(maxSide / w, maxSide / h);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+    }
+    var canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext("2d");
+    try { ctx.filter = FILTERS[activeFilterIdx].css; } catch (_) {}
+    ctx.drawImage(loadedImgObj, 0, 0, w, h);
+    try { ctx.filter = "none"; } catch (_) {}
+
+    var txt = overlayInput.value.trim();
+    if (txt) {
+      var fontSize = Math.max(24, Math.round(w * 0.055));
+      ctx.font = "700 " + fontSize + "px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      var lines = txt.split(/\n/);
+      var lineH = fontSize * 1.3;
+      var boxH = lines.length * lineH + 28;
+      var maxW = 0;
+      lines.forEach(function(l) { maxW = Math.max(maxW, ctx.measureText(l).width); });
+      var boxW = Math.min(w - 40, maxW + 44);
+      ctx.fillStyle = "rgba(0,0,0,0.62)";
+      ctx.fillRect((w - boxW) / 2, (h - boxH) / 2, boxW, boxH);
+      ctx.fillStyle = "#ffffff";
+      lines.forEach(function(l, i) {
+        var y = (h - boxH) / 2 + 14 + lineH * (i + 0.5);
+        ctx.fillText(l, w / 2, y, w - 60);
+      });
+    }
+
+    var finalUrl = canvas.toDataURL("image/jpeg", 0.82);
+    var cap = captionInput.value.trim();
+    if (typeof window.cnPublishStoryDirect === "function" && window.cnPublishStoryDirect(finalUrl, cap)) {
+      closeAllStorySheets();
+    }
+  };
+
+  // === MODE STORY TEKS ===
+  function applyTextBg() {
+    textSheet.style.background = TEXT_BGS[activeTextBgIdx];
+  }
+  document.getElementById("cnWsOpenTextBtn").onclick = function() {
+    wtInput.value = "";
+    applyTextBg();
+    picker.classList.remove("open");
+    textSheet.classList.add("open");
+    textSheet.setAttribute("aria-hidden", "false");
+    setTimeout(function() { wtInput.focus(); }, 100);
+  };
+  document.getElementById("cnWtColorBtn").onclick = function() {
+    activeTextBgIdx = (activeTextBgIdx + 1) % TEXT_BGS.length;
+    applyTextBg();
+  };
+  document.getElementById("cnWtSendBtn").onclick = function() {
+    var txt = wtInput.value.trim();
+    if (!txt) {
+      if (typeof window.cnToast === "function") window.cnToast("Tulis teks story terlebih dahulu.", "error");
+      return;
+    }
+    var canvas = document.createElement("canvas");
+    canvas.width = 720; canvas.height = 1280;
+    var ctx = canvas.getContext("2d");
+    var colors = [
+      ["#2a0a16", "#881337"], ["#0f172a", "#1e1b4b"],
+      ["#140b0f", "#e11d48"], ["#064e3b", "#0f172a"], ["#3b0764", "#9d174d"]
+    ][activeTextBgIdx];
+    var grad = ctx.createLinearGradient(0, 0, 720, 1280);
+    grad.addColorStop(0, colors[0]);
+    grad.addColorStop(1, colors[1]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 720, 1280);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "700 44px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Word wrap
+    var words = txt.split(/\s+/), lines = [], cur = "";
+    words.forEach(function(word) {
+      var test = cur ? (cur + " " + word) : word;
+      if (ctx.measureText(test).width > 600 && cur) {
+        lines.push(cur); cur = word;
+      } else { cur = test; }
+    });
+    if (cur) lines.push(cur);
+
+    var lineH = 60;
+    var startY = 640 - ((lines.length - 1) * lineH) / 2;
+    lines.forEach(function(l, i) { ctx.fillText(l, 360, startY + i * lineH, 620); });
+
+    var dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+    if (typeof window.cnPublishStoryDirect === "function" && window.cnPublishStoryDirect(dataUrl, "")) {
+      closeAllStorySheets();
+    }
+  };
 })();
 </script>
 
