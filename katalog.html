@@ -10887,5 +10887,91 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<script id="cnRealtimeRenderBridge">
+(function() {
+  var WS_URL = "wss://clubsnight-api.onrender.com/socket/websocket?vsn=2.0.0";
+  var ws = null;
+  var hbTimer = null;
+  var reconnTimer = null;
+  var refCounter = 1;
+
+  function triggerInstantRefresh() {
+    if (typeof window.pullLoungeFromCloud === "function") {
+      window.pullLoungeFromCloud(true);
+    } else {
+      if (typeof window.refreshCnLoungeFeed === "function") window.refreshCnLoungeFeed();
+      if (typeof window.renderCnStories === "function") window.renderCnStories();
+    }
+  }
+
+  function sendPhx(joinRef, topic, event, payload) {
+    if (!ws || ws.readyState !== 1) return;
+    try {
+      ws.send(JSON.stringify([joinRef, String(refCounter++), topic, event, payload || {}]));
+    } catch (_) {}
+  }
+
+  function connectRenderWs() {
+    if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+    try {
+      ws = new WebSocket(WS_URL);
+    } catch (_) {
+      return;
+    }
+
+    ws.onopen = function() {
+      // Join channel global Lounge & Story
+      sendPhx("1", "lounge:lobby", "phx_join", {});
+      sendPhx("2", "talent:status", "phx_join", {});
+
+      clearInterval(hbTimer);
+      hbTimer = setInterval(function() {
+        sendPhx(null, "phoenix", "heartbeat", {});
+      }, 25000);
+    };
+
+    ws.onmessage = function(ev) {
+      try {
+        var msg = JSON.parse(ev.data);
+        // Phoenix v2 format: [join_ref, ref, topic, event, payload]
+        var eventName = Array.isArray(msg) ? msg[3] : (msg && msg.event);
+        if (eventName && eventName !== "phx_reply" && eventName !== "heartbeat") {
+          triggerInstantRefresh();
+        }
+      } catch (_) {}
+    };
+
+    ws.onclose = function() {
+      clearInterval(hbTimer);
+      clearTimeout(reconnTimer);
+      reconnTimer = setTimeout(connectRenderWs, 5000);
+    };
+
+    ws.onerror = function() {
+      try { ws.close(); } catch (_) {}
+    };
+  }
+
+  // Expose helper broadcast agar saat user upload post/story/status langsung kirim sinyal ke Render WS
+  window.broadcastCnRealtimeEvent = function(eventName, payload) {
+    sendPhx("1", "lounge:lobby", eventName || "sync_update", payload || { ts: Date.now() });
+  };
+
+  // Fallback fast-sync 5 detik saat tab aktif (jaga-jaga jika Render sedang sleep/cold-start)
+  setInterval(function() {
+    if (document.visibilityState === "visible") {
+      triggerInstantRefresh();
+    }
+  }, 5000);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", connectRenderWs);
+  } else {
+    connectRenderWs();
+  }
+})();
+</script>
+
 </body>
 </html>
