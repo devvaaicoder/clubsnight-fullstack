@@ -678,7 +678,7 @@
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
   <!-- CN-SPLASH-BODY-START -->
-  <div id="cnSplashLoader" aria-label="Memuat Clubs'Night">
+  <button type="button" id="cnSplashLoader" aria-label="Memuat Clubs'Night" onclick="if(typeof window.switchPwaTab==='function'){window.switchPwaTab('lounge');}">
     <div class="cn-splash-logo-wrap">
       <img src="https://i.ibb.co.com/4RXGWh17/favicon.jpg" alt="Clubs'Night" class="cn-splash-logo">
     </div>
@@ -903,10 +903,10 @@
           </div>
         </div>
         <button type="button" id="cnBtnLihatReady" class="cn-ed-cta" onclick="window.jumpToReadyReels(event);">
-          <span>Lihat Ready</span>
+          <span>Jelajah Lounge</span>
           <i class="fa-solid fa-arrow-right"></i>
         </button>
-      </div>
+      </button>
     </section>
 
     <!-- HERO BANNER SLIDER (UTUH & BERSIH TANPA TERTIMPA TEKS) -->
@@ -2248,12 +2248,12 @@
         ],
         return_app: [
           "Senang melihatmu kembali. Status talent ready tetap diperbarui secara real-time di bawah ini.",
-          "Welcome back. Sesi privatmu masih menunggu — tekan Lihat Ready untuk langsung cek yang sedang online.",
+          "Welcome back. Sesi privatmu masih menunggu — buka Jelajah Lounge untuk langsung cek yang sedang online.",
           "Kembali lagi? Semua koleksi reels & layanan VIP tetap siap diakses kapan saja dengan privasi terjaga."
         ],
         return_home: [
           "Kembali ke Beranda & Reels. Jelajahi kurasi talent eksklusif yang sedang aktif sekarang.",
-          "Beranda siap. Gunakan filter karakter atau langsung tekan Lihat Ready untuk reservasi instan."
+          "Beranda siap. Gunakan filter karakter atau langsung buka Jelajah Lounge untuk reservasi instan."
         ]
       };
 
@@ -10728,11 +10728,11 @@ window.addEventListener("storage", function(e) {
 
   // Jalankan pengawal UI secara berkala
   setInterval(function() {
-    removeLihatReadyBtn();
+    
     unlockProfileAndPostButtons();
     enhanceStoryBarAndViewer();
   }, 600);
-  removeLihatReadyBtn();
+  
 })();
 </script>
 
