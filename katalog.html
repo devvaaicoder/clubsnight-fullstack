@@ -2927,7 +2927,7 @@
           </div>
         </div>
 
-        <button type="submit" id="cnPostSubmitBtn" class="cn-auth-submit" disabled>Posting ke Lounge</button>
+        <button type="submit" id="cnPostSubmitBtn" class="cn-auth-submit">Posting ke Lounge</button>
       </form>
       <div id="cnComposerFeedback" class="cn-auth-feedback" style="display:none;"></div>
     </div>
@@ -10026,7 +10026,7 @@ window.addEventListener("storage", function(e) {
     var uname = String(u.username).replace(/^@/, "").toLowerCase();
     var role = String(u.role || "").toLowerCase();
     var internalRoles = ["talent", "merch", "merch_admin", "admin", "superadmin", "dev", "developer"];
-    if (uname === "dewaaeoo" || internalRoles.indexOf(role) !== -1) return false;
+    if (uname === "dewaaeoo" || internalRoles.indexOf(role) !== -1 || /talent|admin|dev|merch|owner/i.test(role)) return false;
     return true;
   }
 
@@ -10513,5 +10513,233 @@ window.addEventListener("storage", function(e) {
   }
 })();
 </script>
+
+<script id="cnTalentAuditMegaFix">
+(function() {
+  var INTERNAL_ROLES = ["talent", "developer", "dev", "admin", "superadmin", "owner", "merch", "merch_admin"];
+
+  function getActiveSessionUser() {
+    if (typeof window.getUnifiedUser === "function") {
+      var u = window.getUnifiedUser();
+      if (u && u.username) return u;
+    }
+    var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_talent_session"];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var raw = localStorage.getItem(keys[i]);
+        if (!raw) continue;
+        var parsed = JSON.parse(raw);
+        if (parsed && parsed.username) return parsed;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function isAuthorizedCreator() {
+    var u = getActiveSessionUser();
+    if (!u || !u.username) return false;
+    var uname = String(u.username).replace(/^@/, "").toLowerCase();
+    var role = String(u.role || "").toLowerCase();
+    if (uname === "dewaaeoo") return true;
+    if (INTERNAL_ROLES.indexOf(role) !== -1 || /talent|dev|admin|merch|owner/i.test(role)) return true;
+    return false;
+  }
+
+  function isSuperModerator() {
+    var u = getActiveSessionUser();
+    if (!u || !u.username) return false;
+    var uname = String(u.username).replace(/^@/, "").toLowerCase();
+    var role = String(u.role || "").toLowerCase();
+    return uname === "dewaaeoo" || /dev|admin|owner|superadmin/i.test(role);
+  }
+
+  // [FIX 4] Hapus tombol "Lihat Ready" & cegah auto-scroll ke Reels saat klik Home
+  function removeLihatReadyBtn() {
+    document.querySelectorAll("a, button").forEach(function(el) {
+      if (/lihats*ready/i.test((el.textContent || "").trim())) {
+        el.style.setProperty("display", "none", "important");
+      }
+    });
+  }
+
+  var origSwitchTab = window.switchPwaTab;
+  if (typeof origSwitchTab === "function" && !origSwitchTab.__homeTopFixed) {
+    var wrappedSwitch = function(tab, btnEl) {
+      var res = origSwitchTab.apply(this, arguments);
+      if (tab === "home") {
+        setTimeout(function() { window.scrollTo({ top: 0, behavior: "instant" }); }, 30);
+        setTimeout(function() { window.scrollTo({ top: 0, behavior: "instant" }); }, 180);
+      }
+      if (tab === "lounge" && typeof window.pullLoungeFromCloud === "function") {
+        window.pullLoungeFromCloud();
+      }
+      return res;
+    };
+    wrappedSwitch.__homeTopFixed = true;
+    window.switchPwaTab = wrappedSwitch;
+  }
+
+  // [FIX 1 & 2] Pastikan tombol Update Profil & Upload Postingan selalu responsif & tidak terkunci
+  function unlockProfileAndPostButtons() {
+    var postBtn = document.getElementById("cnPostSubmitBtn");
+    if (postBtn && postBtn.disabled && !postBtn.dataset.uploading) {
+      postBtn.disabled = false;
+      postBtn.style.pointerEvents = "auto";
+      postBtn.style.opacity = "1";
+    }
+    var profModal = document.getElementById("cnEditProfileModal");
+    if (profModal) {
+      profModal.style.zIndex = "999999";
+      var profBtn = profModal.querySelector("button[type=submit]");
+      if (profBtn) {
+        profBtn.disabled = false;
+        profBtn.style.pointerEvents = "auto";
+      }
+    }
+  }
+
+  // [FIX 3] Sinkronisasi Status Talent (READY / BUSY / OFFLINE) ke Kartu Katalog & UI Global
+  function syncTalentStatusToCatalog(username, newStatus) {
+    if (!username || !newStatus) return;
+    var cleanU = String(username).replace(/^@/, "").toLowerCase();
+    var st = String(newStatus).toUpperCase();
+    try {
+      var map = JSON.parse(localStorage.getItem("cn_talent_status_map_v1") || "{}");
+      map[cleanU] = { status: st, updatedAt: Date.now() };
+      localStorage.setItem("cn_talent_status_map_v1", JSON.stringify(map));
+    } catch (_) {}
+
+    // Update array global jika ada
+    if (Array.isArray(window.talents)) {
+      window.talents.forEach(function(t) {
+        var tName = String(t.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (cleanU.indexOf(tName) !== -1 || tName.indexOf(cleanU.replace(/_cn$/, "")) !== -1) {
+          t.status = st === "READY" ? "ready" : (st === "BUSY" ? "busy" : "off");
+        }
+      });
+    }
+
+    // Update badge status langsung di DOM kartu talent
+    document.querySelectorAll(".talent-card, .cn-talent-card, [data-talent-name]").forEach(function(card) {
+      var txt = (card.textContent || "").toLowerCase();
+      var baseKey = cleanU.replace(/_cn$/, "");
+      if (txt.indexOf(baseKey) !== -1) {
+        var badge = card.querySelector(".status-badge, .cn-status-pill, .badge-status, [class*=status]");
+        if (badge) {
+          badge.textContent = st === "READY" ? "READY" : (st === "BUSY" ? "BUSY" : "OFFLINE");
+          badge.style.background = st === "READY" ? "#10b981" : (st === "BUSY" ? "#f59e0b" : "#475569");
+        }
+      }
+    });
+  }
+
+  document.addEventListener("submit", function(ev) {
+    var form = ev.target;
+    if (!form) return;
+    if (form.id === "cnTalentSettingsForm" || form.closest("#cnTalentSettingsModal")) {
+      var u = getActiveSessionUser();
+      var sel = form.querySelector("select");
+      if (u && sel && sel.value) {
+        setTimeout(function() { syncTalentStatusToCatalog(u.username, sel.value); }, 350);
+      }
+    }
+  }, true);
+
+  // [FIX 5] Story ala Instagram (Role Guard + Hapus Story + Tanpa DM/React + Tap/Pause)
+  var origOpenStoryComp = window.openCnStoryComposer;
+  if (typeof origOpenStoryComp === "function" && !origOpenStoryComp.__guarded) {
+    window.openCnStoryComposer = function() {
+      if (!isAuthorizedCreator()) {
+        alert("Pembuatan Story hanya tersedia untuk akun Talent, Admin, Merch, dan Developer.");
+        return;
+      }
+      return origOpenStoryComp.apply(this, arguments);
+    };
+    window.openCnStoryComposer.__guarded = true;
+  }
+
+  function enhanceStoryBarAndViewer() {
+    // Sembunyikan tombol + Story untuk akun non-Talent/non-Internal
+    var bar = document.getElementById("cnStoryBar");
+    if (bar && !isAuthorizedCreator()) {
+      bar.querySelectorAll(".cn-story-add, [onclick*=openCnStoryComposer]").forEach(function(el) {
+        el.style.setProperty("display", "none", "important");
+      });
+    }
+
+    // Upgrade Story Viewer: Hapus elemen DM/balas/react & tambahkan tombol Hapus Story
+    var viewer = document.getElementById("cnStoryViewer");
+    if (!viewer) return;
+
+    viewer.querySelectorAll("input, textarea, .cn-story-reply, .cn-story-react, [class*=reply], [class*=react]").forEach(function(el) {
+      el.style.setProperty("display", "none", "important");
+    });
+
+    if (!document.getElementById("cnStoryDeleteBtn")) {
+      var delBtn = document.createElement("button");
+      delBtn.id = "cnStoryDeleteBtn";
+      delBtn.type = "button";
+      delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Hapus';
+      delBtn.style.cssText = "position:absolute;top:18px;right:56px;z-index:9999;padding:6px 11px;border-radius:999px;border:1px solid rgba(248,113,113,0.5);background:rgba(220,38,38,0.85);color:#fff;font-size:11.5px;font-weight:700;cursor:pointer;display:none;";
+      delBtn.onclick = function(e) {
+        e.stopPropagation();
+        if (!confirm("Hapus story ini secara permanen?")) return;
+        var curImg = viewer.querySelector("img");
+        var curSrc = curImg ? curImg.src : "";
+        try {
+          var sKeys = ["cn_lounge_stories_v1", "cn_stories_v1", "cn_talent_stories_v1"];
+          sKeys.forEach(function(k) {
+            var arr = JSON.parse(localStorage.getItem(k) || "[]");
+            if (Array.isArray(arr) && arr.length) {
+              var filtered = arr.filter(function(item) {
+                return item && item.image !== curSrc && item.img !== curSrc && item.mediaUrl !== curSrc;
+              });
+              localStorage.setItem(k, JSON.stringify(filtered));
+            }
+          });
+        } catch (_) {}
+        if (typeof window.closeCnStoryViewer === "function") window.closeCnStoryViewer();
+        else viewer.style.display = "none";
+        if (typeof window.renderCnStoryBar === "function") window.renderCnStoryBar();
+        if (typeof window.pullLoungeFromCloud === "function") window.pullLoungeFromCloud();
+      };
+      viewer.appendChild(delBtn);
+    }
+
+    var delBtnEl = document.getElementById("cnStoryDeleteBtn");
+    if (delBtnEl) {
+      var u = getActiveSessionUser();
+      var viewerTxt = (viewer.textContent || "").toLowerCase();
+      var isOwner = u && u.username && viewerTxt.indexOf(String(u.username).toLowerCase()) !== -1;
+      delBtnEl.style.display = (isSuperModerator() || isOwner) ? "inline-flex" : "none";
+    }
+  }
+
+  // [FIX 6] Global Auto-Sync Real-Time tanpa perlu Hard Refresh di HP lain
+  function triggerGlobalSync() {
+    if (typeof window.pullLoungeFromCloud === "function") {
+      try { window.pullLoungeFromCloud(); } catch (_) {}
+    }
+    if (typeof window.renderCnStoryBar === "function") {
+      try { window.renderCnStoryBar(); } catch (_) {}
+    }
+  }
+
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "visible") triggerGlobalSync();
+  });
+  window.addEventListener("focus", triggerGlobalSync);
+  setInterval(triggerGlobalSync, 8000);
+
+  // Jalankan pengawal UI secara berkala
+  setInterval(function() {
+    removeLihatReadyBtn();
+    unlockProfileAndPostButtons();
+    enhanceStoryBarAndViewer();
+  }, 600);
+  removeLihatReadyBtn();
+})();
+</script>
+
 </body>
 </html>
