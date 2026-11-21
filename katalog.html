@@ -11091,7 +11091,7 @@ window.addEventListener("storage", function(e) {
     transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
     will-change: transform;
   }
-  .cn-autohide-hidden {
+  .cn-autohide-legacy-disabled {
     transform: translateY(-160%) !important;
     pointer-events: none !important;
   }
@@ -11123,7 +11123,7 @@ window.addEventListener("storage", function(e) {
     isHidden = hide;
     var els = getTopHeaderElements();
     els.forEach(function(el) {
-      el.classList.toggle("cn-autohide-hidden", hide);
+      el.classList.toggle("cn-autohide-legacy-disabled", hide);
     });
   }
 
@@ -11157,205 +11157,6 @@ window.addEventListener("storage", function(e) {
       lastY = 0;
     }
   }, true);
-})();
-</script>
-
-
-<style id="cnFinalFixV3Css">
-  #mainHeader, .cn-monarchy-header, .cn-top-ticker-hide {
-    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1) !important;
-    will-change: transform;
-  }
-  .cn-header-slid-up {
-    transform: translateY(-165%) !important;
-    pointer-events: none !important;
-  }
-</style>
-<script id="cnFinalFixV3Js">
-(function() {
-  // === [FIX 1] SMART AUTO-HIDE #mainHeader + TOP TICKER DI SEMUA SCROLL CONTAINER (TERMASUK REELS) ===
-  var scrollPosMap = new WeakMap();
-  var headerHidden = false;
-
-  function getHeaderNodes() {
-    var nodes = [];
-    var mh = document.getElementById("mainHeader");
-    if (mh) {
-      nodes.push(mh);
-      if (mh.previousElementSibling) {
-        var prev = mh.previousElementSibling;
-        var pst = window.getComputedStyle(prev);
-        if (pst.position === "fixed" || pst.position === "sticky") {
-          prev.classList.add("cn-top-ticker-hide");
-          nodes.push(prev);
-        }
-      }
-    }
-    return nodes;
-  }
-
-  function toggleHeader(hide) {
-    if (headerHidden === hide) return;
-    headerHidden = hide;
-    getHeaderNodes().forEach(function(el) {
-      el.classList.toggle("cn-header-slid-up", hide);
-    });
-  }
-
-  function onAnyScroll(ev) {
-    var target = ev.target === document ? document.documentElement : ev.target;
-    if (!target || target.nodeType !== 1) return;
-    // Abaikan modal/drawer
-    if (target.closest && target.closest(".cn-auth-modal, [class*=modal], [class*=drawer]")) return;
-
-    var curY = (target === document.documentElement || target === document.body)
-      ? (window.scrollY || document.documentElement.scrollTop || 0)
-      : (target.scrollTop || 0);
-
-    var prevY = scrollPosMap.has(target) ? scrollPosMap.get(target) : curY;
-    var diff = curY - prevY;
-
-    if (curY <= 25) {
-      toggleHeader(false);
-    } else if (diff > 6 && curY > 50) {
-      toggleHeader(true);
-    } else if (diff < -6) {
-      toggleHeader(false);
-    }
-    scrollPosMap.set(target, curY < 0 ? 0 : curY);
-  }
-
-  document.addEventListener("scroll", onAnyScroll, true);
-  window.addEventListener("scroll", function() { onAnyScroll({ target: document }); }, { passive: true });
-
-  // === [FIX 2] PERBAIKI TOMBOL SIMPAN PERUBAHAN PROFIL (#cnEditProfileForm) ===
-  function bindProfileSaveFailsafe() {
-    var form = document.getElementById("cnEditProfileForm");
-    if (!form || form.__v3Bound) return;
-    form.__v3Bound = true;
-
-    var submitBtn = form.querySelector("button[type=submit]");
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.style.pointerEvents = "auto";
-    }
-
-    form.addEventListener("submit", function(e) {
-      // Jalankan failsafe jika modal tidak tertutup otomatis dalam 250ms
-      setTimeout(function() {
-        var modal = document.getElementById("cnEditProfileModal");
-        if (!modal || modal.style.display === "none" || modal.getAttribute("aria-hidden") === "true") return;
-
-        var nameIn = form.querySelector("#cnEditName, input[name=name], input[type=text]");
-        var bioIn = form.querySelector("#cnEditBio, textarea");
-        var newName = nameIn ? nameIn.value.trim() : "";
-        var newBio = bioIn ? bioIn.value.trim() : "";
-
-        var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"];
-        keys.forEach(function(k) {
-          try {
-            var u = JSON.parse(localStorage.getItem(k) || "null");
-            if (!u) return;
-            if (newName) u.name = newName;
-            if (newBio) u.bio = newBio;
-            localStorage.setItem(k, JSON.stringify(u));
-          } catch (_) {}
-        });
-
-        try {
-          fetch("https://clubsnight-api.onrender.com/api/profile", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: newName, bio: newBio })
-          }).catch(function() {});
-        } catch (_) {}
-
-        if (typeof window.closeCnProfileEditor === "function") window.closeCnProfileEditor();
-        else {
-          modal.style.display = "none";
-          modal.setAttribute("aria-hidden", "true");
-        }
-        window.dispatchEvent(new CustomEvent("cn:session-changed"));
-        if (typeof window.cnToast === "function") window.cnToast("Profil berhasil diperbarui!", "info");
-      }, 250);
-    }, false);
-  }
-
-  // === [FIX 3] HAPUS STORY PERMANEN (cn_talent_stories_v1 + CLOUD SYNC + renderCnStories) ===
-  function bindStoryDeleteV3() {
-    var delBtn = document.getElementById("cnStoryDeleteBtn");
-    var viewer = document.getElementById("cnStoryViewer");
-    if (!delBtn || !viewer || delBtn.__v3Bound) return;
-    delBtn.__v3Bound = true;
-
-    delBtn.onclick = function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!confirm("Hapus story ini secara permanen?")) return;
-
-      var curImg = viewer.querySelector("img.cn-story-media, img#cnStoryMedia, img");
-      var curSrc = curImg ? curImg.src : "";
-      var viewerTxt = (viewer.textContent || "").toLowerCase();
-
-      // Simpan ke blocklist agar tidak balik lagi saat pull cloud
-      try {
-        var delList = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]");
-        if (curSrc && delList.indexOf(curSrc) === -1) delList.push(curSrc);
-        localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(delList.slice(-150)));
-      } catch (_) {}
-
-      // Hapus dari cn_talent_stories_v1 (akan otomatis memicu cloud push lewat interceptor setItem)
-      try {
-        var arr = JSON.parse(localStorage.getItem("cn_talent_stories_v1") || "[]");
-        if (Array.isArray(arr)) {
-          var next = arr.filter(function(st) {
-            if (!st) return false;
-            var img = st.image || st.img || st.mediaUrl || st.url || "";
-            if (curSrc && img && (img === curSrc || curSrc.indexOf(img) !== -1 || img.indexOf(curSrc) !== -1)) {
-              if (st.id) {
-                var dl = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]");
-                dl.push(String(st.id));
-                localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(dl.slice(-150)));
-              }
-              return false;
-            }
-            return true;
-          });
-          // Fallback jika URL tidak persis sama: hapus story milik author yang sedang tampil
-          if (next.length === arr.length) {
-            var removedOne = false;
-            next = arr.filter(function(st) {
-              var uname = String((st && (st.username || st.author || st.name)) || "").toLowerCase();
-              if (!removedOne && uname && viewerTxt.indexOf(uname) !== -1) {
-                removedOne = true;
-                if (st.id) {
-                  var dl = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]");
-                  dl.push(String(st.id));
-                  localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(dl.slice(-150)));
-                }
-                return false;
-              }
-              return true;
-            });
-          }
-          localStorage.setItem("cn_talent_stories_v1", JSON.stringify(next));
-        }
-      } catch (_) {}
-
-      if (typeof window.closeCnStoryViewer === "function") window.closeCnStoryViewer();
-      else viewer.style.display = "none";
-
-      if (typeof window.renderCnStories === "function") window.renderCnStories();
-      if (typeof window.broadcastCnRealtimeEvent === "function") window.broadcastCnRealtimeEvent("story_deleted", { ts: Date.now() });
-      if (typeof window.cnToast === "function") window.cnToast("Story berhasil dihapus permanen.", "info");
-    };
-  }
-
-  setInterval(function() {
-    bindProfileSaveFailsafe();
-    bindStoryDeleteV3();
-  }, 500);
 })();
 </script>
 
@@ -12549,6 +12350,94 @@ window.addEventListener("storage", function(e) {
       }, 220);
     }, false);
   }
+})();
+</script>
+
+
+<style id="cnHeaderSingleFixCss">
+  .cn-top-ticker, #mainHeader, .cn-monarchy-header {
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    will-change: transform;
+  }
+  body.cn-top-bar-hidden .cn-top-ticker,
+  body.cn-top-bar-hidden #mainHeader,
+  body.cn-top-bar-hidden .cn-monarchy-header {
+    transform: translateY(-220%) !important;
+    pointer-events: none !important;
+  }
+  body:not(.cn-top-bar-hidden) .cn-top-ticker,
+  body:not(.cn-top-bar-hidden) #mainHeader,
+  body:not(.cn-top-bar-hidden) .cn-monarchy-header {
+    transform: translateY(0) !important;
+    pointer-events: auto !important;
+  }
+</style>
+<script id="cnHeaderSingleFixJs">
+(function() {
+  var lastPosMap = new WeakMap();
+  var rafId = null;
+  var hiddenState = false;
+
+  function applyBarState(shouldHide) {
+    hiddenState = !!shouldHide;
+    document.body.classList.toggle("cn-top-bar-hidden", hiddenState);
+  }
+
+  function readScrollY(el) {
+    if (!el || el === window || el === document || el === document.documentElement || el === document.body) {
+      return Math.max(
+        0,
+        window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0
+      );
+    }
+    return Math.max(0, el.scrollTop || 0);
+  }
+
+  function processScrollTarget(rawTarget) {
+    var isDoc = !rawTarget || rawTarget === window || rawTarget === document || rawTarget === document.documentElement || rawTarget === document.body;
+    var key = isDoc ? document.documentElement : rawTarget;
+    if (!isDoc && key.nodeType === 1 && key.closest && key.closest(".cn-auth-modal, [class*=modal], [class*=drawer]")) {
+      return;
+    }
+
+    var curY = readScrollY(key);
+    var prevY = lastPosMap.has(key) ? lastPosMap.get(key) : curY;
+    var delta = curY - prevY;
+    lastPosMap.set(key, curY);
+
+    if (curY <= 24) {
+      applyBarState(false);
+    } else if (delta > 5 && curY > 64) {
+      applyBarState(true);
+    } else if (delta < -4) {
+      applyBarState(false);
+    }
+  }
+
+  document.addEventListener("scroll", function(ev) {
+    var target = ev.target;
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(function() {
+      rafId = null;
+      processScrollTarget(target);
+    });
+  }, true);
+
+  window.addEventListener("scroll", function() {
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(function() {
+      rafId = null;
+      processScrollTarget(window);
+    });
+  }, { passive: true });
+
+  // Paksa tampil kembali saat pindah tab / klik navigasi bawah
+  document.addEventListener("click", function(ev) {
+    if (ev.target && ev.target.closest && ev.target.closest("[data-pwa-tab], .cn-bottom-nav, .cn-bnav")) {
+      applyBarState(false);
+      lastPosMap.set(document.documentElement, 0);
+    }
+  }, true);
 })();
 </script>
 
