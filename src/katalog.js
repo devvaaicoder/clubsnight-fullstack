@@ -1950,7 +1950,7 @@ async function copyAndRedirectToBot(e) {
   if (hargaBase <= 0) { alert("Pilih layanan terlebih dahulu!"); return; }
 
   // === HARD PAYMENT GATE (CN WALLET WAJIB SEBELUM TELEGRAM) ===
-  const WORKER_API = "https://clubsnight-fullstack.devvaaicoder.workers.dev";
+  const WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
   const formatRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 
   // Pastikan CSS & Luxury Modal Card + Paywall Page selalu tersedia di DOM

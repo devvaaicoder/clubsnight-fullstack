@@ -8387,7 +8387,7 @@ window.addEventListener("storage", function(e) {
         }
 
         // Kirim pembaruan profil ke backend Elixir (non-blocking)
-        fetch("https://clubsnight-api.onrender.com/api/profile", {
+        fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/profile/update", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -11705,7 +11705,7 @@ window.addEventListener("storage", function(e) {
     }
 
     try {
-      fetch("https://clubsnight-api.onrender.com/api/profile", {
+      fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/profile/update", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -12438,6 +12438,51 @@ window.addEventListener("storage", function(e) {
       lastPosMap.set(document.documentElement, 0);
     }
   }, true);
+})();
+</script>
+
+
+<script id="cnFullstackSyncHardeningJs">
+(function() {
+  var WORKER_HOST = "clubsnight-fullstack.clubsnight.workers.dev";
+  var SESSION_KEYS = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_session_token"];
+
+  function getActiveSessionToken() {
+    for (var i = 0; i < SESSION_KEYS.length; i++) {
+      try {
+        var raw = localStorage.getItem(SESSION_KEYS[i]);
+        if (!raw) continue;
+        if (raw.charAt(0) === "{") {
+          var obj = JSON.parse(raw);
+          if (obj && obj.sessionToken) return String(obj.sessionToken);
+        } else if (raw.indexOf(".") !== -1 && raw.length > 20) {
+          return raw;
+        }
+      } catch (_) {}
+    }
+    return "";
+  }
+
+  var origFetch = window.fetch;
+  if (typeof origFetch === "function" && !origFetch.__cnTokenInjected) {
+    window.fetch = function(input, init) {
+      var urlStr = typeof input === "string" ? input : (input && input.url ? input.url : "");
+      if (urlStr.indexOf(WORKER_HOST) !== -1) {
+        var tok = getActiveSessionToken();
+        if (tok) {
+          init = Object.assign({}, init || {});
+          var hdrs = new Headers(init.headers || (typeof input !== "string" && input.headers) || {});
+          if (!hdrs.has("X-Session-Token")) hdrs.set("X-Session-Token", tok);
+          init.headers = hdrs;
+        }
+      }
+      if (urlStr.indexOf("/logout") !== -1) {
+        SESSION_KEYS.forEach(function(k) { try { localStorage.removeItem(k); } catch (_) {} });
+      }
+      return origFetch.call(this, input, init);
+    };
+    window.fetch.__cnTokenInjected = true;
+  }
 })();
 </script>
 
