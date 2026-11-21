@@ -9250,7 +9250,16 @@ window.addEventListener("storage", function(e) {
   }
 
   function injectBackupApprovalPanel() {
-    var devModalBody = document.querySelector("#cnDevCenterModal .cn-dev-body, #cnDevCenterModal .cn-auth-card");
+    var devModalBody = document.querySelector("#cnDevCenterModal .cn-dev-body, #cnDevCenterModal .cn-auth-card, #cnDevCenterModal > div");
+    if (!devModalBody) {
+      var headings = document.querySelectorAll("h2, h3, h4, div");
+      for (var i = 0; i < headings.length; i++) {
+        if (headings[i].childElementCount === 0 && /Developer Control Center/i.test(headings[i].textContent || "")) {
+          devModalBody = headings[i].closest(".cn-modal-card, .cn-dev-card, .modal-content, [id*=Dev]") || headings[i].parentElement.parentElement;
+          break;
+        }
+      }
+    }
     if (!devModalBody || document.getElementById("cnBackupQrisPanel")) return;
 
     var panel = document.createElement("div");
@@ -9330,6 +9339,7 @@ window.addEventListener("storage", function(e) {
     injectBackupApprovalPanel();
   }, 600);
   window.addEventListener("cn:session-changed", window.syncWalletBalanceFromServer);
+  setInterval(injectBackupApprovalPanel, 1200);
 })();
 </script>
 
