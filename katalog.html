@@ -9544,65 +9544,72 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     });
   };
 
+  var paywallStartBal = 0;
+
   window.openCnPaywallPage = async function(opts) {
     opts = opts || {};
     var u = getUnifiedUser();
-    if (!u) {
-      window.location.href = "/login.html";
-      return;
+    if (!u) { window.location.href = "/login.html"; return; }
+
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    activePaywallIntent = null;
+    var invBox = document.getElementById("cnPwInvoiceBox");
+    if (invBox) invBox.style.display = "none";
+
+    var pwPage = document.getElementById("cnPagePaywall");
+    document.querySelectorAll("main, .cn-pwa-page, #cnPubProfilePage").forEach(function(sec) {
+      if (sec.id !== "cnPagePaywall" && (!pwPage || !sec.contains(pwPage))) {
+        sec.style.display = "none";
+      }
+    });
+    if (pwPage) {
+      pwPage.style.display = "block";
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     renderBankMarquees();
-    var bal = await fetchServerBalance(u.username);
-    var required = Number(opts.requiredAmount || 0);
-    var shortage = required > bal ? (required - bal) : (required || 100000);
-    var suggestedTopup = Math.max(10000, Math.ceil(shortage / 1000) * 1000);
-
     var curEl = document.getElementById("cnPwCurrentBal");
     var reqEl = document.getElementById("cnPwRequiredBal");
     var reasonEl = document.getElementById("cnPwReasonBanner");
     var ctxEl = document.getElementById("cnPwOrderContext");
+    if (curEl) curEl.textContent = "Memuat...";
+
+    var bal = 0;
+    try { bal = Number(await fetchServerBalance(u.username)) || 0; }
+    catch (_) { bal = Number(getLocalWalletBalance(u.username)) || 0; }
+    paywallStartBal = bal;
+
+    var required = Number(opts.requiredAmount || 0);
+    var shortage = required > bal ? (required - bal) : (required || 100000);
+    var suggestedTopup = Math.max(10000, Math.ceil(shortage / 1000) * 1000);
 
     if (curEl) {
       curEl.textContent = formatRp(bal);
       curEl.style.color = bal >= required && required > 0 ? "#34d399" : "#fb7185";
     }
-    if (reqEl) {
-      reqEl.textContent = required > 0 ? formatRp(required) : formatRp(suggestedTopup);
-    }
+    if (reqEl) reqEl.textContent = required > 0 ? formatRp(required) : formatRp(suggestedTopup);
 
     if (reasonEl) {
       if (required > 0 && bal < required) {
         reasonEl.innerHTML =
-          '<b><i class="fa-solid fa-triangle-exclamation"></i> Saldo CN Wallet Anda Kurang ' + formatRp(required - bal) + '</b><br/>' +
-          'Sistem pemesanan kini mewajibkan pembayaran melalui <b>Saldo CN Wallet</b> terlebih dahulu (menggantikan sistem lama langsung ke Telegram). Silakan isi saldo minimal <b>' + formatRp(suggestedTopup) + '</b> di bawah ini, lalu kembali selesaikan order Anda.';
+          "<b><i class=\"fa-solid fa-triangle-exclamation\"></i> Saldo CN Wallet Anda Kurang " + formatRp(required - bal) + "</b><br/>" +
+          "Silakan isi saldo minimal <b>" + formatRp(suggestedTopup) + "</b> di bawah ini, lalu kembali selesaikan order Anda.";
       } else {
         reasonEl.innerHTML =
-          '<b><i class="fa-solid fa-wallet"></i> Isi Saldo CN Wallet Instan</b><br/>' +
-          'Gunakan saldo CN Wallet untuk reservasi cepat tanpa antre. Mendukung seluruh transfer Bank &amp; E-Wallet Indonesia melalui QRIS Dinamis.';
+          "<b><i class=\"fa-solid fa-wallet\"></i> Isi Saldo CN Wallet Instan</b><br/>" +
+          "Gunakan saldo CN Wallet untuk reservasi cepat tanpa antre. Mendukung seluruh transfer Bank &amp; E-Wallet Indonesia melalui QRIS Dinamis.";
       }
     }
 
     if (ctxEl) {
       if (opts.serviceLabel) {
         ctxEl.style.display = "block";
-        ctxEl.innerHTML = '<i class="fa-solid fa-bookmark" style="color:#ff80ab;"></i> Order Tertunda: <b>' + opts.serviceLabel + '</b>';
+        ctxEl.innerHTML = "<i class=\"fa-solid fa-bookmark\" style=\"color:#ff80ab;\"></i> Order Tertunda: <b>" + opts.serviceLabel + "</b>";
       } else {
         ctxEl.style.display = "none";
       }
     }
-
     window.selectCnPaywallAmount(suggestedTopup);
-
-    // Sembunyikan halaman/tab lain & tampilkan Paywall Page secara penuh (bukan tab Aktivitas)
-    document.querySelectorAll("main, .cn-pwa-page, #cnPubProfilePage").forEach(function(sec) {
-      if (sec.id !== "cnPagePaywall") sec.style.display = "none";
-    });
-    var pwPage = document.getElementById("cnPagePaywall");
-    if (pwPage) {
-      pwPage.style.display = "block";
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
   };
 
   window.closeCnPaywallPage = function() {
@@ -9610,8 +9617,8 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     var pwPage = document.getElementById("cnPagePaywall");
     if (pwPage) pwPage.style.display = "none";
     var mainEl = document.querySelector("main");
-    if (mainEl) mainEl.style.display = "block";
-    renderPaymentGateBanner();
+    if (mainEl) mainEl.style.display = "";
+    if (typeof renderPaymentGateBanner === "function") renderPaymentGateBanner();
   };
 
   window.generateCnPaywallInvoice = async function() {
@@ -9619,9 +9626,10 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     if (!u) { window.location.href = "/login.html"; return; }
     var amt = Math.max(10000, Math.round(Number(document.getElementById("cnPwAmountInput")?.value || 0)));
     var btn = document.getElementById("cnPwGenerateBtn");
+    var statusEl = document.getElementById("cnPwStatusMsg");
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membuat Kode Unik &amp; QRIS...';
+      btn.innerHTML = "<i class=\"fa-solid fa-spinner fa-spin\"></i> Membuat Kode Unik &amp; QRIS...";
     }
 
     try {
@@ -9641,7 +9649,7 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
 
       var res = await fetch(WORKER_API + "/api/wallet/intent", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessTok || "" },
         body: JSON.stringify({
           username: u.username,
           baseAmount: amt,
@@ -9651,16 +9659,14 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
       });
       var data = await res.json().catch(function() { return {}; });
 
-      var totalBayar = amt;
-      var intentId = "QRS-" + Date.now();
-      var kodeUnik = 0;
-
-      if (res.ok && data && data.success && data.intent) {
-        activePaywallIntent = data.intent;
-        totalBayar = data.intent.totalAmount;
-        intentId = data.intent.id;
-        kodeUnik = data.intent.uniqueCode;
+      if (!res.ok || !data || !data.success || !data.intent) {
+        throw new Error(data.error || "Server gagal membuat tagihan QRIS.");
       }
+
+      activePaywallIntent = data.intent;
+      var totalBayar = data.intent.totalAmount;
+      var intentId = data.intent.id;
+      var kodeUnik = Number(data.intent.uniqueCode || 0);
 
       var qrisStr = buildDynamicQrisString(totalBayar);
       var qrImg = document.getElementById("cnPwQrImage");
@@ -9672,28 +9678,35 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
       document.getElementById("cnPwUniqueInfo").textContent = kodeUnik > 0
         ? ("Nominal " + formatRp(amt) + " + Kode Unik " + formatRp(kodeUnik) + " (Otomatis masuk 1-5 detik setelah bayar)")
         : "Scan QRIS di atas dengan nominal tepat";
-      document.getElementById("cnPwInvoiceBox").style.display = "block";
-      document.getElementById("cnPwStatusMsg").textContent = "⏳ Menunggu pembayaran masuk dari " + selectedBankName + "...";
 
-      // Auto-polling saldo setiap 5 detik
-      var startBal = getLocalWalletBalance(u.username);
+      document.getElementById("cnPwInvoiceBox").style.display = "block";
+      if (statusEl) statusEl.textContent = "⏳ Menunggu pembayaran masuk dari " + selectedBankName + "...";
+
+      try { paywallStartBal = Number(await fetchServerBalance(u.username)) || paywallStartBal; } catch (_) {}
+
       if (pollTimer) clearInterval(pollTimer);
+      var pollCount = 0;
       pollTimer = setInterval(async function() {
-        var latest = await fetchServerBalance(u.username);
-        if (latest > startBal) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-          document.getElementById("cnPwCurrentBal").textContent = formatRp(latest);
-          document.getElementById("cnPwCurrentBal").style.color = "#34d399";
-          document.getElementById("cnPwStatusMsg").innerHTML = "✅ TOP-UP BERHASIL! Saldo baru Anda: <b>" + formatRp(latest) + "</b>. Klik 'Kembali ke Booking' untuk lanjut ke Telegram.";
-        }
+        pollCount++;
+        if (pollCount > 60) { clearInterval(pollTimer); pollTimer = null; return; }
+        try {
+          var latest = Number(await fetchServerBalance(u.username)) || 0;
+          if (latest > paywallStartBal) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            paywallStartBal = latest;
+            var cEl = document.getElementById("cnPwCurrentBal");
+            if (cEl) { cEl.textContent = formatRp(latest); cEl.style.color = "#34d399"; }
+            if (statusEl) statusEl.innerHTML = "✅ TOP-UP BERHASIL! Saldo baru Anda: <b>" + formatRp(latest) + "</b>. Klik Kembali untuk lanjut.";
+          }
+        } catch (_) {}
       }, 5000);
     } catch (err) {
-      alert("Gagal membuat tagihan pembayaran. Periksa koneksi internet Anda.");
+      alert(err.message || "Gagal membuat tagihan pembayaran. Periksa koneksi internet Anda.");
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-qrcode"></i> Buat Ulang Tagihan &amp; QRIS Pembayaran';
+        btn.innerHTML = "<i class=\"fa-solid fa-qrcode\"></i> Buat Ulang Tagihan &amp; QRIS Pembayaran";
       }
     }
   };
@@ -9711,11 +9724,20 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
     if (!u) return;
     var statusEl = document.getElementById("cnPwStatusMsg");
     if (manualClick && statusEl) statusEl.textContent = "🔄 Mengecek mutasi saldo di server...";
-    var latest = await fetchServerBalance(u.username);
-    var curEl = document.getElementById("cnPwCurrentBal");
-    if (curEl) curEl.textContent = formatRp(latest);
-    if (statusEl) {
-      statusEl.textContent = "Saldo terverifikasi saat ini: " + formatRp(latest) + ". Jika baru saja transfer, tunggu 5-10 detik lalu klik Cek Status Masuk lagi.";
+    try {
+      var latest = Number(await fetchServerBalance(u.username)) || 0;
+      var curEl = document.getElementById("cnPwCurrentBal");
+      if (curEl) curEl.textContent = formatRp(latest);
+      if (latest > paywallStartBal) {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        paywallStartBal = latest;
+        if (curEl) curEl.style.color = "#34d399";
+        if (statusEl) statusEl.innerHTML = "✅ TOP-UP BERHASIL! Saldo baru Anda: <b>" + formatRp(latest) + "</b>. Klik Kembali untuk lanjut.";
+      } else if (statusEl) {
+        statusEl.textContent = "Saldo terverifikasi saat ini: " + formatRp(latest) + ". Jika baru saja transfer, tunggu 5-10 detik lalu klik Cek Status Masuk lagi.";
+      }
+    } catch (_) {
+      if (statusEl) statusEl.textContent = "⚠️ Gagal menghubungi server. Coba lagi beberapa saat.";
     }
   };
 
