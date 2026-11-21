@@ -9565,7 +9565,7 @@ window.addEventListener("storage", function(e) {
     if (pwPage) {
       var mainEl = document.querySelector("main");
       if (mainEl && mainEl.parentNode && pwPage.previousElementSibling !== mainEl) mainEl.parentNode.insertBefore(pwPage, mainEl.nextSibling);
-      pwPage.style.display = "block";
+      pwPage.classList.add("active"); pwPage.style.setProperty("display","block","important"); pwPage.style.opacity="1"; pwPage.style.visibility="visible";
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -9617,7 +9617,7 @@ window.addEventListener("storage", function(e) {
   window.closeCnPaywallPage = function() {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     var pwPage = document.getElementById("cnPagePaywall");
-    if (pwPage) pwPage.style.display = "none";
+    if (pwPage) { pwPage.classList.remove("active"); pwPage.style.setProperty("display","none","important"); }
     var mainEl = document.querySelector("main");
     if (mainEl) mainEl.style.display = "";
     if (typeof renderPaymentGateBanner === "function") renderPaymentGateBanner();
@@ -9772,7 +9772,7 @@ window.addEventListener("storage", function(e) {
     var totalEl = document.getElementById("displayTotal");
     if (totalEl) {
       var txt = totalEl.textContent || "";
-      var m = txt.match(/Rp\s*([0-9.,]+)/i);
+      var m = txt.match(/([0-9][0-9.,]*)/);
       if (m && m[1]) {
         var parsed = Number(m[1].replace(/[^0-9]/g, ""));
         if (parsed > 0) return parsed;
@@ -9845,6 +9845,22 @@ window.addEventListener("storage", function(e) {
       firstGroup.parentNode.insertBefore(card, firstGroup);
     }
   }
+
+  function bindLivePaymentBannerSync() {
+    var totalEl = document.getElementById("displayTotal");
+    if (totalEl && !totalEl.__cnObs) {
+      totalEl.__cnObs = true;
+      new MutationObserver(function() { renderPaymentGateBanner(); }).observe(totalEl, { childList: true, characterData: true, subtree: true });
+    }
+    var calc = document.getElementById("calculatorCardInline");
+    if (calc && !calc.__cnSync) {
+      calc.__cnSync = true;
+      calc.addEventListener("change", function() { setTimeout(renderPaymentGateBanner, 50); });
+      calc.addEventListener("input", function() { setTimeout(renderPaymentGateBanner, 50); });
+    }
+  }
+  setTimeout(bindLivePaymentBannerSync, 600);
+  window.addEventListener("hashchange", function() { setTimeout(renderPaymentGateBanner, 150); });
 
   function installHardPaymentGate() {
     var origFn = window.copyAndRedirectToBot;
