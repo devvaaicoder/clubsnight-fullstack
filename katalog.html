@@ -571,6 +571,48 @@
     flex-shrink: 0;
   }
 </style>
+<style id="cnSidebarIconsAndTopupCss">
+  .cn-nav-ico-box {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13.5px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #ff80ab;
+  }
+  .cn-nav-item.active .cn-nav-ico-box {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+  .cn-nav-item.item-topup-highlight {
+    background: linear-gradient(135deg, rgba(255, 23, 68, 0.32) 0%, rgba(139, 92, 246, 0.34) 55%, rgba(245, 158, 11, 0.26) 100%) !important;
+    border: 1px solid rgba(255, 128, 171, 0.65) !important;
+    box-shadow: 0 6px 20px rgba(255, 23, 68, 0.25), inset 0 0 12px rgba(245, 194, 107, 0.16) !important;
+    position: relative;
+  }
+  .cn-nav-item.item-topup-highlight .cn-nav-ico-box {
+    background: linear-gradient(135deg, #ff1744, #f59e0b);
+    color: #fff;
+    border: none;
+  }
+  .cn-topup-pill-badge {
+    margin-left: auto;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f59e0b, #ff1744);
+    color: #fff;
+    font-size: 9.5px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+</style>
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
   <!-- CN-SPLASH-BODY-START -->
@@ -721,56 +763,40 @@
     <div class="cn-sidebar-section-label">NAVIGASI UTAMA</div>
     <nav class="cn-sidebar-nav" id="cnSidebarNavList">
       <a href="#galeri" data-nav-page="home" class="cn-nav-item item-home active" onclick="window.navigateSidebarPage('home', this, event);">
-        <lord-icon
-          src="https://cdn.lordicon.com/wmwqvixz.json"
-          trigger="loop-on-hover"
-          colors="primary:#ff4d6d,secondary:#f5c26b"
-          style="width:24px;height:24px;flex-shrink:0;">
-        </lord-icon>
+        <span class="cn-nav-ico-box"><i class="fa-solid fa-film"></i></span>
         <span>Beranda &amp; Reels</span>
         <span class="cn-nav-active-dot"></span>
       </a>
-      <a href="#vcsSection" data-nav-page="gallery" class="cn-nav-item item-gallery" onclick="window.navigateSidebarPage('gallery', this, event);">
-        <lord-icon
-          src="https://cdn.lordicon.com/kkvxgpti.json"
-          trigger="loop-on-hover"
-          colors="primary:#ff2a5f,secondary:#c084fc"
-          style="width:24px;height:24px;flex-shrink:0;">
-        </lord-icon>
+      <a href="#galeri" data-nav-page="gallery" class="cn-nav-item item-gallery" onclick="window.navigateSidebarPage('gallery', this, event);">
+        <span class="cn-nav-ico-box"><i class="fa-solid fa-users"></i></span>
         <span>Galeri Talent</span>
         <span class="cn-nav-active-dot"></span>
       </a>
+      <a href="#topup" data-nav-page="topup" class="cn-nav-item item-topup-highlight" onclick="window.toggleCnSidebar(false); if(typeof window.openCnPaywallPage==='function'){window.openCnPaywallPage();} event.preventDefault();">
+        <span class="cn-nav-ico-box"><i class="fa-solid fa-wallet"></i></span>
+        <span>Top Up CN Wallet</span>
+        <span class="cn-topup-pill-badge">INSTAN</span>
+      </a>
       <a href="#testimoni" data-nav-page="testimonials" class="cn-nav-item item-testi" onclick="window.navigateSidebarPage('testimonials', this, event);">
-        <lord-icon
-          src="https://cdn.lordicon.com/xyboiuok.json"
-          trigger="loop-on-hover"
-          colors="primary:#f5c26b,secondary:#ff4d6d"
-          style="width:24px;height:24px;flex-shrink:0;">
-        </lord-icon>
+        <span class="cn-nav-ico-box"><i class="fa-solid fa-comment-dots"></i></span>
         <span>Live Testimoni</span>
         <span class="cn-nav-active-dot"></span>
       </a>
       <a href="#blog" data-nav-page="blog" class="cn-nav-item item-blog" onclick="window.navigateSidebarPage('blog', this, event);">
-        <lord-icon
-          src="https://cdn.lordicon.com/wzwygmng.json"
-          trigger="loop-on-hover"
-          colors="primary:#fb7185,secondary:#f5c26b"
-          style="width:24px;height:24px;flex-shrink:0;">
-        </lord-icon>
+        <span class="cn-nav-ico-box"><i class="fa-solid fa-server"></i></span>
         <span>Blog &amp; Info Server</span>
         <span class="cn-nav-active-dot"></span>
+      </a>
+      <a href="/artikel.html" class="cn-nav-item item-article">
+        <span class="cn-nav-ico-box"><i class="fa-solid fa-book-open"></i></span>
+        <span>Artikel Clubs'Night</span>
       </a>
     </nav>
 
     <div class="cn-sidebar-section-label">BANTUAN &amp; PANDUAN</div>
     <nav class="cn-sidebar-nav">
       <a href="javascript:void(0)" class="cn-nav-item item-guide" onclick="window.toggleCnSidebar(false); startWebsiteTour();">
-        <lord-icon
-          src="https://cdn.lordicon.com/axteoudt.json"
-          trigger="loop-on-hover"
-          colors="primary:#f5c26b,secondary:#e11d48"
-          style="width:24px;height:24px;flex-shrink:0;">
-        </lord-icon>
+        <span class="cn-nav-ico-box"><i class="fa-solid fa-compass"></i></span>
         <span>Panduan Interaktif</span>
       </a>
     </nav>
@@ -1986,8 +2012,8 @@
       if (isHome) {
         if (typeof showHomeReels === "function") showHomeReels();
       } else if (page === "gallery" || page === "vcs" || page === "talent") {
-        if (typeof showVcsGallery === "function") showVcsGallery();
-        else if (typeof showGallery === "function") showGallery();
+        if (typeof resetAllFilters === "function") resetAllFilters();
+        if (typeof showGallery === "function") showGallery();
       } else if (page === "testimonials" || page === "testimoni") {
         if (typeof showTestimonials === "function") showTestimonials();
       } else if (page === "blog") {

@@ -10,6 +10,7 @@ export default defineConfig({
         main: resolve(import.meta.dirname, 'index.html'),
         katalog: resolve(import.meta.dirname, 'katalog.html'),
         login: resolve(import.meta.dirname, 'login.html'),
+        artikel: resolve(import.meta.dirname, 'artikel.html'),
       },
     },
   },

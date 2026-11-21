@@ -2417,6 +2417,9 @@ function showGallery() {
   if (blog) blog.style.display = 'none';
   if (gallery) gallery.style.display = 'block';
 
+  if (typeof resetAllFilters === 'function') {
+    resetAllFilters();
+  }
   document.getElementById('galeri')?.scrollIntoView({ behavior: 'smooth' });
 }
 
