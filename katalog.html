@@ -10231,6 +10231,71 @@ window.addEventListener("storage", function(e) {
     window.addEventListener("hashchange", function() { setTimeout(mountBtn, 200); });
   })();
 
+  
+  (function syncAllPagesWithSidebarAndBack() {
+    function getTabFromHash() {
+      var h = (location.hash || "").replace(/^#/, "").toLowerCase();
+      if (["home", "talent", "lounge", "merch", "activity"].indexOf(h) !== -1) return h;
+      return "home";
+    }
+
+    function restoreCurrentTabView() {
+      var tab = getTabFromHash();
+      var pw = document.getElementById("cnPagePaywall");
+      if (pw) {
+        pw.classList.remove("active");
+        pw.style.setProperty("display", "none", "important");
+      }
+      if (typeof window.switchPwaTab === "function") {
+        window.switchPwaTab(tab);
+      } else {
+        var mainEl = document.querySelector("main");
+        if (mainEl) mainEl.style.display = "";
+      }
+    }
+
+    // 1. Bungkus closeCnPaywallPage agar selalu mengembalikan tab aktif (bukan cuma <main>)
+    var origClosePw = window.closeCnPaywallPage;
+    if (typeof origClosePw === "function" && !origClosePw.__syncWrapped) {
+      var wrappedClose = function() {
+        origClosePw.apply(this, arguments);
+        restoreCurrentTabView();
+      };
+      wrappedClose.__syncWrapped = true;
+      window.closeCnPaywallPage = wrappedClose;
+    }
+
+    // 2. Sinkronkan setiap klik menu di Sidebar agar tidak meninggalkan layar kosong
+    document.addEventListener("click", function(ev) {
+      var sbItem = ev.target && ev.target.closest ? ev.target.closest("#cnSidebar a, #cnSidebar button, .cn-sidebar a, .cn-sidebar button, .cn-sidebar-item") : null;
+      if (!sbItem) return;
+      var txt = (sbItem.textContent || "").toLowerCase();
+      // Jika klik Top Up CN Wallet, biarkan paywall terbuka
+      if (/tops*up/i.test(txt)) return;
+
+      // Tutup paywall jika sedang terbuka
+      var pw = document.getElementById("cnPagePaywall");
+      if (pw && pw.style.display !== "none") {
+        pw.classList.remove("active");
+        pw.style.setProperty("display", "none", "important");
+      }
+
+      // Pastikan tab yang sesuai aktif untuk setiap menu Sidebar
+      if (typeof window.switchPwaTab === "function") {
+        if (/galeris*talent/i.test(txt)) {
+          window.switchPwaTab("talent");
+        } else if (/beranda|reels|testimoni|blog|infos*server|artikel|panduan/i.test(txt)) {
+          window.switchPwaTab("home");
+        }
+      }
+    }, true);
+
+    // 3. Sinkronkan tombol Back browser / perubahan hash
+    window.addEventListener("popstate", function() {
+      setTimeout(restoreCurrentTabView, 50);
+    });
+  })();
+
   function installHardPaymentGate() {
     var origFn = window.copyAndRedirectToBot;
     if (typeof origFn !== "function" || origFn.__cnPaymentGated) return;
