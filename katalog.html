@@ -2910,7 +2910,7 @@
 
       <form id="cnComposerForm" class="cn-auth-form" onsubmit="window.handleCnPostSubmit(event)">
         <div class="cn-field">
-          <label>Cerita / Update Anda <span id="cnCharCounter" class="cn-char-counter">0 / 250 karakter</span></label>
+          <label>Cerita / Update Anda <span id="cnCharCounter" class="cn-char-counter">0 / 1+ karakter</span></label>
           <textarea id="cnPostText" rows="5" required placeholder="Tulis cerita, update sesi, atau pengumuman eksklusif minimal 250 karakter..." oninput="window.updateCnCharCount()"></textarea>
         </div>
 
@@ -3178,7 +3178,7 @@
         var btn = document.getElementById("cnPostSubmitBtn");
         if (!ta || !counter || !btn) return;
         var len = ta.value.trim().length;
-        counter.textContent = len + " / 250 karakter";
+        counter.textContent = len + " / 1+ karakter";
         counter.classList.toggle("is-valid", len >= 250);
         btn.disabled = len < 250;
       };
@@ -4027,7 +4027,7 @@
       <div class="cn-compose-block">
         <div class="cn-compose-label-row">
           <label class="cn-compose-label" for="cnFullPostText">Isi Postingan</label>
-          <span id="cnFullCharCounter" class="cn-char-counter">0 / 250 karakter</span>
+          <span id="cnFullCharCounter" class="cn-char-counter">0 / 1+ karakter</span>
         </div>
         <textarea id="cnFullPostText" rows="6" required placeholder="Tulis cerita, update jadwal, atau pengumuman eksklusif Anda di sini (minimal 250 karakter agar informatif)..." oninput="window.updateCnFullCharCount()"></textarea>
         <div class="cn-char-progress-track">
@@ -4180,7 +4180,7 @@
         var defaults = {
           phoenixApi: "",
           phoenixWs: "",
-          minPostChars: 250,
+          minPostChars: 1,
           maxDailyStories: 3,
           storyQcRequired: true,
           lockGlobalPost: false
@@ -4310,7 +4310,7 @@
 
       window.updateCnFullCharCount = function() {
         var cfg = getConfig();
-        var minChars = cfg.minPostChars || 250;
+        var minChars = cfg.minPostChars || 1;
         var ta = document.getElementById("cnFullPostText");
         var counter = document.getElementById("cnFullCharCounter");
         var fill = document.getElementById("cnCharProgressFill");
@@ -4372,7 +4372,7 @@
         var cfg = getConfig();
         var s = window.cnAuth && window.cnAuth.getSession();
         var text = document.getElementById("cnFullPostText").value.trim();
-        if (!s || !s.approved || text.length < (cfg.minPostChars || 250)) return;
+        if (!s || !s.approved || text.length < (cfg.minPostChars || 1)) return;
 
         var tagPrefix = "[" + selectedCat + (selectedMood ? " • " + selectedMood : "") + "]\n";
         var newPost = {
@@ -4434,7 +4434,7 @@
         var cfg = getConfig();
         document.getElementById("cnCfgPhoenixApi").value = cfg.phoenixApi || "";
         document.getElementById("cnCfgPhoenixWs").value = cfg.phoenixWs || "";
-        document.getElementById("cnCfgMinChars").value = cfg.minPostChars || 250;
+        document.getElementById("cnCfgMinChars").value = cfg.minPostChars || 1;
         document.getElementById("cnCfgMaxStories").value = cfg.maxDailyStories || 3;
         document.getElementById("cnCfgLockPost").checked = !!cfg.lockGlobalPost;
         document.getElementById("cnQcGatewayToggle").checked = !!cfg.storyQcRequired;
@@ -4539,7 +4539,7 @@
         var cfg = getConfig();
         cfg.phoenixApi = document.getElementById("cnCfgPhoenixApi").value.trim();
         cfg.phoenixWs = document.getElementById("cnCfgPhoenixWs").value.trim();
-        cfg.minPostChars = Math.max(50, Number(document.getElementById("cnCfgMinChars").value) || 250);
+        cfg.minPostChars = Math.max(50, Number(document.getElementById("cnCfgMinChars").value) || 1);
         cfg.maxDailyStories = Math.max(1, Number(document.getElementById("cnCfgMaxStories").value) || 3);
         cfg.lockGlobalPost = document.getElementById("cnCfgLockPost").checked;
         saveConfig(cfg);
@@ -9252,13 +9252,8 @@ window.addEventListener("storage", function(e) {
   function injectBackupApprovalPanel() {
     var devModalBody = document.querySelector("#cnDevCenterModal .cn-dev-body, #cnDevCenterModal .cn-auth-card, #cnDevCenterModal > div");
     if (!devModalBody) {
-      var headings = document.querySelectorAll("h2, h3, h4, div");
-      for (var i = 0; i < headings.length; i++) {
-        if (headings[i].childElementCount === 0 && /Developer Control Center/i.test(headings[i].textContent || "")) {
-          devModalBody = headings[i].closest(".cn-modal-card, .cn-dev-card, .modal-content, [id*=Dev]") || headings[i].parentElement.parentElement;
-          break;
-        }
-      }
+      var devModal = document.getElementById("cnDevCenterModal") || document.querySelector("[id*=DevCenter], [id*=devCenter]");
+      if (devModal) devModalBody = devModal.querySelector(".cn-modal-card, .cn-dev-card, .cn-auth-card, .modal-content") || devModal.firstElementChild;
     }
     if (!devModalBody || document.getElementById("cnBackupQrisPanel")) return;
 
@@ -10738,6 +10733,111 @@ window.addEventListener("storage", function(e) {
     enhanceStoryBarAndViewer();
   }, 600);
   removeLihatReadyBtn();
+})();
+</script>
+
+
+<script id="cnVideoBugFixV2">
+(function() {
+  // A. Pindahkan panel Backup QRIS ke dalam body Developer Control Center jika terlanjur di luar
+  function relocateBackupQrisPanel() {
+    var panel = document.getElementById("cnBackupQrisPanel");
+    var devCard = document.querySelector("#cnDevCenterModal .cn-dev-body, #cnDevCenterModal .cn-auth-card, #cnDevCenterModal .cn-modal-card");
+    if (panel && devCard && !devCard.contains(panel)) {
+      devCard.appendChild(panel);
+    }
+  }
+
+  // B. Buka kunci tombol "Publikasikan ke Lounge" asal ada teks (>=1 huruf) atau gambar + checkbox dicentang
+  function syncPostSubmitState() {
+    var btn = document.getElementById("cnPostSubmitBtn");
+    if (!btn || btn.dataset.uploading === "1") return;
+    var form = btn.closest("form");
+    if (!form) return;
+    var txtEl = form.querySelector("textarea");
+    var chkEl = form.querySelector("input[type=checkbox][required], #cnPostAgreeCheck");
+    var fileEl = form.querySelector("input[type=file]");
+    var hasText = txtEl && txtEl.value.trim().length >= 1;
+    var hasFile = fileEl && fileEl.files && fileEl.files.length > 0;
+    var agreed = !chkEl || chkEl.checked;
+    if ((hasText || hasFile) && agreed) {
+      btn.disabled = false;
+      btn.removeAttribute("disabled");
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
+      btn.style.cursor = "pointer";
+    }
+  }
+
+  // C. Decode HTML entity (&#39; -> ') di Story Viewer & Hapus Story permanen (termasuk cegah muncul lagi saat sync cloud)
+  function getDeletedStorySet() {
+    try { return JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]"); } catch (_) { return []; }
+  }
+  function addDeletedStory(srcOrId) {
+    if (!srcOrId) return;
+    var arr = getDeletedStorySet();
+    if (arr.indexOf(srcOrId) === -1) {
+      arr.push(srcOrId);
+      localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(arr.slice(-100)));
+    }
+  }
+  function purgeDeletedStoriesFromStorage() {
+    var deleted = getDeletedStorySet();
+    if (!deleted.length) return;
+    var sKeys = ["cn_lounge_stories_v1", "cn_stories_v1", "cn_talent_stories_v1"];
+    sKeys.forEach(function(k) {
+      try {
+        var arr = JSON.parse(localStorage.getItem(k) || "[]");
+        if (!Array.isArray(arr) || !arr.length) return;
+        var next = arr.filter(function(it) {
+          if (!it) return false;
+          var img = it.image || it.img || it.mediaUrl || "";
+          var id = it.id || "";
+          return deleted.indexOf(img) === -1 && deleted.indexOf(id) === -1;
+        });
+        if (next.length !== arr.length) {
+          localStorage.setItem(k, JSON.stringify(next));
+          if (typeof window.renderCnStoryBar === "function") window.renderCnStoryBar();
+        }
+      } catch (_) {}
+    });
+  }
+
+  function fixStoryViewerUI() {
+    var viewer = document.getElementById("cnStoryViewer");
+    if (!viewer) return;
+    // Decode &#39; pada nama author
+    viewer.querySelectorAll("b, strong, span, div, h4").forEach(function(el) {
+      if (el.childElementCount === 0 && el.textContent && el.textContent.indexOf("&#39;") !== -1) {
+        el.textContent = el.textContent.replace(/&#39;/g, "'");
+      }
+    });
+    // Pastikan tombol Hapus juga mencatat ke blocklist + hapus dari DOM & cloud
+    var delBtn = document.getElementById("cnStoryDeleteBtn");
+    if (delBtn && !delBtn.__v2Bound) {
+      delBtn.__v2Bound = true;
+      delBtn.onclick = function(e) {
+        e.stopPropagation();
+        if (!confirm("Hapus story ini secara permanen?")) return;
+        var curImg = viewer.querySelector("img");
+        var curSrc = curImg ? curImg.src : "";
+        if (curSrc) addDeletedStory(curSrc);
+        purgeDeletedStoriesFromStorage();
+        if (typeof window.closeCnStoryViewer === "function") window.closeCnStoryViewer();
+        else viewer.style.display = "none";
+        if (typeof window.renderCnStoryBar === "function") window.renderCnStoryBar();
+      };
+    }
+  }
+
+  document.addEventListener("input", syncPostSubmitState, true);
+  document.addEventListener("change", syncPostSubmitState, true);
+  setInterval(function() {
+    relocateBackupQrisPanel();
+    syncPostSubmitState();
+    purgeDeletedStoriesFromStorage();
+    fixStoryViewerUI();
+  }, 500);
 })();
 </script>
 
