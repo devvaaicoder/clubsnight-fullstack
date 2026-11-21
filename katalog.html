@@ -5433,7 +5433,7 @@
     "avatar": "https://i.ibb.co.com/Tx2Z9jHw/IMG-20261011-103041-636.jpg"
   }
 };
-      }
+
 
       // 1. Mount halaman #cnPagePublicProfile di puncak <main>
       function mountPublicProfilePage() {
@@ -8973,9 +8973,7 @@ window.addEventListener("storage", function(e) {
       }
       var bal = getUserBalance(user.username);
       if (bal < b.amount) {
-        if (confirm("Saldo CN Wallet Anda (" + formatRupiah(bal) + ") belum mencukupi untuk total " + formatRupiah(b.amount) + ".
-
-Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
+        if (confirm("Saldo CN Wallet Anda (" + formatRupiah(bal) + ") belum mencukupi untuk total " + formatRupiah(b.amount) + ".\n\nLanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
           window.openCnQrisTopupModal(b.amount, b);
         }
         return;
@@ -9217,7 +9215,7 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
             '</div>' +
             (isPaid
               ? '<span style="color:#34d399;font-weight:700;">✔ Lunas</span>'
-              : '<button type="button" onclick="window.approveBackupQrisIntent('' + it.id + '')" style="padding:6px 10px;border-radius:8px;border:none;background:#10b981;color:#fff;font-weight:700;font-size:11px;cursor:pointer;">Approve</button>') +
+              : '<button type="button" onclick="window.approveBackupQrisIntent(\'' + it.id + '\')" style="padding:6px 10px;border-radius:8px;border:none;background:#10b981;color:#fff;font-weight:700;font-size:11px;cursor:pointer;">Approve</button>') +
           '</div>';
         }).join("");
       } catch (_) {
@@ -9510,7 +9508,7 @@ Lanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
       if (!track || track.children.length > 0) return;
       var doubled = items.concat(items);
       track.innerHTML = doubled.map(function(b) {
-        return '<button type="button" class="cn-bank-pill" data-bank="' + b.name + '" onclick="window.selectCnPaywallBank('' + b.name + '')">' +
+        return '<button type="button" class="cn-bank-pill" data-bank="' + b.name + '" onclick="window.selectCnPaywallBank(\'' + b.name + '\')">' +
           '<span class="cn-bank-dot" style="background:' + b.color + ';"></span>' +
           '<span>' + b.name + '</span>' +
         '</button>';
