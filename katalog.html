@@ -12437,5 +12437,120 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+
+<script id="cnUnifiedSyncUpgradeJs">
+(function() {
+  var WORKER_BASE = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var RENDER_BASE = "https://clubsnight-api.onrender.com";
+
+  // Helper: Upload base64 image ke Cloudflare R2 via Worker (fallback aman ke base64 jika endpoint belum aktif)
+  window.cnUploadMediaToR2 = async function(dataUrl, folder) {
+    if (!dataUrl || dataUrl.indexOf("data:image") !== 0) return dataUrl;
+    try {
+      var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
+      var res = await fetch(WORKER_BASE + "/api/media/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: dataUrl,
+          folder: folder || "stories",
+          username: (s && s.username) || "user"
+        })
+      });
+      if (res.ok) {
+        var json = await res.json();
+        if (json && json.success && json.url) return json.url;
+      }
+    } catch (_) {}
+    return dataUrl; // Fallback aman
+  };
+
+  // Wrap cnPublishStoryDirect agar otomatis upload ke R2 + simpan ke D1 + broadcast WebSocket
+  var origPublish = window.cnPublishStoryDirect;
+  if (typeof origPublish === "function" && !origPublish.__r2Wrapped) {
+    window.cnPublishStoryDirect = async function(imgDataUrl, captionText) {
+      var sendBtns = [document.getElementById("cnWeSendBtn"), document.getElementById("cnWtSendBtn")];
+      sendBtns.forEach(function(b) { if (b) { b.disabled = true; b.style.opacity = "0.55"; } });
+
+      try {
+        var finalUrl = await window.cnUploadMediaToR2(imgDataUrl, "stories");
+        var ok = origPublish(finalUrl, captionText);
+        if (ok) {
+          var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
+          fetch(WORKER_BASE + "/api/lounge/story/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: "ust_" + Date.now(),
+              ownerUsername: s.username || "",
+              ownerName: s.name || s.username || "",
+              image: finalUrl,
+              caption: (captionText || "").trim(),
+              createdAt: Date.now()
+            })
+          }).catch(function() {});
+
+          if (typeof window.broadcastCnRealtimeEvent === "function") {
+            window.broadcastCnRealtimeEvent("story_uploaded", { ts: Date.now() });
+          }
+        }
+        return ok;
+      } finally {
+        sendBtns.forEach(function(b) { if (b) { b.disabled = false; b.style.opacity = "1"; } });
+      }
+    };
+    window.cnPublishStoryDirect.__r2Wrapped = true;
+  }
+
+  // Intercept submit Edit Profil agar avatar ikut naik ke R2 & tersinkron ke Cloudflare D1 + Render
+  var peForm = document.getElementById("cnProEditForm");
+  if (peForm && !peForm.__r2Bound) {
+    peForm.__r2Bound = true;
+    peForm.addEventListener("submit", function() {
+      var saveBtn = document.getElementById("cnPeSaveBtn");
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = "0.65"; }
+
+      setTimeout(async function() {
+        try {
+          var u = JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
+          if (u && u.username) {
+            var avatarUrl = u.avatar || "";
+            if (avatarUrl.indexOf("data:image") === 0) {
+              avatarUrl = await window.cnUploadMediaToR2(avatarUrl, "avatars");
+              u.avatar = avatarUrl;
+              ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"].forEach(function(k) {
+                try {
+                  var cur = JSON.parse(localStorage.getItem(k) || "null");
+                  if (cur) { cur.avatar = avatarUrl; localStorage.setItem(k, JSON.stringify(cur)); }
+                } catch (_) {}
+              });
+            }
+            // Sinkronkan profil ke Cloudflare Worker (D1) & Render.com
+            var payload = JSON.stringify({
+              username: u.username,
+              name: u.name || "",
+              bio: u.bio || "",
+              avatar: avatarUrl
+            });
+            fetch(WORKER_BASE + "/api/profile/update", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: payload
+            }).catch(function() {});
+            fetch(RENDER_BASE + "/api/profile", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: payload
+            }).catch(function() {});
+          }
+        } catch (_) {}
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = "1"; }
+      }, 220);
+    }, false);
+  }
+})();
+</script>
+
 </body>
 </html>
