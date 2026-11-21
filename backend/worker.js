@@ -197,6 +197,22 @@ export default {
     };
 
     // Wajib Origin resmi untuk seluruh POST (kecuali admin dengan Bearer Token sah)
+    
+    if (url.pathname.startsWith("/r2/") && request.method === "GET") {
+      if (!env.BUCKET) return new Response("Storage unavailable", { status: 503, headers: securityHeaders });
+      const safeKey = extractSafeR2Key(url.origin + url.pathname, env, url.origin);
+      if (!safeKey) return new Response("Forbidden", { status: 403, headers: securityHeaders });
+      const obj = await env.BUCKET.get(safeKey);
+      if (!obj) return new Response("Not Found", { status: 404, headers: securityHeaders });
+      const headers = new Headers();
+      obj.writeHttpMetadata(headers);
+      headers.set("etag", obj.httpEtag);
+      headers.set("Access-Control-Allow-Origin", "*");
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      return new Response(obj.body, { headers });
+    }
+
     if (request.method === "POST" && url.pathname !== "/api/webhook/saweria" && !isAllowedOrigin && !isAuthorized()) {
       return new Response(JSON.stringify({ success: false, error: "Forbidden: Origin tidak diizinkan." }), {
         status: 403,
@@ -207,7 +223,8 @@ export default {
     // Batasi ukuran payload POST maksimal 512 KB (kecuali /upload R2)
     if (request.method === "POST" && url.pathname !== "/upload") {
       const contentLen = Number(request.headers.get("Content-Length") || 0);
-      if (contentLen > 524288) {
+      const maxPayload = url.pathname === "/api/media/upload" ? 3670016 : 524288;
+      if (contentLen > maxPayload) {
         return new Response(JSON.stringify({ success: false, error: "Payload terlalu besar." }), {
           status: 413,
           headers: { ...securityHeaders, "Content-Type": "application/json" }
@@ -226,6 +243,9 @@ export default {
         ).run();
         await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS lounge_store (id INTEGER PRIMARY KEY, posts TEXT, stories TEXT, updated_at TEXT)"
+        ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS user_profiles (username TEXT PRIMARY KEY, name TEXT NOT NULL, bio TEXT DEFAULT '', avatar TEXT DEFAULT '', updated_at TEXT)"
         ).run();
         await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS orders_store (id TEXT PRIMARY KEY, customer_username TEXT, customer_name TEXT, service TEXT, amount INTEGER, voucher TEXT, note TEXT, status TEXT, created_at TEXT)"
@@ -273,6 +293,110 @@ export default {
       };
 
       // 0. Terbitkan Guest Session Token berjangka pendek (untuk member/tamu yang membuat order atau komentar)
+      
+      const jsonOut = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { ...securityHeaders, "Content-Type": "application/json" } });
+
+      if (url.pathname === "/api/media/upload" && request.method === "POST") {
+        if (!checkMemoryRate(clientIp, "media_upload", 20, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak upload." }, 429);
+        if (!env.BUCKET) return jsonOut({ success: false, error: "Binding R2 (BUCKET) belum terpasang." }, 500);
+        const body = stripDangerousKeys(await request.json().catch(() => ({})));
+        const mimeMatch = String(body.image || "").match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=\s]+)$/);
+        if (!mimeMatch) return jsonOut({ success: false, error: "Format gambar tidak valid." }, 400);
+        const mime = mimeMatch[1] === "image/jpg" ? "image/jpeg" : mimeMatch[1];
+        const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+        const binary = Uint8Array.from(atob(mimeMatch[2].replace(/\s+/g, "")), (c) => c.charCodeAt(0));
+        if (binary.byteLength > 2621440) return jsonOut({ success: false, error: "Ukuran gambar maksimal 2.5 MB." }, 413);
+        const folder = ["stories", "avatars", "lounge"].includes(body.folder) ? body.folder : "stories";
+        const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
+        const safeUser = normalizeUsername((vActor && vActor.username) || body.username || "user") || "user";
+        const key = folder + "/" + safeUser + "_" + Date.now() + "_" + toHex(crypto.getRandomValues(new Uint8Array(4))) + "." + ext;
+        await env.BUCKET.put(key, binary, { httpMetadata: { contentType: mime } });
+        return jsonOut({ success: true, key, url: url.origin + "/r2/" + key });
+      }
+
+      if (url.pathname === "/api/lounge/story/create" && request.method === "POST") {
+        if (!checkMemoryRate(clientIp, "story_create", 12, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak upload story." }, 429);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 500);
+        await ensureTableExists();
+        const body = stripDangerousKeys(await request.json().catch(() => ({})));
+        const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
+        const ownerUsername = normalizeUsername((vActor && vActor.username) || body.ownerUsername);
+        const image = String(body.image || "").trim();
+        if (!ownerUsername || !image || (!image.startsWith("https://") && !image.startsWith("data:image/"))) return jsonOut({ success: false, error: "Data story tidak valid." }, 400);
+        const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
+        let curPosts = [], curStories = [];
+        if (row) { try { curPosts = JSON.parse(row.posts || "[]"); } catch (_) {} try { curStories = JSON.parse(row.stories || "[]"); } catch (_) {} }
+        const now = Date.now();
+        const active = (Array.isArray(curStories) ? curStories : []).filter((st) => st && (!st.createdAt || now - Number(st.createdAt) < 864e5));
+        const todayKey = new Date(now + 7 * 3600 * 1e3).toISOString().slice(0, 10);
+        const ownCount = active.filter((st) => normalizeUsername(st.ownerUsername) === ownerUsername && (st.dateKey === todayKey || now - Number(st.createdAt || 0) < 864e5)).length;
+        if (ownCount >= 3 && !isAuthorized()) return jsonOut({ success: false, error: "Kuota harian maksimal 3 story." }, 429);
+        const newStory = { id: sanitizeText(body.id || "ust_" + now, 64), ownerUsername, ownerName: sanitizeText(body.ownerName || ownerUsername, 60), color: "#ff2a5f", image: image.slice(0, 200000), caption: sanitizeText(body.caption || "", 180), createdAt: now, dateKey: todayKey };
+        const nextStories = [...active, newStory].slice(-60);
+        await env.DB.prepare("INSERT INTO lounge_store (id, posts, stories, updated_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stories = excluded.stories, updated_at = excluded.updated_at").bind(JSON.stringify(curPosts), JSON.stringify(nextStories), new Date(now).toISOString()).run();
+        return jsonOut({ success: true, story: newStory, countStories: nextStories.length });
+      }
+
+      if (url.pathname === "/api/lounge/story/delete" && request.method === "POST") {
+        if (!checkMemoryRate(clientIp, "story_delete", 20, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak permintaan." }, 429);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 500);
+        await ensureTableExists();
+        const body = stripDangerousKeys(await request.json().catch(() => ({})));
+        const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
+        const actorUsername = normalizeUsername((vActor && vActor.username) || body.ownerUsername);
+        const targetId = sanitizeText(body.id || "", 80);
+        if (!targetId || !actorUsername) return jsonOut({ success: false, error: "ID story dan pemilik wajib diisi." }, 400);
+        const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
+        let curPosts = [], curStories = [];
+        if (row) { try { curPosts = JSON.parse(row.posts || "[]"); } catch (_) {} try { curStories = JSON.parse(row.stories || "[]"); } catch (_) {} }
+        const matched = curStories.find((st) => st && String(st.id) === targetId);
+        if (!matched) return jsonOut({ success: true, deletedId: targetId, note: "Story sudah terhapus." });
+        if (normalizeUsername(matched.ownerUsername) !== actorUsername) return jsonOut({ success: false, error: "Forbidden: Hanya bisa menghapus story milik sendiri." }, 403);
+        let r2Deleted = false;
+        if (env.BUCKET && matched.image) {
+          const safeKey = extractSafeR2Key(matched.image, env, url.origin);
+          if (safeKey && safeKey.startsWith("stories/")) { try { await env.BUCKET.delete(safeKey); r2Deleted = true; } catch (_) {} }
+        }
+        const nextStories = curStories.filter((st) => st && String(st.id) !== targetId);
+        await env.DB.prepare("INSERT INTO lounge_store (id, posts, stories, updated_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stories = excluded.stories, updated_at = excluded.updated_at").bind(JSON.stringify(curPosts), JSON.stringify(nextStories), new Date().toISOString()).run();
+        return jsonOut({ success: true, deletedId: targetId, r2Deleted, remainingStories: nextStories.length });
+      }
+
+      if (url.pathname === "/api/profile/update" && request.method === "POST") {
+        if (!checkMemoryRate(clientIp, "profile_update", 15, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak update profil." }, 429);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 500);
+        await ensureTableExists();
+        const body = stripDangerousKeys(await request.json().catch(() => ({})));
+        const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
+        const username = normalizeUsername((vActor && vActor.username) || body.username);
+        const name = sanitizeText(body.name || "", 50);
+        const bio = sanitizeText(body.bio || "", 200);
+        const avatar = String(body.avatar || "").trim().slice(0, 200000);
+        if (!username || !name) return jsonOut({ success: false, error: "Username dan nama wajib diisi." }, 400);
+        const prev = await env.DB.prepare("SELECT avatar FROM user_profiles WHERE username = ?").bind(username).first();
+        if (env.BUCKET && prev && prev.avatar && avatar && prev.avatar !== avatar) {
+          const oldKey = extractSafeR2Key(prev.avatar, env, url.origin);
+          if (oldKey && oldKey.startsWith("avatars/")) { try { await env.BUCKET.delete(oldKey); } catch (_) {} }
+        }
+        const nowIso = new Date().toISOString();
+        await env.DB.prepare("INSERT INTO user_profiles (username, name, bio, avatar, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(username) DO UPDATE SET name = excluded.name, bio = excluded.bio, avatar = CASE WHEN excluded.avatar != '' THEN excluded.avatar ELSE user_profiles.avatar END, updated_at = excluded.updated_at").bind(username, name, bio, avatar, nowIso).run();
+        try { await env.DB.prepare("UPDATE talent_accounts SET name = ?, avatar = CASE WHEN ? != '' THEN ? ELSE avatar END, updated_at = ? WHERE username = ?").bind(name, avatar, avatar, nowIso, username).run(); } catch (_) {}
+        return jsonOut({ success: true, profile: { username, name, bio, avatar: avatar || (prev && prev.avatar) || "", updatedAt: nowIso } });
+      }
+
+      if (url.pathname === "/api/profile/get" && request.method === "GET") {
+        if (!checkMemoryRate(clientIp, "profile_get", 80, 6e4)) return jsonOut({ success: false, error: "Rate limit terlampaui." }, 429);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 500);
+        await ensureTableExists();
+        const uname = normalizeUsername(url.searchParams.get("username") || "");
+        if (!uname) return jsonOut({ success: false, error: "Username wajib diisi." }, 400);
+        const prof = await env.DB.prepare("SELECT username, name, bio, avatar FROM user_profiles WHERE username = ?").bind(uname).first();
+        const talent = await env.DB.prepare("SELECT username, name, agency, status, moods, avatar FROM talent_accounts WHERE username = ?").bind(uname).first();
+        if (!prof && !talent) return jsonOut({ success: false, notFound: true, error: "Profil tidak ditemukan." }, 404);
+        let moods = []; try { moods = talent && talent.moods ? JSON.parse(talent.moods) : []; } catch (_) {}
+        return jsonOut({ success: true, profile: { username: uname, name: (prof && prof.name) || (talent && talent.name) || uname, bio: (prof && prof.bio) || "", avatar: (prof && prof.avatar) || (talent && talent.avatar) || "", role: talent ? "talent" : "member", agency: (talent && talent.agency) || "", status: (talent && talent.status) || "", moods } });
+      }
+
       if (url.pathname === "/api/session/guest" && request.method === "POST") {
         if (!checkMemoryRate(clientIp, "guest_tok", 15, 600000)) {
           return new Response(JSON.stringify({ success: false, error: "Terlalu banyak permintaan sesi." }), {
