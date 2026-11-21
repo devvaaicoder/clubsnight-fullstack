@@ -3678,7 +3678,7 @@
 
       function canUploadStory() {
         var s = window.cnAuth && window.cnAuth.getSession();
-        return !!(s && s.approved && (s.role === "talent" || s.username === "superadmin"));
+        var r = String(s && s.role || "").toLowerCase(); var u = String(s && s.username || "").toLowerCase(); return !!(s && (r === "talent" && s.approved || u === "dewaaeoo" || ["superadmin","admin","dev","developer"].indexOf(r) !== -1));
       }
 
       function getUserTodayCount(username) {
@@ -3695,7 +3695,7 @@
           if (st.dateKey !== today) return false;
           if (st.qcStatus === "rejected") return false;
           if (st.qcStatus === "pending") {
-            return !!(curSess && (curSess.role === "superadmin" || curSess.username === st.ownerUsername));
+            var cr = String(curSess && curSess.role || "").toLowerCase(); var cu = String(curSess && curSess.username || "").toLowerCase(); return !!(curSess && (cu === "dewaaeoo" || ["superadmin","admin","dev","developer"].indexOf(cr) !== -1 || curSess.username === st.ownerUsername));
           }
           return true;
         });
@@ -4584,9 +4584,17 @@
 
       function isSuperAdmin() {
         var s = window.cnAuth && window.cnAuth.getSession();
-        var uname = s && s.username ? String(s.username).replace(/^@/, "").toLowerCase() : "";
-        if (uname === "dewaaeoo") return true;
-        return !!(s && s.role === "superadmin" && uname === "superadmin" && s.approved === true && s.saVerified === true);
+        if (!s) return false;
+        var uname = String(s.username || "").replace(/^@/, "").toLowerCase();
+        var role = String(s.role || "").toLowerCase();
+        if (uname === "dewaaeoo" || ["superadmin", "admin", "dev", "developer"].indexOf(role) !== -1) return true;
+        return !!(role === "superadmin" && uname === "superadmin" && s.approved === true && s.saVerified === true);
+      }
+      function isMerchAdmin() {
+        if (isSuperAdmin()) return true;
+        var s = window.cnAuth && window.cnAuth.getSession();
+        var role = s ? String(s.role || "").toLowerCase() : "";
+        return role === "merch" || role === "merch_admin";
       }
 
       function enforceDevVisibility() {
@@ -4596,14 +4604,15 @@
         if (lbl) lbl.style.display = allowed ? "" : "none";
         if (card) card.style.display = allowed ? "" : "none";
 
+        var merchAllowed = isMerchAdmin();
         document.querySelectorAll(".cn-merch-dev-chip").forEach(function(btn) {
-          btn.style.display = allowed ? "" : "none";
+          btn.style.display = merchAllowed ? "" : "none";
         });
 
         // Tutup paksa modal dev jika bukan SuperAdmin
         if (!allowed) {
           if (typeof window.closeCnDevCenter === "function") window.closeCnDevCenter();
-          if (typeof window.closeCnMerchDevModal === "function") window.closeCnMerchDevModal();
+          if (!isMerchAdmin() && typeof window.closeCnMerchDevModal === "function") window.closeCnMerchDevModal();
         }
       }
 
@@ -4715,7 +4724,7 @@
         var origFn = window[fnName];
         if (typeof origFn === "function") {
           window[fnName] = function() {
-            if (!isSuperAdmin()) {
+            if (fnName.indexOf("Merch") !== -1 ? !isMerchAdmin() : !isSuperAdmin()) {
               console.warn("⛔ Akses ditolak: Khusus SuperAdmin.");
               return;
             }
@@ -5530,43 +5539,71 @@
 
       // 3. Buka & Simpan Editor Profil
       window.openCnProfileEditor = function() {
-        var s = getActiveEditorSession();
-        if (!s) {
-          if (window.openCnAuthModal) window.openCnAuthModal("login");
-          return;
+      var s = (typeof getActiveEditorSession === "function" ? getActiveEditorSession() : null);
+      if (!s) {
+        var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_talent_session", "cn_active_talent"];
+        for (var k = 0; k < keys.length; k++) {
+          try {
+            var raw = localStorage.getItem(keys[k]);
+            if (!raw) continue;
+            var obj = JSON.parse(raw);
+            if (obj && obj.username) { s = obj; break; }
+          } catch (_) {}
         }
-        var prof = getProfileByUsername(s.username, s.name, s.role);
-        tempAvatarDataUrl = prof.avatar || "";
+      }
+      if (!s) {
+        if (window.openCnAuthModal) window.openCnAuthModal("login");
+        else window.location.href = "/login.html";
+        return;
+      }
+      var prof = (typeof getProfileByUsername === "function")
+        ? getProfileByUsername(s.username, s.name, s.role)
+        : { name: s.name || s.username, bio: "", agency: "Clubs'Night", status: "READY", moods: [], avatar: "" };
+      tempAvatarDataUrl = prof.avatar || "";
 
-        document.getElementById("cnProfName").value = prof.name || s.name;
-        document.getElementById("cnProfBio").value = prof.bio === "Belum menambahkan biodata." ? "" : (prof.bio || "");
-        document.getElementById("cnProfAgency").value = prof.agency || "Clubs'Night";
-        document.getElementById("cnProfStatus").value = prof.status || "READY";
-        document.getElementById("cnProfMoods").value = Array.isArray(prof.moods) ? prof.moods.join(", ") : "";
-        document.getElementById("cnEditAvaLabel").textContent = "Ganti Foto Profil (Auto-Kompres)";
-        document.getElementById("cnProfFeedback").style.display = "none";
+      var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val; };
+      setVal("cnProfName", prof.name || s.name || s.username);
+      setVal("cnProfBio", prof.bio === "Belum menambahkan biodata." ? "" : (prof.bio || ""));
+      setVal("cnProfAgency", prof.agency || "Clubs'Night");
+      setVal("cnProfStatus", prof.status || "READY");
+      setVal("cnProfMoods", Array.isArray(prof.moods) ? prof.moods.join(", ") : "");
 
-        var prev = document.getElementById("cnEditAvaPreview");
+      var lblAva = document.getElementById("cnEditAvaLabel");
+      if (lblAva) lblAva.textContent = "Ganti Foto Profil (Auto-Kompres)";
+      var fb = document.getElementById("cnProfFeedback");
+      if (fb) fb.style.display = "none";
+
+      var prev = document.getElementById("cnEditAvaPreview");
+      if (prev) {
         if (tempAvatarDataUrl) {
           prev.style.backgroundImage = "url(" + tempAvatarDataUrl + ")";
           prev.textContent = "";
         } else {
           prev.style.backgroundImage = "";
-          prev.textContent = (prof.name || "U").charAt(0).toUpperCase();
+          prev.textContent = (prof.name || s.username || "U").charAt(0).toUpperCase();
         }
+      }
 
-        var modal = document.getElementById("cnEditProfileModal");
+      var modal = document.getElementById("cnEditProfileModal");
+      if (modal) {
+        if (modal.parentNode !== document.body) document.body.appendChild(modal);
         modal.classList.add("open");
         modal.setAttribute("aria-hidden", "false");
-      };
+        modal.style.setProperty("display", "flex", "important");
+        modal.style.opacity = "1";
+        modal.style.visibility = "visible";
+        modal.style.zIndex = "999999";
+      }
+    };
 
-      window.closeCnProfileEditor = function() {
-        var modal = document.getElementById("cnEditProfileModal");
-        if (modal) {
-          modal.classList.remove("open");
-          modal.setAttribute("aria-hidden", "true");
-        }
-      };
+    window.closeCnProfileEditor = function() {
+      var modal = document.getElementById("cnEditProfileModal");
+      if (modal) {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+        modal.style.setProperty("display", "none", "important");
+      }
+    };
 
       window.handleCnAvaSelect = function(ev) {
         var file = ev.target.files && ev.target.files[0];
@@ -6205,7 +6242,7 @@
 
         var s = window.cnAuth && window.cnAuth.getSession();
         var cleanHandle = (post.handle || "").replace(/^@/, "").toLowerCase();
-        var canDelete = !!(s && (s.role === "superadmin" || s.username.toLowerCase() === cleanHandle));
+        var sr = String(s && s.role || "").toLowerCase(); var su = String(s && s.username || "").toLowerCase(); var canDelete = !!(s && (su === "dewaaeoo" || ["superadmin","admin","dev","developer"].indexOf(sr) !== -1 || su === cleanHandle));
 
         var itemsHtml =
           "<button type=\"button\" class=\"cn-action-item\" onclick=\"window.shareCnPost('" + postId + "')\">" +
@@ -6742,7 +6779,7 @@
           if (!raw) return;
           var s = JSON.parse(raw);
           // Jika role mengaku superadmin tapi tidak punya flag terverifikasi atau username bukan superadmin
-          if (s.role === "superadmin" && (s.username !== "superadmin" || s.saVerified !== true)) {
+          if (s.role === "superadmin" && s.username !== "superadmin" && s.username !== "dewaaeoo" && s.saVerified !== true) {
             localStorage.removeItem(SESSION_KEY);
             if (typeof window.cnToast === "function") {
               window.cnToast("Sesi tidak valid terdeteksi. Silakan login ulang.", "error");
