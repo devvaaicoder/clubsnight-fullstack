@@ -3964,7 +3964,75 @@
         renderStoryBarWithUpload();
       };
 
+      
+      window.getOwnCnStoryMatch = function(curSrc, viewerTxt) {
+        var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null;
+        if (!s || !s.username) return null;
+        var me = String(s.username).replace(/^@/, "").toLowerCase();
+        var list = getUploadedStories();
+        for (var i = list.length - 1; i >= 0; i--) {
+          var st = list[i];
+          if (!st) continue;
+          var owner = String(st.ownerUsername || "").replace(/^@/, "").toLowerCase();
+          if (owner !== me) continue; // STRICT: hanya story milik sendiri
+          var img = st.image || "";
+          if (curSrc && img && (img === curSrc || curSrc.indexOf(img) !== -1 || img.indexOf(curSrc) !== -1)) {
+            return st;
+          }
+        }
+        // Fallback jika src berupa dataURL/blob: cocokkan nama pemilik di header viewer
+        for (var j = list.length - 1; j >= 0; j--) {
+          var st2 = list[j];
+          if (!st2) continue;
+          var owner2 = String(st2.ownerUsername || "").replace(/^@/, "").toLowerCase();
+          var oName2 = String(st2.ownerName || "").toLowerCase();
+          if (owner2 === me && viewerTxt && (viewerTxt.indexOf(owner2) !== -1 || (oName2 && viewerTxt.indexOf(oName2) !== -1))) {
+            return st2;
+          }
+        }
+        return null;
+      };
+
+      window.deleteOwnCnStory = async function(curSrc, viewerTxt) {
+        var target = window.getOwnCnStoryMatch(curSrc, viewerTxt);
+        if (!target) {
+          if (typeof window.cnToast === "function") window.cnToast("Anda hanya dapat menghapus story milik Anda sendiri.", "error");
+          return false;
+        }
+        var list = getUploadedStories().filter(function(st) { return st && st.id !== target.id; });
+        saveUploadedStories(list);
+
+        // Sinkronkan juga ke key cloud lokal & blocklist
+        try {
+          var dl = JSON.parse(localStorage.getItem("cn_deleted_stories_v1") || "[]");
+          if (target.id && dl.indexOf(target.id) === -1) dl.push(target.id);
+          if (target.image && dl.indexOf(target.image) === -1) dl.push(target.image);
+          localStorage.setItem("cn_deleted_stories_v1", JSON.stringify(dl.slice(-150)));
+        } catch (_) {}
+
+        // Kirim perintah hapus permanen ke Cloudflare Backend (D1 + R2)
+        try {
+          var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
+          fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/lounge/story/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: target.id,
+              image: target.image || "",
+              ownerUsername: s.username || target.ownerUsername
+            })
+          }).catch(function() {});
+        } catch (_) {}
+
+        if (typeof window.closeCnStoryViewer === "function") window.closeCnStoryViewer();
+        renderStoryBarWithUpload();
+        if (typeof window.broadcastCnRealtimeEvent === "function") window.broadcastCnRealtimeEvent("story_deleted", { id: target.id });
+        if (typeof window.cnToast === "function") window.cnToast("Story Anda berhasil dihapus permanen.", "info");
+        return true;
+      };
+
       window.addEventListener("cn:session-changed", renderStoryBarWithUpload);
+
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", renderStoryBarWithUpload);
       } else {
@@ -11251,6 +11319,164 @@ window.addEventListener("storage", function(e) {
     bindProfileSaveFailsafe();
     bindStoryDeleteV3();
   }, 500);
+})();
+</script>
+
+
+<style id="cnCleanUiV4Css">
+  #cnStoryDeleteBtn {
+    position: absolute !important;
+    top: 16px !important;
+    right: 54px !important;
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    background: rgba(15, 23, 42, 0.55) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    color: #f8fafc !important;
+    font-size: 13px !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    z-index: 9999 !important;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease !important;
+  }
+  #cnStoryDeleteBtn:hover, #cnStoryDeleteBtn:active {
+    background: rgba(220, 38, 38, 0.85) !important;
+    border-color: rgba(248, 113, 113, 0.7) !important;
+    transform: scale(0.95) !important;
+  }
+  .cn-post-author, .cn-post-avatar, [data-author-username] {
+    cursor: pointer !important;
+  }
+</style>
+<script id="cnCleanUiV4Js">
+(function() {
+  // A. Rapikan Tombol Hapus Story (ikon bersih + STRICT ownership)
+  function syncStrictStoryDeleteBtn() {
+    var viewer = document.getElementById("cnStoryViewer");
+    var delBtn = document.getElementById("cnStoryDeleteBtn");
+    if (!viewer || !delBtn) return;
+
+    // Ganti teks panjang jadi ikon sampah rapi
+    if (delBtn.innerHTML.indexOf("Hapus") !== -1 || !delBtn.querySelector("i")) {
+      delBtn.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
+      delBtn.title = "Hapus Story Saya";
+      delBtn.setAttribute("aria-label", "Hapus Story Saya");
+    }
+
+    var isOpen = viewer.style.display !== "none" && viewer.getAttribute("aria-hidden") !== "true";
+    if (!isOpen) {
+      delBtn.style.display = "none";
+      return;
+    }
+
+    var curImg = viewer.querySelector("img.cn-story-media, img#cnStoryMedia, img");
+    var curSrc = curImg ? curImg.src : "";
+    var viewerTxt = (viewer.textContent || "").toLowerCase();
+    var ownMatch = (typeof window.getOwnCnStoryMatch === "function") ? window.getOwnCnStoryMatch(curSrc, viewerTxt) : null;
+
+    delBtn.style.display = ownMatch ? "inline-flex" : "none";
+
+    if (!delBtn.__v4Bound) {
+      delBtn.__v4Bound = true;
+      delBtn.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm("Hapus story Anda secara permanen?")) return;
+        var imgNow = viewer.querySelector("img.cn-story-media, img#cnStoryMedia, img");
+        if (typeof window.deleteOwnCnStory === "function") {
+          window.deleteOwnCnStory(imgNow ? imgNow.src : "", (viewer.textContent || "").toLowerCase());
+        }
+      };
+    }
+  }
+
+  // B. Pastikan Edit Profil langsung memperbarui Foto & Nama di halaman Aktivitas
+  function syncProfileDomImmediately(newName, newBio, newAvatar) {
+    var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"];
+    keys.forEach(function(k) {
+      try {
+        var u = JSON.parse(localStorage.getItem(k) || "null");
+        if (!u) return;
+        if (newName) u.name = newName;
+        if (newBio) u.bio = newBio;
+        if (newAvatar) u.avatar = newAvatar;
+        localStorage.setItem(k, JSON.stringify(u));
+      } catch (_) {}
+    });
+
+    // Update teks nama & foto avatar yang sedang tampil di tab Aktivitas
+    if (newName) {
+      document.querySelectorAll("#cnAccName, .cn-acc-name, .cn-profile-name").forEach(function(el) {
+        el.textContent = newName;
+      });
+    }
+    if (newAvatar && newAvatar.indexOf("data:image") === 0 || (newAvatar && newAvatar.indexOf("http") === 0)) {
+      document.querySelectorAll("#cnAccAvatar, .cn-acc-avatar, .cn-profile-avatar").forEach(function(el) {
+        if (el.tagName === "IMG") {
+          el.src = newAvatar;
+        } else {
+          el.style.backgroundImage = "url(" + newAvatar + ")";
+          el.style.backgroundSize = "cover";
+          el.style.backgroundPosition = "center";
+          el.textContent = "";
+        }
+      });
+    }
+    window.dispatchEvent(new CustomEvent("cn:session-changed"));
+  }
+
+  document.addEventListener("submit", function(ev) {
+    var form = ev.target;
+    if (!form || form.id !== "cnEditProfileForm") return;
+    var nameIn = form.querySelector("#cnEditName, input[name=name], input[type=text]");
+    var bioIn = form.querySelector("#cnEditBio, textarea");
+    var prevImg = form.querySelector("img");
+    var newName = nameIn ? nameIn.value.trim() : "";
+    var newBio = bioIn ? bioIn.value.trim() : "";
+    var newAvatar = (prevImg && prevImg.src && prevImg.src.length > 20) ? prevImg.src : "";
+    setTimeout(function() {
+      syncProfileDomImmediately(newName, newBio, newAvatar);
+    }, 180);
+  }, true);
+
+  // C. Aktifkan Visit Profil Publik saat klik Author/Avatar di Lounge
+  document.addEventListener("click", function(ev) {
+    var feed = document.getElementById("cnLoungeFeed");
+    if (!feed || !feed.contains(ev.target)) return;
+    var authorHit = ev.target.closest(".cn-post-head, .cn-post-author, .cn-post-avatar, [data-author-username]");
+    if (!authorHit) return;
+    if (ev.target.closest("button, .cn-post-dots, .cn-dots-btn")) return;
+
+    var card = authorHit.closest(".cn-post-card, article, [data-post-id]") || authorHit.parentElement;
+    var uname = authorHit.getAttribute("data-author-username") || (card && card.getAttribute("data-author-username")) || "";
+    if (!uname && card) {
+      var m = (card.textContent || "").match(/@([a-zA-Z0-9_.-]+)/);
+      if (m) uname = m[1];
+    }
+    if (!uname) return;
+
+    if (typeof window.openCnPublicProfile === "function") {
+      window.openCnPublicProfile(uname);
+    } else if (typeof window.openPublicProfile === "function") {
+      window.openPublicProfile(uname);
+    } else if (typeof window.viewCnProfile === "function") {
+      window.viewCnProfile(uname);
+    } else {
+      var pubModal = document.getElementById("cnPublicProfileModal");
+      if (pubModal) {
+        pubModal.style.display = "flex";
+        pubModal.setAttribute("aria-hidden", "false");
+      }
+    }
+  }, true);
+
+  setInterval(syncStrictStoryDeleteBtn, 400);
 })();
 </script>
 
