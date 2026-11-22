@@ -12445,7 +12445,7 @@ window.addEventListener("storage", function(e) {
 <script id="cnFullstackSyncHardeningJs">
 (function() {
   var WORKER_HOST = "clubsnight-fullstack.clubsnight.workers.dev";
-  var SESSION_KEYS = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_session_token"];
+  var SESSION_KEYS = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_talent_session", "cn_chat_session", "cn_session_token"];
 
   function getActiveSessionToken() {
     for (var i = 0; i < SESSION_KEYS.length; i++) {
