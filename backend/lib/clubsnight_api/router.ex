@@ -140,7 +140,7 @@ defmodule ClubsnightApi.Router do
   get "/api/posts" do
     case verify_session(conn) do
       {:ok, _user} ->
-        case D1.query("SELECT * FROM posts ORDER BY created_at DESC LIMIT 20") do
+        case ClubsnightApi.Cache.fetch_ok(:posts_feed, 30_000, fn -> D1.query("SELECT * FROM posts ORDER BY created_at DESC LIMIT 20") end) do
           {:ok, rows} -> send_json(conn, 200, %{posts: rows})
           {:error, _} -> send_json(conn, 500, %{error: "DB error"})
         end
@@ -162,6 +162,7 @@ defmodule ClubsnightApi.Router do
              [id, user.tg_id, user.name, "@#{user.username}", String.upcase(user.role), String.trim(content), img, allow_reply]
            ),
            {:ok, _} <- D1.query("DELETE FROM posts WHERE id NOT IN (SELECT id FROM posts ORDER BY created_at DESC LIMIT 20)") do
+        ClubsnightApi.Cache.delete(:posts_feed)
         send_json(conn, 201, %{ok: true, id: id})
       else
         {:error, _} -> send_json(conn, 500, %{error: "Gagal menyimpan post"})
