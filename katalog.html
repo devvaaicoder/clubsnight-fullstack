@@ -12486,5 +12486,170 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 
+<!-- CN_PROFILE_PREVIEW_UNIVERSAL_START -->
+<style id="cnProfilePreviewCss">
+  #cnPreviewProfileModal {
+    position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center;
+    background: rgba(8, 6, 16, 0.82); backdrop-filter: blur(8px); padding: 16px;
+  }
+  #cnPreviewProfileModal.open { display: flex; }
+  .cn-pp-card {
+    width: 100%; max-width: 380px; border-radius: 22px; overflow: hidden;
+    background: linear-gradient(160deg, #1a102b 0%, #0f0a1a 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+    color: #fff; font-family: inherit;
+  }
+  .cn-pp-banner {
+    height: 84px; position: relative;
+    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 60%, #3b82f6 100%);
+  }
+  .cn-pp-close {
+    position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.25); background: rgba(0,0,0,0.45); color: #fff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .cn-pp-body { padding: 0 20px 20px; text-align: center; }
+  .cn-pp-avatar-wrap {
+    width: 84px; height: 84px; margin: -42px auto 12px; border-radius: 50%;
+    border: 3px solid #160e26; background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    font-size: 30px; font-weight: 800; color: #fff; position: relative;
+  }
+  .cn-pp-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .cn-pp-name { font-size: 19px; font-weight: 800; margin: 0 0 4px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .cn-pp-handle { font-size: 12.5px; color: rgba(255,255,255,0.68); margin-bottom: 10px; }
+  .cn-pp-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    background: rgba(236, 72, 153, 0.18); border: 1px solid rgba(236, 72, 153, 0.45); color: #f9a8d4;
+    margin-bottom: 12px;
+  }
+  .cn-pp-bio {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.5;
+    color: rgba(255,255,255,0.88); margin-bottom: 16px; text-align: left; white-space: pre-wrap;
+  }
+  .cn-pp-actions { display: flex; gap: 10px; }
+  .cn-pp-btn {
+    flex: 1; padding: 11px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: none;
+  }
+  .cn-pp-btn-primary { background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; }
+  .cn-pp-btn-ghost { background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.14); }
+</style>
+<div id="cnPreviewProfileModal" role="dialog" aria-modal="true" aria-label="Pratinjau Profil">
+  <div class="cn-pp-card">
+    <div class="cn-pp-banner">
+      <button type="button" class="cn-pp-close" id="cnPpCloseTop" aria-label="Tutup">&times;</button>
+    </div>
+    <div class="cn-pp-body">
+      <div class="cn-pp-avatar-wrap" id="cnPpAvatar">U</div>
+      <div class="cn-pp-name" id="cnPpName">Pengguna</div>
+      <div class="cn-pp-handle" id="cnPpHandle">@guest</div>
+      <div class="cn-pp-badge" id="cnPpRole">MEMBER</div>
+      <div class="cn-pp-bio" id="cnPpBio">Belum ada biodata.</div>
+      <div class="cn-pp-actions">
+        <button type="button" class="cn-pp-btn cn-pp-btn-primary" id="cnPpEditBtn">Edit Profil</button>
+        <button type="button" class="cn-pp-btn cn-pp-btn-ghost" id="cnPpCloseBtn">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script id="cnProfilePreviewJs">
+(function() {
+  function readActiveProfile() {
+    var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_talent_session"];
+    var merged = {};
+    keys.forEach(function(k) {
+      try {
+        var raw = localStorage.getItem(k);
+        if (!raw) return;
+        var parsed = JSON.parse(raw);
+        var src = parsed && (parsed.user || parsed.profile || parsed.data || parsed);
+        if (src && typeof src === "object") Object.assign(merged, src);
+      } catch (e) {}
+    });
+    var name = merged.display_name || merged.displayName || merged.name || merged.username || "Pengguna";
+    var username = String(merged.username || merged.handle || name).replace(/^@+/, "");
+    var role = String(merged.role || merged.tier || merged.account_type || "MEMBER").toUpperCase();
+    var bio = merged.bio || merged.biodata || merged.about || "Belum ada biodata. Klik Edit Profil untuk melengkapi profilmu.";
+    var mood = merged.mood ? ("\n\nMood: " + merged.mood) : "";
+    var avatar = merged.avatar_url || merged.avatar || merged.photo_url || merged.photo || "";
+    return { name: name, username: username, role: role, bio: bio + mood, avatar: avatar };
+  }
+
+  function openPreviewModal() {
+    var p = readActiveProfile();
+    var modal = document.getElementById("cnPreviewProfileModal");
+    if (!modal) return;
+    var av = document.getElementById("cnPpAvatar");
+    if (p.avatar && /^https?:|^data:image//.test(p.avatar)) {
+      av.innerHTML = "<img src=\"" + p.avatar.replace(/"/g, "&quot;") + "\" alt=\"Avatar\">";
+    } else {
+      av.textContent = (p.name || "U").trim().charAt(0).toUpperCase();
+    }
+    document.getElementById("cnPpName").innerHTML = p.name.replace(/</g, "&lt;") + " <i class=\"fa-solid fa-circle-check\" style=\"color:#38bdf8;font-size:14px;\"></i>";
+    document.getElementById("cnPpHandle").textContent = "@" + p.username + " • Pratinjau Publik";
+    document.getElementById("cnPpRole").textContent = p.role;
+    document.getElementById("cnPpBio").textContent = p.bio;
+    modal.classList.add("open");
+  }
+
+  function closePreviewModal() {
+    var modal = document.getElementById("cnPreviewProfileModal");
+    if (modal) modal.classList.remove("open");
+  }
+
+  window.cnOpenSelfProfilePreview = openPreviewModal;
+
+  function findEditProfileBtn() {
+    var btns = document.querySelectorAll("button, a, [role=button]");
+    for (var i = 0; i < btns.length; i++) {
+      var txt = (btns[i].textContent || "").trim();
+      if (/Edit Profils*&s*Biodata/i.test(txt)) return btns[i];
+    }
+    return null;
+  }
+
+  function ensurePreviewButton() {
+    if (document.getElementById("cnBtnPreviewSelfProfile")) return;
+    var editBtn = findEditProfileBtn();
+    if (!editBtn || !editBtn.parentNode) return;
+    var btn = editBtn.cloneNode(false);
+    btn.id = "cnBtnPreviewSelfProfile";
+    btn.type = "button";
+    btn.removeAttribute("onclick");
+    btn.innerHTML = "<span style=\"display:flex;align-items:center;gap:12px;text-align:left;\">" +
+      "<i class=\"fa-solid fa-eye\" style=\"color:#c084fc;width:18px;text-align:center;\"></i>" +
+      "<span><strong style=\"display:block;\">Pratinjau Profil Saya</strong>" +
+      "<small style=\"opacity:.7;font-weight:400;\">Lihat tampilan profilmu sebagaimana dilihat pengguna lain</small></span></span>" +
+      "<i class=\"fa-solid fa-chevron-right\" style=\"opacity:.5;\"></i>";
+    btn.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openPreviewModal();
+    });
+    editBtn.parentNode.insertBefore(btn, editBtn.nextSibling);
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    var m = document.getElementById("cnPreviewProfileModal");
+    if (m) m.addEventListener("click", function(e) { if (e.target === m) closePreviewModal(); });
+    var c1 = document.getElementById("cnPpCloseTop");
+    var c2 = document.getElementById("cnPpCloseBtn");
+    var eb = document.getElementById("cnPpEditBtn");
+    if (c1) c1.addEventListener("click", closePreviewModal);
+    if (c2) c2.addEventListener("click", closePreviewModal);
+    if (eb) eb.addEventListener("click", function() {
+      closePreviewModal();
+      var editBtn = findEditProfileBtn();
+      if (editBtn) editBtn.click();
+    });
+    ensurePreviewButton();
+    var obs = new MutationObserver(ensurePreviewButton);
+    obs.observe(document.body, { childList: true, subtree: true });
+  });
+})();
+</script>
+<!-- CN_PROFILE_PREVIEW_UNIVERSAL_END -->
 </body>
 </html>
