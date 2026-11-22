@@ -675,6 +675,60 @@
     color: rgba(255, 255, 255, 0.84);
   }
 </style>
+<style id="cn-desktop-polish">
+@media (min-width: 1024px) {
+  /* 1. Ruang napas konten utama agar rapi & tidak ditabrak tab kanan */
+  body {
+    padding-bottom: 110px !important;
+  }
+  main, .cn-pwa-page, .feed-container, .katalog-wrap {
+    max-width: 1140px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 28px !important;
+    padding-right: 56px !important;
+  }
+
+  /* 2. Bottom Nav jadi Floating Glass Pill elegan di tengah bawah */
+  .cn-pwa-bottom-nav,
+  .cn-bottom-nav {
+    left: 50% !important;
+    right: auto !important;
+    bottom: 20px !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    min-width: 460px !important;
+    max-width: 580px !important;
+    padding: 8px 22px !important;
+    border-radius: 999px !important;
+    background: rgba(14, 10, 22, 0.82) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 42, 95, 0.32) !important;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 42, 95, 0.14) !important;
+  }
+
+  /* 3. Tab LIVE CHAT CS tetap menempel di kanan, tapi dark-glass neon */
+  .cn-livechat-dock {
+    background: rgba(15, 10, 24, 0.88) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 42, 95, 0.48) !important;
+    border-right: none !important;
+    border-radius: 14px 0 0 14px !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    box-shadow: -6px 0 24px rgba(255, 42, 95, 0.22), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+  }
+  .cn-livechat-dock:hover {
+    background: rgba(255, 42, 95, 0.22) !important;
+    box-shadow: -8px 0 30px rgba(255, 42, 95, 0.42) !important;
+  }
+  .cn-livechat-dock * {
+    color: #ffffff !important;
+  }
+}
+</style>
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
   <!-- CN-SPLASH-BODY-START -->
@@ -12660,5 +12714,20 @@ window.addEventListener("storage", function(e) {
 })();
 </script>
 <!-- CN_PROFILE_PREVIEW_UNIVERSAL_END -->
+<script id="cn-desktop-polish-js">
+(function(){
+  function tagDock(){
+    document.querySelectorAll("button, a, div").forEach(function(el){
+      if (el.children.length <= 3 && /LIVE CHAT CS/i.test(el.textContent || "")) {
+        var st = window.getComputedStyle(el);
+        if (st.position === "fixed") el.classList.add("cn-livechat-dock");
+      }
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", tagDock);
+  else tagDock();
+  setTimeout(tagDock, 1200);
+})();
+</script>
 </body>
 </html>
