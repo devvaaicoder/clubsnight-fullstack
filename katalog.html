@@ -8069,10 +8069,20 @@ window.addEventListener("storage", function(e) {
       var storyEl = document.getElementById("cnStoryBar");
       var isEmptyDom = (feedEl && feedEl.children.length === 0) || (storyEl && storyEl.children.length === 0);
       if (forceRender || isEmptyDom || remotePostsStr !== localPostsStr || remoteStoriesStr !== localStoriesStr) {
+        var finalPostsStr = remotePostsStr;
+        try {
+          var rList = JSON.parse(remotePostsStr || "[]");
+          var lList = JSON.parse(localStorage.getItem(FEED_KEY) || "[]");
+          var rIds = new Set((Array.isArray(rList) ? rList : []).map(function(p){ return p && p.id; }).filter(Boolean));
+          var pending = (Array.isArray(lList) ? lList : []).filter(function(p){ return p && p.id && !rIds.has(p.id); });
+          if (pending.length && Array.isArray(rList)) {
+            finalPostsStr = JSON.stringify(pending.concat(rList).slice(0, 120));
+          }
+        } catch (_) {}
         isPullingFromCloud = true;
         try {
-          origSetItem.call(localStorage, FEED_KEY, remotePostsStr);
-          origSetItem.call(localStorage, STORY_KEY, remoteStoriesStr);
+          try { origSetItem.call(localStorage, FEED_KEY, finalPostsStr); } catch (_) {}
+          try { origSetItem.call(localStorage, STORY_KEY, remoteStoriesStr); } catch (_) {}
         } finally {
           isPullingFromCloud = false;
         }
