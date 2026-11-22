@@ -19,6 +19,9 @@ defmodule ClubsnightApi.Router do
       ets_entries: ets_entries,
       uptime_sec: div(uptime_ms, 1000)
     })
+  end
+
+  
 
   post "/api/auth/telegram" do
     case TelegramAuth.verify(conn.body_params) do
