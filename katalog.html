@@ -9683,6 +9683,8 @@ window.addEventListener("storage", function(e) {
   }
 
   function buildDynamicQrisString(amount) {
+  /* Kembalikan QRIS statis murni agar tidak ditolak ShopeePay 4090000 */
+  return SAWERIA_QRIS_RAW;
     var base = SAWERIA_QRIS_RAW.slice(0, -4).replace("010211", "010212");
     var amtStr = String(Math.max(1000, Math.round(Number(amount || 0))));
     var tag54 = "54" + String(amtStr.length).padStart(2, "0") + amtStr;
