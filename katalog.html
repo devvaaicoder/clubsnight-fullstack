@@ -8003,6 +8003,9 @@ window.addEventListener("storage", function(e) {
   var FEED_KEY = "cn_lounge_posts_v1";
   var STORY_KEY = "cn_talent_stories_v1";
   var isPullingFromCloud = false;
+  var hasPendingPush = false;
+  var lastFeedStr = null;
+  var lastStoryStr = null;
   var pushTimer = null;
 
   function getActorSession() {
@@ -8021,8 +8024,8 @@ window.addEventListener("storage", function(e) {
     clearTimeout(pushTimer);
     pushTimer = setTimeout(async function() {
       try {
-        var posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]");
-        var stories = JSON.parse(localStorage.getItem(STORY_KEY) || "[]");
+        var posts = JSON.parse((lastFeedStr !== null ? lastFeedStr : localStorage.getItem(FEED_KEY)) || "[]");
+        var stories = JSON.parse((lastStoryStr !== null ? lastStoryStr : localStorage.getItem(STORY_KEY)) || "[]");
         var hTok = actor.sessionToken || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
         await fetch(WORKER_API + "/api/lounge/save", {
           method: "POST",
@@ -8040,7 +8043,16 @@ window.addEventListener("storage", function(e) {
   // Intercept setiap penyimpanan lokal Lounge & Story agar otomatis sinkron ke D1
   var origSetItem = Storage.prototype.setItem;
   Storage.prototype.setItem = function(key, value) {
-    origSetItem.apply(this, arguments);
+    if (this === window.localStorage && (key === FEED_KEY || key === STORY_KEY)) {
+      if (key === FEED_KEY) lastFeedStr = String(val);
+      if (key === STORY_KEY) lastStoryStr = String(val);
+      hasPendingPush = true;
+    }
+    try {
+      origSetItem.apply(this, arguments);
+    } catch (e) {
+      console.warn("[LoungeSync] localStorage quota penuh, tetap lanjut push ke cloud:", e);
+    }
     if (this === window.localStorage && (key === FEED_KEY || key === STORY_KEY)) {
       schedulePushToCloud();
     }
@@ -8062,8 +8074,8 @@ window.addEventListener("storage", function(e) {
         return _delSt.indexOf(u) === -1 && _delSt.indexOf(id) === -1;
       });
       var remoteStoriesStr = JSON.stringify(_cleanStories);
-      var localPostsStr = localStorage.getItem(FEED_KEY) || "[]";
-      var localStoriesStr = localStorage.getItem(STORY_KEY) || "[]";
+      var localPostsStr = (lastFeedStr !== null ? lastFeedStr : localStorage.getItem(FEED_KEY)) || "[]";
+      var localStoriesStr = (lastStoryStr !== null ? lastStoryStr : localStorage.getItem(STORY_KEY)) || "[]";
 
       var feedEl = document.getElementById("cnLoungeFeed");
       var storyEl = document.getElementById("cnStoryBar");
@@ -8072,10 +8084,10 @@ window.addEventListener("storage", function(e) {
         var finalPostsStr = remotePostsStr;
         try {
           var rList = JSON.parse(remotePostsStr || "[]");
-          var lList = JSON.parse(localStorage.getItem(FEED_KEY) || "[]");
+          var lList = JSON.parse((lastFeedStr !== null ? lastFeedStr : localStorage.getItem(FEED_KEY)) || "[]");
           var rIds = new Set((Array.isArray(rList) ? rList : []).map(function(p){ return p && p.id; }).filter(Boolean));
           var pending = (Array.isArray(lList) ? lList : []).filter(function(p){ return p && p.id && !rIds.has(p.id); });
-          if (pending.length && Array.isArray(rList)) {
+          if (hasPendingPush && pending.length && Array.isArray(rList)) {
             finalPostsStr = JSON.stringify(pending.concat(rList).slice(0, 120));
           }
         } catch (_) {}
@@ -8097,6 +8109,7 @@ window.addEventListener("storage", function(e) {
     pullLoungeFromCloud(true);
     setInterval(pullLoungeFromCloud, 15000);
   });
+  window.addEventListener("pagehide", function() { if (hasPendingPush && typeof schedulePushToCloud === "function") schedulePushToCloud(); });
 })();
 </script>
 
