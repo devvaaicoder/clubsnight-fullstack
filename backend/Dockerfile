@@ -17,7 +17,7 @@ RUN mix compile
 RUN mix release
 
 # ---- Stage 2: Minimal Runtime ----
-FROM alpine:3.20 AS app
+FROM alpine:latest AS app
 
 RUN apk add --no-cache libstdc++ openssl ncurses-libs ca-certificates
 
