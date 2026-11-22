@@ -9,7 +9,17 @@ defmodule ClubsnightApi.Router do
   plug :dispatch
 
   get "/api/health" do
-    send_json(conn, 200, %{status: "ok", service: "clubsnight-api"})
+    ram_mb = Float.round(:erlang.memory(:total) / 1_048_576, 2)
+    ets_entries = try do :ets.info(:clubsnight_cache, :size) || 0 rescue _ -> 0 end
+    {uptime_ms, _} = :erlang.statistics(:wall_clock)
+    send_json(conn, 200, %{
+      ok: true,
+      service: "clubsnight_api",
+      ram_mb: ram_mb,
+      ets_entries: ets_entries,
+      uptime_sec: div(uptime_ms, 1000)
+    })
+  end_json(conn, 200, %{status: "ok", service: "clubsnight-api"})
   end
 
   post "/api/auth/telegram" do

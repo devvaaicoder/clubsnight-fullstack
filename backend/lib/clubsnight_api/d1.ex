@@ -8,7 +8,10 @@ defmodule ClubsnightApi.D1 do
 
     case Req.post(url,
            headers: [{"authorization", "Bearer #{token}"}],
-           json: %{sql: sql, params: params}
+           json: %{sql: sql, params: params},
+      receive_timeout: 8_000,
+      retry: :transient,
+      max_retries: 2
          ) do
       {:ok, %{status: 200, body: %{"success" => true, "result" => [first | _]}}} ->
         {:ok, first["results"] || []}
