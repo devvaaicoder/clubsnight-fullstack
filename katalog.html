@@ -4434,17 +4434,16 @@
       var uname = String(s.username || "").replace(/^@/, "").toLowerCase();
       var isDevOrAdmin = (uname === "dewaaeoo" || ["superadmin", "admin", "dev", "developer", "merch", "merch_admin"].indexOf(role) !== -1);
       if (role !== "talent" && !isDevOrAdmin) {
-        if (confirm("Fitur membuat postingan di Lounge khusus untuk akun Talent.\n\nIngin mendaftarkan diri sebagai Talent terlebih dahulu?")) {
-          if (typeof window.openCnAuthModal === "function") {
-            window.openCnAuthModal("register");
-            setTimeout(function() {
-              var sel = document.getElementById("cnRegRole");
-              if (sel) { sel.value = "talent"; sel.dispatchEvent(new Event("change")); }
-            }, 120);
-          } else {
-            window.location.hash = "#activity";
-          }
-        }
+        if (confirm("Fitur membuat postingan di Lounge khusus untuk akun Talent.\n\nIngin mendaftarkan diri sebagai Talent lewat @clubsnightcs_bot sekarang?")) {
+              var _tName = (s && (s.name || s.displayName)) ? (s.name || s.displayName) : "";
+              var _tUser = (s && s.username) ? String(s.username).replace(/^@/, "") : "";
+              var _regMsg = "Halo Admin @clubsnightcs_bot, saya ingin mendaftar sebagai Talent Clubs'Night.\nNama: " + _tName + "\nUsername: @" + _tUser + "\nMohon verifikasi akun talent saya.";
+              var _botUrl = "https://t.me/clubsnightcs_bot?text=" + encodeURIComponent(_regMsg);
+              if (typeof showToast === "function") {
+                showToast("Mengarahkan ke @clubsnightcs_bot untuk pendaftaran Talent...", "info");
+              }
+              window.open(_botUrl, "_blank", "noopener,noreferrer");
+            }
         return;
       }
       if (!isDevOrAdmin && !s.approved) {
