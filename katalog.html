@@ -8105,8 +8105,8 @@ window.addEventListener("storage", function(e) {
   var origSetItem = Storage.prototype.setItem;
   Storage.prototype.setItem = function(key, value) {
     if (this === window.localStorage && (key === FEED_KEY || key === STORY_KEY)) {
-      if (key === FEED_KEY) lastFeedStr = String(val);
-      if (key === STORY_KEY) lastStoryStr = String(val);
+      if (key === FEED_KEY) lastFeedStr = String(value);
+      if (key === STORY_KEY) lastStoryStr = String(value);
       hasPendingPush = true;
     }
     try {
@@ -9002,7 +9002,7 @@ window.addEventListener("storage", function(e) {
   }
 
   function formatTlv(id, val) {
-    var strVal = String(val);
+    var strVal = String(value);
     var len = String(strVal.length).padStart(2, "0");
     return id + len + strVal;
   }
