@@ -12443,19 +12443,21 @@ window.addEventListener("storage", function(e) {
 
 <style id="cnHeaderSingleFixCss">
   .cn-top-ticker, #mainHeader, .cn-monarchy-header {
-    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
-    will-change: transform;
+    transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease !important;
+    will-change: transform, opacity;
   }
   body.cn-top-bar-hidden .cn-top-ticker,
   body.cn-top-bar-hidden #mainHeader,
   body.cn-top-bar-hidden .cn-monarchy-header {
-    transform: translateY(-220%) !important;
+    transform: translateY(-120%) scale(0.98) !important;
+    opacity: 0 !important;
     pointer-events: none !important;
   }
   body:not(.cn-top-bar-hidden) .cn-top-ticker,
   body:not(.cn-top-bar-hidden) #mainHeader,
   body:not(.cn-top-bar-hidden) .cn-monarchy-header {
-    transform: translateY(0) !important;
+    transform: translateY(0) scale(1) !important;
+    opacity: 1 !important;
     pointer-events: auto !important;
   }
 </style>
