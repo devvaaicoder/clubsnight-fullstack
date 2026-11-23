@@ -379,7 +379,7 @@ export default {
           const mediaUrls = [target.media, target.image, target.video, target.mediaUrl].filter(u => typeof u === "string" && u.length > 0);
           if (r2 && typeof r2.delete === "function") {
             for (const u of mediaUrls) {
-              const m = u.match(//(?:media|r2|uploads?)/([^?#]+)/i);
+              const m = u.match(/\/(?:media|r2|uploads?)\/([^?#]+)/i);
               if (m && m[1]) { await r2.delete(decodeURIComponent(m[1])).catch(() => {}); }
             }
           }
