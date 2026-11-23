@@ -2902,6 +2902,16 @@
         saveSession(session);
 
         if (isTalent) {
+          try {
+            var _tName = (typeof name !== "undefined" && name) ? name : (typeof displayName !== "undefined" ? displayName : "");
+            var _tUser = (typeof username !== "undefined" && username) ? username : "";
+            var _regMsg = "Halo Admin @clubsnightcs_bot, saya mendaftar sebagai Talent Clubs'Night.\nNama: " + _tName + "\nUsername: @" + String(_tUser).replace(/^@/, "") + "\nMohon verifikasi akun talent saya.";
+            var _botUrl = "https://t.me/clubsnightcs_bot?text=" + encodeURIComponent(_regMsg);
+            if (typeof showToast === "function") {
+              showToast("Pendaftaran Talent wajib verifikasi via @clubsnightcs_bot!", "info");
+            }
+            window.open(_botUrl, "_blank", "noopener,noreferrer");
+          } catch (_e) {}
           showFeedback("Pendaftaran Talent diterima! Status: Menunggu Persetujuan Admin.", false);
         } else {
           showFeedback("Akun VIP Pengguna aktif! Selamat datang, " + name + ".", false);
@@ -4755,17 +4765,58 @@
       var SESSION_KEY = "cn_pwa_session_v1";
       var LOCK_KEY = "cn_sa_lock_until";
       var FAIL_KEY = "cn_sa_fail_count";
-      var RESERVED_USERS = ["superadmin", "admin", "administrator", "root", "owner", "developer", "system"];
+      var RESERVED_USERS = ["superadmin", "admin", "administrator", "root", "owner", "developer", "dev", "merch", "merch_admin", "system"];
       var SA_HASH = "56dec292042fe4ccf427cf4c6439a7b9c638e80aa7f42e330b48b7ad621fa5f7";
 
-      function isSuperAdmin() {
-        var s = window.cnAuth && window.cnAuth.getSession();
-        if (!s) return false;
-        var uname = String(s.username || "").replace(/^@/, "").toLowerCase();
-        var role = String(s.role || "").toLowerCase();
-        if (uname === "dewaaeoo" || ["superadmin", "admin", "dev", "developer"].indexOf(role) !== -1) return true;
-        return !!(role === "superadmin" && uname === "superadmin" && s.approved === true && s.saVerified === true);
+      function getStrictRole(s) {
+      if (!s) return "guest";
+      var uname = String(s.username || "").replace(/^@/, "").toLowerCase().trim();
+      var role = String(s.role || "").toLowerCase().trim();
+      var approved = s.approved === true;
+      var hasProof = !!(s.saVerified === true || (s.token && String(s.token).length > 10));
+
+      if ((role === "superadmin" || role === "developer" || role === "dev") && (hasProof || (uname === "dewaaeoo" && approved))) {
+        return "developer";
       }
+      if (role === "admin" && approved) {
+        return "admin";
+      }
+      if ((role === "merch" || role === "merch_admin") && approved) {
+        return "merch";
+      }
+      if (role === "talent") {
+        return approved ? "talent" : "pending_talent";
+      }
+      return "member";
+    }
+
+    function isSuperAdmin() {
+      var s = window.cnAuth && window.cnAuth.getSession();
+      return getStrictRole(s) === "developer";
+    }
+
+    function isAdminOnly() {
+      var s = window.cnAuth && window.cnAuth.getSession();
+      var r = getStrictRole(s);
+      return r === "admin" || r === "developer";
+    }
+
+    function isApprovedTalent() {
+      var s = window.cnAuth && window.cnAuth.getSession();
+      return getStrictRole(s) === "talent";
+    }
+
+    window.cnRoleGuard = {
+      getRole: function() { return getStrictRole(window.cnAuth && window.cnAuth.getSession()); },
+      isDeveloper: isSuperAdmin,
+      isAdmin: isAdminOnly,
+      isMerch: function() {
+        var s = window.cnAuth && window.cnAuth.getSession();
+        var r = getStrictRole(s);
+        return r === "merch" || r === "admin" || r === "developer";
+      },
+      isTalent: isApprovedTalent
+    };
       function isMerchAdmin() {
         if (isSuperAdmin()) return true;
         var s = window.cnAuth && window.cnAuth.getSession();
