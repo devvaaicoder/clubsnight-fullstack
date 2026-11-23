@@ -3725,8 +3725,20 @@
       }
 
       function saveUploadedStories(arr) {
-        try { localStorage.setItem(UPLOAD_KEY, JSON.stringify(arr)); } catch (e) {}
+      try {
+        localStorage.setItem(UPLOAD_KEY, JSON.stringify(arr));
+        if (typeof window.cnForcePushLounge === "function") {
+          window.cnForcePushLounge();
+        }
+        return true;
+      } catch (e) {
+        console.error("saveUploadedStories error:", e);
+        if (typeof showToast === "function") {
+          showToast("Gagal menyimpan Story: ukuran media terlalu besar atau memori browser penuh. Coba foto yang lebih kecil.", "error");
+        }
+        return false;
       }
+    }
 
       function getViewedIds() {
         try { return JSON.parse(localStorage.getItem(VIEWED_KEY) || "[]"); } catch (e) { return []; }
