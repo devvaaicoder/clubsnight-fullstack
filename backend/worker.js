@@ -339,6 +339,56 @@ export default {
         return jsonOut({ success: true, story: newStory, countStories: nextStories.length });
       }
 
+      if (url.pathname === "/api/lounge/post/delete" && request.method === "POST") {
+        const sTok = request.headers.get("X-Session-Token") || "";
+        const actor = await verifySessionToken(sTok, env.ADMIN_SECRET_TOKEN);
+        if (!actor || !actor.username) {
+          return new Response(JSON.stringify({ success: false, error: "Sesi tidak valid. Silakan login ulang." }), {
+            status: 401, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const body = await request.json().catch(() => ({}));
+        const postId = String(body.postId || body.id || "").trim();
+        if (!postId) {
+          return new Response(JSON.stringify({ success: false, error: "ID postingan tidak ditemukan." }), {
+            status: 400, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const row = await env.DB.prepare("SELECT posts FROM lounge_store WHERE id = 1").first();
+        let curPosts = [];
+        if (row && row.posts) { try { curPosts = JSON.parse(row.posts); } catch (_) {} }
+        const target = curPosts.find(p => String(p.id) === postId);
+        if (!target) {
+          return new Response(JSON.stringify({ success: true, deleted: true, alreadyGone: true }), {
+            status: 200, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const norm = v => String(v || "").replace(/^@/, "").trim().toLowerCase();
+        const actorUser = norm(actor.username);
+        const ownerCandidates = [target.username, target.authorHandle, target.handle, target.author].map(norm).filter(Boolean);
+        if (!ownerCandidates.includes(actorUser)) {
+          return new Response(JSON.stringify({ success: false, error: "Akses ditolak: hanya pemilik postingan yang dapat menghapus." }), {
+            status: 403, headers: { ...securityHeaders, "Content-Type": "application/json" }
+          });
+        }
+        const nextPosts = curPosts.filter(p => String(p.id) !== postId);
+        await env.DB.prepare("UPDATE lounge_store SET posts = ? WHERE id = 1").bind(JSON.stringify(nextPosts)).run();
+        // Bersihkan media di R2 storage jika ada agar tidak memakan ruang
+        try {
+          const r2 = env.MEDIA_BUCKET || env.R2_BUCKET || env.BUCKET;
+          const mediaUrls = [target.media, target.image, target.video, target.mediaUrl].filter(u => typeof u === "string" && u.length > 0);
+          if (r2 && typeof r2.delete === "function") {
+            for (const u of mediaUrls) {
+              const m = u.match(//(?:media|r2|uploads?)/([^?#]+)/i);
+              if (m && m[1]) { await r2.delete(decodeURIComponent(m[1])).catch(() => {}); }
+            }
+          }
+        } catch (_) {}
+        return new Response(JSON.stringify({ success: true, deleted: true, postId }), {
+          status: 200, headers: { ...securityHeaders, "Content-Type": "application/json" }
+        });
+      }
+
       if (url.pathname === "/api/lounge/story/delete" && request.method === "POST") {
         if (!checkMemoryRate(clientIp, "story_delete", 20, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak permintaan." }, 429);
         if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 500);
