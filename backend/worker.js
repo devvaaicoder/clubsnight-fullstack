@@ -1071,6 +1071,38 @@ export default {
           "INSERT INTO qris_intents (id, username, base_amount, unique_code, total_amount, mode, service, status, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)"
         ).bind(intentId, actorUser, baseAmount, uniqueCode, totalAmount, mode, service, expiresAt, new Date(now).toISOString()).run();
 
+        // Kirim notifikasi approval ketat ke Telegram Admin
+        if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID) {
+          try {
+            const msgText = [
+              "💳 *PERMINTAAN TOPUP QRIS DANA*",
+              "━━━━━━━━━━━━━━",
+              "👤 User: `" + actorUser + "`",
+              "💰 Nominal: *Rp " + Number(totalAmount).toLocaleString("id-ID") + "*",
+              "🔢 Kode Unik: `" + uniqueCode + "` (Pokok: Rp " + Number(baseAmount).toLocaleString("id-ID") + ")",
+              "🏷️ Layanan: " + (service || mode || "Topup Wallet"),
+              "🆔 Intent: `" + intentId + "`",
+              "━━━━━━━━━━━━━━",
+              "⚠️ Cek mutasi DANA terlebih dahulu sebelum klik Approve."
+            ].join("\n");
+            await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+                text: msgText,
+                parse_mode: "Markdown",
+                reply_markup: {
+                  inline_keyboard: [[
+                    { text: "✅ Approve Saldo", callback_data: "qris_ok:" + intentId },
+                    { text: "❌ Tolak", callback_data: "qris_no:" + intentId }
+                  ]]
+                }
+              })
+            });
+          } catch (e) {}
+        }
+
         return new Response(JSON.stringify({
           success: true,
           intent: {
@@ -1086,6 +1118,90 @@ export default {
         }), {
           headers: { ...securityHeaders, "Content-Type": "application/json" }
         });
+      }
+
+      // 13B. Strict Telegram Approval Webhook (Anti-Manipulasi Saldo)
+      if (url.pathname === "/api/webhook/telegram" && request.method === "POST") {
+        const expectedSecret = (env.TELEGRAM_WEBHOOK_SECRET || "").trim();
+        const incomingSecret = (request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "").trim();
+        if (!expectedSecret || incomingSecret !== expectedSecret) {
+          return new Response("Forbidden", { status: 403 });
+        }
+
+        const update = await request.json().catch(() => null);
+        const cb = update && update.callback_query;
+        if (!cb || !cb.data) return new Response("OK", { status: 200 });
+
+        const adminChatId = String(env.TELEGRAM_ADMIN_CHAT_ID || "").trim();
+        const fromId = String(cb.from?.id || "");
+        const chatId = String(cb.message?.chat?.id || "");
+        if (!adminChatId || (fromId !== adminChatId && chatId !== adminChatId)) {
+          return new Response("Unauthorized", { status: 403 });
+        }
+
+        const [action, targetId] = String(cb.data).split(":");
+        if ((action !== "qris_ok" && action !== "qris_no") || !targetId) {
+          return new Response("OK", { status: 200 });
+        }
+
+        const answerCb = async (text) => {
+          await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ callback_query_id: cb.id, text, show_alert: true })
+          });
+        };
+
+        const editMsg = async (suffix) => {
+          await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: cb.message.chat.id,
+              message_id: cb.message.message_id,
+              text: (cb.message.text || "") + "\n\n" + suffix,
+              reply_markup: { inline_keyboard: [] }
+            })
+          });
+        };
+
+        const intent = await env.DB.prepare("SELECT * FROM qris_intents WHERE id = ?").bind(targetId).first();
+        if (!intent) {
+          await answerCb("Intent tidak ditemukan.");
+          return new Response("OK", { status: 200 });
+        }
+        if (intent.status !== "PENDING") {
+          await answerCb("Transaksi sudah diproses (" + intent.status + ").");
+          await editMsg("ℹ️ Status: " + intent.status);
+          return new Response("OK", { status: 200 });
+        }
+
+        const nowIso = new Date().toISOString();
+        if (action === "qris_no") {
+          await env.DB.prepare("UPDATE qris_intents SET status = 'REJECTED' WHERE id = ? AND status = 'PENDING'").bind(targetId).run();
+          await answerCb("❌ Transaksi ditolak.");
+          await editMsg("❌ DITOLAK oleh Admin (" + nowIso + ")");
+          return new Response("OK", { status: 200 });
+        }
+
+        // Atomic Approve & Credit Saldo (Anti-Double Credit)
+        const upd = await env.DB.prepare(
+          "UPDATE qris_intents SET status = 'PAID', paid_at = ? WHERE id = ? AND status = 'PENDING'"
+        ).bind(nowIso, targetId).run();
+
+        if (upd?.meta?.changes > 0) {
+          const creditAmount = Number(intent.base_amount || intent.total_amount || 0);
+          if (creditAmount > 0) {
+            await env.DB.prepare(
+              "INSERT INTO wallet_balances (username, balance, updated_at) VALUES (?, ?, ?) ON CONFLICT(username) DO UPDATE SET balance = balance + excluded.balance, updated_at = excluded.updated_at"
+            ).bind(intent.username, creditAmount, nowIso).run();
+          }
+          await answerCb("✅ Saldo Rp " + creditAmount.toLocaleString("id-ID") + " masuk ke " + intent.username);
+          await editMsg("✅ APPROVED • Saldo Rp " + creditAmount.toLocaleString("id-ID") + " masuk (" + nowIso + ")");
+        } else {
+          await answerCb("⚠️ Sudah diproses sebelumnya.");
+        }
+        return new Response("OK", { status: 200 });
       }
 
       // 14. Potong Saldo Wallet (WAJIB X-Session-Token HMAC Valid + Atomic Balance Check)
@@ -1142,6 +1258,7 @@ export default {
 
       // 15. WEBHOOK OTOMATIS SAWERIA (WAJIB Secret Token + Brute-Force Lockout + Atomic Anti-Replay)
       if (url.pathname === "/api/webhook/saweria" && request.method === "POST") {
+        return new Response(JSON.stringify({ error: "Saweria webhook disabled" }), { status: 410, headers: { ...securityHeaders, "Content-Type": "application/json" } });
         if (!env.SAWERIA_WEBHOOK_TOKEN) {
           return new Response(JSON.stringify({ success: false, error: "Webhook belum dikonfigurasi." }), {
             status: 503, headers: { "Content-Type": "application/json" }
