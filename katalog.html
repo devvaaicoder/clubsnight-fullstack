@@ -4077,15 +4077,13 @@
         // Kirim perintah hapus permanen ke Cloudflare Backend (D1 + R2)
         try {
           var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
-          fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/lounge/story/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          (async function(){ var _s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null; var _tok = (_s && (_s.sessionToken || _s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : ""); return fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/lounge/story/delete", { method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": _tok },
             body: JSON.stringify({
               id: target.id,
               image: target.image || "",
               ownerUsername: s.username || target.ownerUsername
             })
-          }).catch(function() {});
+          }); })().catch(function() {});
         } catch (_) {}
 
         if (typeof window.closeCnStoryViewer === "function") window.closeCnStoryViewer();
@@ -6530,7 +6528,7 @@
       window.deleteCnPost = function(postId) {
         var posts = [];
         try { posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch (e) {}
-        var next = posts.filter(function(p) { return p.id !== postId; });
+        var next = posts.filter(function(p) { return String(p.id) !== String(postId); });
         try { localStorage.setItem(FEED_KEY, JSON.stringify(next)); if (window.cnForcePushLounge) window.cnForcePushLounge(); } catch (e) {}
         window.closeCnPostMenu();
         window.cnToast("Postingan berhasil dihapus.", "info");
@@ -7811,7 +7809,7 @@ window.addEventListener("storage", function(e) {
           try {
             var posts = JSON.parse(localStorage.getItem("cn_lounge_posts_v1") || "[]");
             if (postId) {
-              posts = posts.filter(function(p) { return p.id !== postId; });
+              posts = posts.filter(function(p) { return String(p.id) !== String(postId); });
             } else if (cardIdx >= 0 && cardIdx < posts.length) {
               posts.splice(cardIdx, 1);
             }
@@ -8075,8 +8073,8 @@ window.addEventListener("storage", function(e) {
     clearTimeout(pushTimer);
     pushTimer = setTimeout(async function() {
       try {
-        var posts = JSON.parse((lastFeedStr !== null ? lastFeedStr : localStorage.getItem(FEED_KEY)) || "[]");
-        var stories = JSON.parse((lastStoryStr !== null ? lastStoryStr : localStorage.getItem(STORY_KEY)) || "[]");
+        var posts = JSON.parse((localStorage.getItem(FEED_KEY) !== null ? localStorage.getItem(FEED_KEY) : lastFeedStr) || "[]");
+        var stories = JSON.parse((localStorage.getItem(STORY_KEY) !== null ? localStorage.getItem(STORY_KEY) : lastStoryStr) || "[]");
         var hTok = actor.sessionToken || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
         await fetch(WORKER_API + "/api/lounge/save", {
           method: "POST",
