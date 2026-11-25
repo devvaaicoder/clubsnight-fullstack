@@ -9987,7 +9987,7 @@ window.addEventListener("storage", function(e) {
   }
 
   function injectBackupApprovalPanel() {
-    var devModalBody = document.querySelector("#cnDevCenterModal .cn-dev-body, #cnDevCenterModal .cn-auth-card, #cnDevCenterModal > div");
+    var devModalBody = document.querySelector("#cnDevCenterModal .cn-dev-sheet");
     if (!devModalBody) {
       var devModal = document.getElementById("cnDevCenterModal") || document.querySelector("[id*=DevCenter], [id*=devCenter]");
       if (devModal) devModalBody = devModal.querySelector(".cn-modal-card, .cn-dev-card, .cn-auth-card, .modal-content") || devModal.firstElementChild;
@@ -10033,6 +10033,7 @@ window.addEventListener("storage", function(e) {
         '<button type="submit">Simpan Penyesuaian Teraudit</button>' +
       '</form>';
     devModalBody.appendChild(walletPanel);
+    if (!document.getElementById("cnStaffWalletStyle")) { var st = document.createElement("style"); st.id = "cnStaffWalletStyle"; st.textContent = "#cnStaffWalletPanel input{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:13px}#cnStaffWalletPanel button{padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:12px;cursor:pointer}#cnStaffWalletPanel button[type=submit]{background:linear-gradient(90deg,#8b5cf6,#ec4899);border:0;font-weight:600;padding:10px}"; document.head.appendChild(st); }
 
     function escapeWalletHtml(value) {
       return String(value || "").replace(/[&<>"']/g, function(ch) {
@@ -11607,7 +11608,7 @@ window.addEventListener("storage", function(e) {
   // A. Pindahkan panel Backup QRIS ke dalam body Developer Control Center jika terlanjur di luar
   function relocateBackupQrisPanel() {
     var panel = document.getElementById("cnBackupQrisPanel");
-    var devCard = document.querySelector("#cnDevCenterModal .cn-dev-body, #cnDevCenterModal .cn-auth-card, #cnDevCenterModal .cn-modal-card");
+    var devCard = document.querySelector("#cnDevCenterModal .cn-dev-sheet");
     if (panel && devCard && !devCard.contains(panel)) {
       devCard.appendChild(panel);
     }
