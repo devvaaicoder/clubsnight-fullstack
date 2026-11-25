@@ -172,14 +172,25 @@
     (function() {
       var API_BASE = "%VITE_ELIXIR_API_URL%";
       var WORKER_API = "%VITE_API_URL%";
+      if (API_BASE.indexOf("http") !== 0) API_BASE = "https://clubsnight-api.onrender.com";
+      if (WORKER_API.indexOf("http") !== 0) {
+        WORKER_API = ["localhost", "127.0.0.1"].indexOf(window.location.hostname) !== -1
+          ? "http://127.0.0.1:8787"
+          : "https://clubsnight-fullstack.clubsnight.workers.dev";
+      }
 
       var SESSION_KEY = "cn_auth_session_v1";
       var BOT_USERNAME = "NightyTelegramLoginAccess_bot";
       var mode = "login";
 
       var params = new URLSearchParams(window.location.search);
-      var nextUrl = params.get("next") || "/katalog";
-      if (!nextUrl.startsWith("/")) nextUrl = "/katalog";
+      var nextUrl = "/katalog";
+      try {
+        var requestedNext = new URL(params.get("next") || "/katalog", window.location.origin);
+        if (requestedNext.origin === window.location.origin) {
+          nextUrl = requestedNext.pathname + requestedNext.search + requestedNext.hash;
+        }
+      } catch (_) {}
 
       var tabLogin = document.getElementById("tabLogin");
       var tabReg = document.getElementById("tabRegister");
@@ -194,7 +205,7 @@
         statusMsg.className = "msg " + (type || "error");
       }
 
-      function completeLogin(userObj, provider) {
+      async function completeLogin(userObj, provider) {
         var u = Object.assign({ provider: provider, tgId: userObj.tg_id }, userObj);
         
       function saveBothSessions(u) {
@@ -210,6 +221,36 @@
         localStorage.setItem("cn_pwa_session_v1", JSON.stringify(pwaObj));
       }
 
+        if (provider !== "talent_d1") {
+          try {
+            var assertionRes = await fetch(API_BASE.replace(/\/$/, "") + "/api/auth/worker-assertion", {
+              method: "POST",
+              credentials: "include"
+            });
+            var assertionData = await assertionRes.json().catch(function() { return {}; });
+            if (!assertionRes.ok || !assertionData.assertion) throw new Error(assertionData.error || "Identitas belum dapat diverifikasi.");
+            var exchangeRes = await fetch(WORKER_API.replace(/\/$/, "") + "/api/session/exchange", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ assertion: assertionData.assertion })
+            });
+            var exchangeData = await exchangeRes.json().catch(function() { return {}; });
+            if (!exchangeRes.ok || !exchangeData.sessionToken) throw new Error(exchangeData.error || "Gagal mengaktifkan sesi aman.");
+            u.workerSessionToken = exchangeData.sessionToken;
+            u.workerRole = exchangeData.identity && exchangeData.identity.role || "";
+            if (u.workerRole) {
+              u.role = u.workerRole === "consumer" ? "user" : u.workerRole;
+              u.approved = true;
+              u.saVerified = ["developer", "admin", "merch"].indexOf(u.workerRole) !== -1;
+            }
+            localStorage.setItem("cn_worker_session_v1", exchangeData.sessionToken);
+          } catch (err) {
+            showMsg(err.message || "Gagal mengaktifkan sesi aman.", "error");
+            return;
+          }
+        } else if (u.sessionToken) {
+          localStorage.setItem("cn_worker_session_v1", u.sessionToken);
+        }
         saveBothSessions(u);
         showMsg("Berhasil masuk! Mengalihkan...", "success");
         setTimeout(function() {

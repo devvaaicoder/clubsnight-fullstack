@@ -4,11 +4,27 @@ dist/
 .vite/
 
 # Environment & Secret Files
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
+.dev.vars*
 backend/wrangler-account.json
 .wrangler/
+
+# Local databases, backups, and scratch files
+*.sqlite
+*.sqlite-*
+backup/
+backups/
+**/backup/
+**/backups/
+tmp/
+temp/
+**/tmp/
+**/temp/
+test-scratch/
+**/test-scratch/
+*.tmp
+*.bak
 
 # OS & Editor Files
 .DS_Store

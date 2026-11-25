@@ -2,29 +2,11 @@
 <html lang="id">
 <head>
 <script id="cnImmediateAuthGuard">
-(function() {
-  try {
-    var rawPwa = localStorage.getItem("cn_pwa_session_v1");
-    var rawAuth = localStorage.getItem("cn_auth_session_v1");
-    var u = (rawPwa && JSON.parse(rawPwa)) || (rawAuth && JSON.parse(rawAuth)) || null;
-    if (!u || !(u.username || u.tg_id || u.tgId || u.name)) {
-      var next = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
-      window.location.replace("/login.html?next=" + next);
-      return;
-    }
-    // Pastikan kedua key selalu sinkron agar UI langsung render kartu profil
-    var synced = Object.assign({
-      name: u.name || [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "VIP Member",
-      username: (u.username || ("tg_" + (u.tg_id || u.tgId || "vip"))).replace(/^@/, ""),
-      role: u.role || "user",
-      approved: u.approved !== false
-    }, u);
-    localStorage.setItem("cn_pwa_session_v1", JSON.stringify(synced));
-    localStorage.setItem("cn_auth_session_v1", JSON.stringify(synced));
-  } catch (_) {
-    window.location.replace("/login.html?next=%2Fkatalog");
-  }
-})();
+</script>
+<script>
+window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  ? "http://127.0.0.1:8787"
+  : "https://clubsnight-fullstack.clubsnight.workers.dev";
 </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -184,7 +166,6 @@
           setTimeout(function(){ hideSplash(360); }, 50);
         }
       });
-
       // Tampilkan langsung saat klik link pindah halaman HTML internal
       document.addEventListener("click", function(e){
         var a = e.target.closest("a");
@@ -2715,13 +2696,15 @@
       var regRole = "user";
       var authHistoryPushed = false;
 
-      // Endpoint Elixir/Phoenix (isi saat server Phoenix live)
-      window.CN_AUTH_API = window.CN_AUTH_API || "";
+      window.CN_AUTH_API = window.CN_AUTH_API || "https://clubsnight-api.onrender.com";
 
       function getSession() {
         try {
           var raw = localStorage.getItem(SESSION_KEY);
-          return raw ? JSON.parse(raw) : null;
+          var session = raw ? JSON.parse(raw) : null;
+          if (!session || !["telegram", "clubsnight", "talent_d1"].includes(session.provider)) return null;
+          if (session.provider === "talent_d1") return session.sessionToken ? session : null;
+          return session.workerSessionToken || localStorage.getItem("cn_worker_session_v1") ? session : null;
         } catch (e) {
           return null;
         }
@@ -2736,12 +2719,14 @@
       }
 
       function clearSession() {
+        var next = window.location.pathname + window.location.search + window.location.hash;
         try {
           localStorage.removeItem("cn_pwa_session_v1");
           localStorage.removeItem("cn_auth_session_v1");
+          localStorage.removeItem("cn_worker_session_v1");
         } catch (e) {}
-        fetch("https://clubsnight-api.onrender.com/api/auth/logout", { method: "POST", credentials: "include" }).catch(function() {});
-        window.location.replace("/login.html?next=%2Fkatalog");
+        fetch(window.CN_AUTH_API + "/api/auth/logout", { method: "POST", credentials: "include" }).catch(function() {});
+        window.location.replace("/login.html?next=" + encodeURIComponent(next));
       }
 
       // API Global untuk dipakai Fase 4 (Lounge / Privilege Check)
@@ -2800,7 +2785,7 @@
           "</button>";
       }
 
-      window.openCnAuthModal = function(defaultMode) { window.location.href = "/login.html?next=" + encodeURIComponent(window.location.pathname + window.location.hash); return;
+      window.openCnAuthModal = function(defaultMode) {
         var modal = document.getElementById("cnAuthModal");
         if (!modal) return;
         if (defaultMode) window.switchCnAuthMode(defaultMode);
@@ -2858,65 +2843,143 @@
           : "Daftar sebagai Pengguna";
       };
 
-      window.handleCnLogin = function(e) {
-        e.preventDefault();
-        var idVal = document.getElementById("cnLoginId").value.trim();
-        var passVal = document.getElementById("cnLoginPass").value;
-        if (!idVal || !passVal) return;
+      async function exchangeElixirIdentity(user) {
+        var assertionResponse = await fetch(window.CN_AUTH_API + "/api/auth/worker-assertion", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: "{}"
+        });
+        var assertion = await assertionResponse.json().catch(function() { return {}; });
+        if (!assertionResponse.ok || !assertion.assertion) {
+          throw new Error(assertion.error || "Tidak dapat memverifikasi sesi akun.");
+        }
 
-        // Sesi persistent lokal (siap disambungkan ke Phoenix POST /api/auth/login)
+        var workerApi = window.CN_WORKER_API || "https://clubsnight-worker.workers.dev";
+        var exchangeResponse = await fetch(workerApi + "/api/session/exchange", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assertion: assertion.assertion })
+        });
+        var exchanged = await exchangeResponse.json().catch(function() { return {}; });
+        if (!exchangeResponse.ok || !exchanged.sessionToken || !exchanged.identity) {
+          throw new Error(exchanged.error || "Sesi Worker tidak dapat dibuat.");
+        }
+        var role = exchanged.identity.role;
+        var username = String(user.username || user.email || user.id || "").replace(/^@/, "").toLowerCase();
         var session = {
-          id: "usr_" + Date.now(),
-          name: idVal.replace(/^@/, ""),
-          username: idVal.replace(/^@/, "").toLowerCase(),
-          role: "user",
+          id: exchanged.identity.sub,
+          subject: exchanged.identity.sub,
+          username: username,
+          name: user.name || user.display_name || username,
+          role: role === "consumer" ? "user" : role,
+          workerRole: role,
+          provider: user.provider === "telegram" ? "telegram" : "clubsnight",
+          workerSessionToken: exchanged.sessionToken,
           approved: true,
+          saVerified: role === "developer" || role === "admin" || role === "merch",
           loggedInAt: new Date().toISOString()
         };
+        localStorage.setItem("cn_worker_session_v1", exchanged.sessionToken);
+        localStorage.setItem("cn_auth_session_v1", JSON.stringify(session));
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
         saveSession(session);
-        showFeedback("Berhasil masuk! Sesi realtime aktif.", false);
-        setTimeout(function() { window.closeCnAuthModal(); }, 650);
+      }
+
+      window.handleCnLogin = async function(e) {
+        e.preventDefault();
+        var identifier = (document.getElementById("cnLoginId").value || "").trim();
+        var password = document.getElementById("cnLoginPass").value || "";
+        var submit = document.querySelector("#cnLoginForm button[type=submit]");
+        if (submit) submit.disabled = true;
+        try {
+          var workerApi = window.CN_WORKER_API || "https://clubsnight-worker.workers.dev";
+          var talentResponse = await fetch(workerApi + "/api/talent/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: identifier, password: password })
+          });
+          var talentResult = await talentResponse.json().catch(function() { return {}; });
+          if (talentResponse.ok && talentResult.sessionToken && talentResult.user) {
+            var talentSession = Object.assign({}, talentResult.user, {
+              provider: "talent_d1",
+              role: "talent",
+              approved: true,
+              sessionToken: talentResult.sessionToken,
+              loggedInAt: new Date().toISOString()
+            });
+            localStorage.setItem("cn_worker_session_v1", talentResult.sessionToken);
+            localStorage.setItem("cn_auth_session_v1", JSON.stringify(talentSession));
+            saveSession(talentSession);
+          } else if (talentResponse.status === 404) {
+            var loginResponse = await fetch(window.CN_AUTH_API + "/api/auth/login", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: identifier, password: password })
+            });
+            var loginResult = await loginResponse.json().catch(function() { return {}; });
+            if (!loginResponse.ok || !loginResult.user) {
+              throw new Error(loginResult.error || "Username atau password salah.");
+            }
+            await exchangeElixirIdentity(loginResult.user);
+          } else {
+            throw new Error(talentResult.error || "Username atau password salah.");
+          }
+          showFeedback("Login berhasil.", false);
+          if (submit) submit.disabled = false;
+          setTimeout(function() {
+            window.closeCnAuthModal();
+            window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: getSession() }));
+          }, 350);
+        } catch (error) {
+          showFeedback(error.message || "Login gagal.", true);
+          if (submit) submit.disabled = false;
+        }
       };
 
-      window.handleCnRegister = function(e) {
+      window.handleCnRegister = async function(e) {
         e.preventDefault();
-        var name = document.getElementById("cnRegName").value.trim();
-        var user = document.getElementById("cnRegUser").value.trim().replace(/^@/, "");
-        var tg = document.getElementById("cnRegTelegram").value.trim();
-        var isTalent = (regRole === "talent");
-
-        if (isTalent && !document.getElementById("cnTalentConfirm").checked) {
-          showFeedback("Harap centang konfirmasi khusus Wanita terlebih dahulu.", true);
-          return;
-        }
-
-        var session = {
-          id: (isTalent ? "tlt_" : "usr_") + Date.now(),
-          name: name,
-          username: user.toLowerCase(),
-          telegram: tg,
-          role: regRole,
-          approved: !isTalent, // Talent wajib persetujuan admin terlebih dahulu
-          loggedInAt: new Date().toISOString()
-        };
-        saveSession(session);
-
-        if (isTalent) {
-          try {
-            var _tName = (typeof name !== "undefined" && name) ? name : (typeof displayName !== "undefined" ? displayName : "");
-            var _tUser = (typeof username !== "undefined" && username) ? username : "";
-            var _regMsg = "Halo Admin @clubsnightcs_bot, saya mendaftar sebagai Talent Clubs'Night.\nNama: " + _tName + "\nUsername: @" + String(_tUser).replace(/^@/, "") + "\nMohon verifikasi akun talent saya.";
-            var _botUrl = "https://t.me/clubsnightcs_bot?text=" + encodeURIComponent(_regMsg);
-            if (typeof showToast === "function") {
-              showToast("Pendaftaran Talent wajib verifikasi via @clubsnightcs_bot!", "info");
+        var username = (document.getElementById("cnRegUser").value || "").trim();
+        var name = (document.getElementById("cnRegName").value || "").trim();
+        var password = document.getElementById("cnRegPass").value || "";
+        var email = (document.getElementById("cnRegEmail").value || "").trim();
+        var telegram = (document.getElementById("cnRegTelegram").value || "").trim();
+        var submit = document.getElementById("cnRegSubmitBtn");
+        if (submit) submit.disabled = true;
+        try {
+          if (regRole === "talent") {
+            if (!document.getElementById("cnTalentConfirm").checked) {
+              throw new Error("Centang konfirmasi sebelum mengajukan pendaftaran Talent.");
             }
-            window.open(_botUrl, "_blank", "noopener,noreferrer");
-          } catch (_e) {}
-          showFeedback("Pendaftaran Talent diterima! Status: Menunggu Persetujuan Admin.", false);
-        } else {
-          showFeedback("Akun VIP Pengguna aktif! Selamat datang, " + name + ".", false);
+            var message = "Halo Admin @clubsnightcs_bot, saya ingin mendaftar sebagai Talent Clubs'Night.\nNama: " +
+              name + "\nUsername: @" + username.replace(/^@/, "") + "\nTelegram: " + telegram +
+              "\nEmail: " + email + "\nMohon verifikasi akun talent saya.";
+            window.open("https://t.me/clubsnightcs_bot?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
+            showFeedback("Lanjutkan pendaftaran melalui bot Clubsnight.", false);
+            return;
+          }
+          var registerResponse = await fetch(window.CN_AUTH_API + "/api/auth/register", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: username, name: name, email: email, password: password })
+          });
+          var registerResult = await registerResponse.json().catch(function() { return {}; });
+          if (!registerResponse.ok || !registerResult.user) {
+            throw new Error(registerResult.error || "Pendaftaran gagal.");
+          }
+          await exchangeElixirIdentity(registerResult.user);
+          showFeedback("Pendaftaran berhasil.", false);
+          setTimeout(function() {
+            window.closeCnAuthModal();
+            window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: getSession() }));
+          }, 350);
+        } catch (error) {
+          showFeedback(error.message || "Pendaftaran gagal.", true);
+        } finally {
+          if (submit) submit.disabled = false;
         }
-        setTimeout(function() { window.closeCnAuthModal(); }, 1100);
       };
 
       window.addEventListener("popstate", function() {
@@ -3139,37 +3202,63 @@
         var container = document.getElementById("cnLoungeFeed");
         if (!container) return;
         var posts = getPosts();
+        var esc = window.cnEscapeHtml || function(value) {
+          return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch];
+          });
+        };
+        var jsArg = function(value) { return esc(JSON.stringify(String(value == null ? "" : value)).replace(/</g, "\\u003c")); };
+        var safeImage = function(value) {
+          var src = String(value || "").trim();
+          if (/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(src)) return src;
+          try {
+            var parsed = new URL(src);
+            var trustedHosts = ["media-cn.my.id"];
+            try { trustedHosts.push(new URL(window.CN_R2_PUBLIC_URL).hostname); } catch (_) {}
+            var localHosts = ["127.0.0.1", "localhost", "[::1]"];
+            if (parsed.protocol === "http:" && trustedHosts.indexOf(parsed.hostname) !== -1) parsed.protocol = "https:";
+            return parsed.protocol === "https:" || (parsed.protocol === "http:" && localHosts.indexOf(parsed.hostname) !== -1) ? parsed.href : "";
+          } catch (_) { return ""; }
+        };
+        var safeMarkup = window.cnSafeLoungeMarkup || function(value) {
+          return esc(value).replace(/&lt;(\/?)(b|strong|i|em|u|br)\s*\/?&gt;/gi, function(_, slash, tag) {
+            return tag.toLowerCase() === "br" ? "<br>" : "<" + slash + tag.toLowerCase() + ">";
+          });
+        };
 
         container.innerHTML = posts.map(function(p) {
-          var imgHtml = p.image ? "<img src=\"" + p.image + "\" class=\"cn-post-img\" alt=\"Post\" loading=\"lazy\" />" : "";
-          var repliesHtml = (p.replies || []).map(function(r) {
-            return "<div class=\"cn-reply-item\"><b>" + r.author + ":</b> " + r.text + "</div>";
+          p = p || {};
+          var postId = String(p.id || "");
+          var imgSrc = safeImage(p.image);
+          var imgHtml = imgSrc ? "<img src=\"" + esc(imgSrc) + "\" class=\"cn-post-img\" alt=\"Post\" loading=\"lazy\" />" : "";
+          var repliesHtml = (Array.isArray(p.replies) ? p.replies : []).map(function(r) {
+            return "<div class=\"cn-reply-item\"><b>" + esc(r && r.author) + ":</b> " + safeMarkup(r && r.text) + "</div>";
           }).join("");
 
-          return "<article class=\"cn-post-card\">" +
+          return "<article class=\"cn-post-card\" data-post-id=\"" + esc(postId) + "\">" +
             "<div class=\"cn-post-head\">" +
-              "<div class=\"cn-post-ava\">" + p.author.charAt(0).toUpperCase() + "</div>" +
+              "<div class=\"cn-post-ava\">" + esc(String(p.author || "U").charAt(0).toUpperCase()) + "</div>" +
               "<div class=\"cn-post-meta\">" +
-                "<div class=\"cn-post-author\">" + p.author + " <span>" + p.handle + "</span></div>" +
-                "<div class=\"cn-post-time\">" + p.time + "</div>" +
+                "<div class=\"cn-post-author\">" + esc(p.author) + " <span>" + esc(p.handle) + "</span></div>" +
+                "<div class=\"cn-post-time\">" + esc(p.time) + "</div>" +
               "</div>" +
-              "<span class=\"cn-post-badge\">" + p.role + "</span>" +
+              "<span class=\"cn-post-badge\">" + esc(p.role) + "</span>" +
             "</div>" +
-            "<p class=\"cn-post-body\">" + p.text + "</p>" +
+            "<p class=\"cn-post-body\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;\">" + safeMarkup(p.text) + "</p>" +
             imgHtml +
             "<div class=\"cn-post-actions\">" +
-              "<button type=\"button\" class=\"cn-pa-btn" + (p.liked ? " is-liked" : "") + "\" onclick=\"window.toggleCnPostLike('" + p.id + "')\">" +
-                "<i class=\"fa-" + (p.liked ? "solid" : "regular") + " fa-heart\"></i> <span>" + p.likes + "</span>" +
+              "<button type=\"button\" class=\"cn-pa-btn" + (p.liked ? " is-liked" : "") + "\" onclick=\"window.toggleCnPostLike(" + jsArg(postId) + ")\">" +
+                "<i class=\"fa-" + (p.liked ? "solid" : "regular") + " fa-heart\"></i> <span>" + (Number(p.likes) || 0) + "</span>" +
               "</button>" +
-              "<button type=\"button\" class=\"cn-pa-btn\" onclick=\"window.toggleCnReplyBox('" + p.id + "')\">" +
-                "<i class=\"fa-regular fa-comment\"></i> <span>" + (p.replies ? p.replies.length : 0) + "</span>" +
+              "<button type=\"button\" class=\"cn-pa-btn\" onclick=\"window.toggleCnReplyBox(" + jsArg(postId) + ")\">" +
+                "<i class=\"fa-regular fa-comment\"></i> <span>" + (Array.isArray(p.replies) ? p.replies.length : 0) + "</span>" +
               "</button>" +
             "</div>" +
-            "<div id=\"cnReplyBox_" + p.id + "\" class=\"cn-reply-box\" style=\"display:none;\">" +
+            "<div id=\"cnReplyBox_" + esc(postId) + "\" class=\"cn-reply-box\" style=\"display:none;\">" +
               "<div class=\"cn-reply-list\">" + repliesHtml + "</div>" +
               "<div class=\"cn-reply-input-row\">" +
-                "<input type=\"text\" id=\"cnReplyInput_" + p.id + "\" placeholder=\"Tulis balasan...\" />" +
-                "<button type=\"button\" onclick=\"window.submitCnReply('" + p.id + "')\"><i class=\"fa-solid fa-paper-plane\"></i></button>" +
+                "<input type=\"text\" id=\"cnReplyInput_" + esc(postId) + "\" placeholder=\"Tulis balasan...\" />" +
+                "<button type=\"button\" onclick=\"window.submitCnReply(" + jsArg(postId) + ")\"><i class=\"fa-solid fa-paper-plane\"></i></button>" +
               "</div>" +
             "</div>" +
           "</article>";
@@ -3287,10 +3376,11 @@
         e.preventDefault();
         var s = window.cnAuth && window.cnAuth.getSession();
         var text = document.getElementById("cnPostText").value.trim();
-        if (!s || !s.approved || text.length < 250) return;
+        if (!s || String(s.role || "").toLowerCase() !== "talent" || s.approved !== true || text.length < 250) return;
 
         var newPost = {
           id: "post_" + Date.now(),
+          ownerUsername: s.username,
           author: s.name,
           handle: "@" + s.username.replace(/^@/, ""),
           role: s.role === "talent" ? "TALENT" : "VIP",
@@ -3360,6 +3450,10 @@
             <label>Harga (Rp)</label>
             <input type="number" id="cnMerchPrice" required min="1000" placeholder="349000" />
           </div>
+          <div class="cn-field">
+            <label>Stok</label>
+            <input type="number" id="cnMerchStock" min="0" step="1" placeholder="Kosong = stok tidak dibatasi" />
+          </div>
         </div>
         <div class="cn-field">
           <label>Label / Tag</label>
@@ -3368,6 +3462,10 @@
         <div class="cn-field">
           <label>URL Gambar (Opsional, kosongkan untuk placeholder)</label>
           <input type="url" id="cnMerchImg" placeholder="https://..." />
+        </div>
+        <div class="cn-field">
+          <label>Upload Foto Produk (JPEG, PNG, WebP; maks. 2,5 MB)</label>
+          <input type="file" id="cnMerchImageFile" accept="image/jpeg,image/png,image/webp" />
         </div>
         <div class="cn-field">
           <label>Deskripsi Singkat</label>
@@ -3437,6 +3535,19 @@
 
       function saveMerch(list) {
         try { localStorage.setItem(MERCH_KEY, JSON.stringify(list)); } catch (e) {}
+      }
+
+      async function loadMerchFromServer() {
+        try {
+          var res = await fetch(window.CN_WORKER_API + "/api/merch/products", { cache: "no-store" });
+          var data = await res.json();
+          if (res.ok && data.success && Array.isArray(data.products) && data.products.length) {
+            saveMerch(data.products.map(function(item) {
+              return Object.assign({}, item, { desc: item.description || "" });
+            }));
+            renderMerchStore();
+          }
+        } catch (_) {}
       }
 
       function formatRp(num) {
@@ -3567,6 +3678,7 @@
         document.getElementById("cnMerchName").value = item.name;
         document.getElementById("cnMerchCat").value = item.category;
         document.getElementById("cnMerchPrice").value = item.price;
+        document.getElementById("cnMerchStock").value = item.stock_managed ? Number(item.stock) : "";
         document.getElementById("cnMerchTag").value = item.tag || "";
         document.getElementById("cnMerchImg").value = item.image || "";
         document.getElementById("cnMerchDesc").value = item.desc || "";
@@ -3575,27 +3687,81 @@
       };
 
       window.deleteCnMerchItem = function(id) {
-        var list = getMerch().filter(function(x) { return x.id !== id; });
-        saveMerch(list);
-        renderMerchStore();
-        renderDevList();
+        (async function() {
+          var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+          var res = await fetch(window.CN_WORKER_API + "/api/merch/products/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({ id: id })
+          });
+          if (!res.ok) return alert("Produk tidak dapat dihapus.");
+          var list = getMerch().filter(function(x) { return x.id !== id; });
+          saveMerch(list);
+          renderMerchStore();
+          renderDevList();
+        })();
       };
 
-      window.saveCnMerchItem = function(e) {
+      async function uploadMerchProductImage(file, token) {
+        if (file.size > 2621440) throw new Error("Ukuran gambar maksimal 2.5 MB.");
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+          throw new Error("Gunakan file JPEG, PNG, atau WebP.");
+        }
+        var image = await new Promise(function(resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function() { resolve(String(reader.result || "")); };
+          reader.onerror = function() { reject(new Error("Gagal membaca file gambar.")); };
+          reader.readAsDataURL(file);
+        });
+        var response = await fetch(window.CN_WORKER_API + "/api/media/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Session-Token": token },
+          body: JSON.stringify({ image: image, purpose: "merch_product" })
+        });
+        var result = await response.json().catch(function() { return {}; });
+        if (!response.ok || !result.success || !String(result.key || "").startsWith("merch/products/")) {
+          throw new Error(result.error || "Upload foto produk gagal.");
+        }
+        return result.url;
+      }
+
+      window.saveCnMerchItem = async function(e) {
         e.preventDefault();
         var editId = document.getElementById("cnMerchEditId").value;
         var list = getMerch();
+        var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
 
         var payload = {
           id: editId || ("m_" + Date.now()),
           name: document.getElementById("cnMerchName").value.trim(),
           category: document.getElementById("cnMerchCat").value,
           price: Number(document.getElementById("cnMerchPrice").value) || 0,
+          stock: document.getElementById("cnMerchStock").value.trim() === ""
+            ? null
+            : Math.max(0, Number(document.getElementById("cnMerchStock").value) || 0),
+          stock_managed: document.getElementById("cnMerchStock").value.trim() !== "",
           tag: document.getElementById("cnMerchTag").value.trim().toUpperCase() || "OFFICIAL",
           image: document.getElementById("cnMerchImg").value.trim(),
           desc: document.getElementById("cnMerchDesc").value.trim()
         };
 
+        var imageFile = document.getElementById("cnMerchImageFile").files[0];
+        if (imageFile) {
+          try {
+            payload.image = await uploadMerchProductImage(imageFile, token);
+            document.getElementById("cnMerchImg").value = payload.image;
+          } catch (error) {
+            alert(error.message || "Upload foto produk gagal.");
+            return;
+          }
+        }
+
+        var serverRes = await fetch(window.CN_WORKER_API + "/api/merch/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Session-Token": token },
+          body: JSON.stringify(payload)
+        });
+        if (!serverRes.ok) return alert("Akses ditolak atau produk gagal disimpan.");
         if (editId) {
           list = list.map(function(x) { return x.id === editId ? payload : x; });
         } else {
@@ -3609,9 +3775,10 @@
       };
 
       if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", renderMerchStore);
+        document.addEventListener("DOMContentLoaded", function() { renderMerchStore(); loadMerchFromServer(); });
       } else {
         renderMerchStore();
+        loadMerchFromServer();
       }
     })();
   </script>
@@ -3754,7 +3921,9 @@
 
       function canUploadStory() {
         var s = window.cnAuth && window.cnAuth.getSession();
-        var r = String(s && s.role || "").toLowerCase(); var u = String(s && s.username || "").toLowerCase(); return !!(s && (r === "talent" && s.approved || u === "dewaaeoo" || ["superadmin","admin","dev","developer","merch","merch_admin"].indexOf(r) !== -1));
+        var r = String(s && s.role || "").toLowerCase();
+        return !!(s && (r === "developer" || r === "owner" || r === "superadmin" || r === "dev" ||
+          (r === "talent" && s.approved === true)));
       }
 
       function getUserTodayCount(username) {
@@ -3771,7 +3940,11 @@
           if (st.dateKey !== today) return false;
           if (st.qcStatus === "rejected") return false;
           if (st.qcStatus === "pending") {
-            var cr = String(curSess && curSess.role || "").toLowerCase(); var cu = String(curSess && curSess.username || "").toLowerCase(); return !!(curSess && (cu === "dewaaeoo" || ["superadmin","admin","dev","developer"].indexOf(cr) !== -1 || curSess.username === st.ownerUsername));
+            var cr = String(curSess && curSess.role || "").toLowerCase();
+            var cu = String(curSess && curSess.username || "").replace(/^@/, "").toLowerCase();
+            var storyOwner = String(st.ownerUsername || "").replace(/^@/, "").toLowerCase();
+            var canReview = ["superadmin", "admin", "admin_qc", "admin_qc_merch", "owner", "dev", "developer"].indexOf(cr) !== -1;
+            return !!(curSess && (canReview || (cr === "talent" && cu && cu === storyOwner)));
           }
           return true;
         });
@@ -3823,6 +3996,13 @@
         var bar = document.getElementById("cnStoryBar");
         if (!bar) return;
 
+        var esc = window.cnEscapeHtml || function(value) {
+          return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch];
+          });
+        };
+        var jsArg = function(value) { return esc(JSON.stringify(String(value == null ? "" : value)).replace(/</g, "\\u003c")); };
+        var safeColor = function(value) { return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#ff2a5f"; };
         var htmlParts = [];
         if (canUploadStory()) {
           var s = window.cnAuth.getSession();
@@ -3843,12 +4023,15 @@
         var groups = buildStoryGroups();
         groups.forEach(function(g) {
           var allSeen = g.slides.every(function(sl) { return viewed.indexOf(sl.id) !== -1; });
+          var groupName = String(g.name || "Talent");
+          var groupIdArg = jsArg(g.groupId);
+          var color = safeColor(g.color);
           htmlParts.push(
-            "<button type=\"button\" class=\"cn-story-item" + (allSeen ? " is-seen" : "") + "\" onclick=\"window.openCnStory('" + g.groupId + "')\">" +
+            "<button type=\"button\" class=\"cn-story-item" + (allSeen ? " is-seen" : "") + "\" onclick=\"window.openCnStory(" + groupIdArg + ")\">" +
               "<div class=\"cn-story-ring\">" +
-                "<div class=\"cn-story-avatar\" style=\"background:" + g.color + ";\">" + g.name.charAt(0).toUpperCase() + "</div>" +
+                "<div class=\"cn-story-avatar\" style=\"background:" + color + ";\">" + esc(groupName.charAt(0).toUpperCase()) + "</div>" +
               "</div>" +
-              "<span class=\"cn-story-name\">" + g.name + "</span>" +
+              "<span class=\"cn-story-name\">" + esc(groupName) + "</span>" +
             "</button>"
           );
         });
@@ -4013,31 +4196,50 @@
         reader.readAsDataURL(file);
       };
 
-      window.handleCnStoryUpload = function(e) {
+      window.handleCnStoryUpload = async function(e) {
         e.preventDefault();
         if (!canUploadStory() || !storyCompressedImg) return;
         var s = window.cnAuth.getSession();
-        if (getUserTodayCount(s.username) >= MAX_DAILY) return;
+        var isDeveloper = ["developer", "owner", "superadmin", "dev"].indexOf(String(s.role || "").toLowerCase()) !== -1;
+        if (!isDeveloper && getUserTodayCount(s.username) >= MAX_DAILY) return;
 
-        var list = getUploadedStories();
-        list.push({
-          id: "ust_" + Date.now(),
-          ownerUsername: s.username,
-          ownerName: s.name,
-          color: "#ff2a5f",
-          image: storyCompressedImg,
-          caption: document.getElementById("cnStoryCaptionInput").value.trim(),
-          createdAt: Date.now(),
-          dateKey: getTodayKey()
-        });
-        saveUploadedStories(list);
+        var btn = document.getElementById("cnStorySubmitBtn");
+        if (btn) btn.disabled = true;
+        try {
+          if (!window.cnUploadMediaToR2 || !window.getCnHmacSessionToken) throw new Error("Sesi upload tidak tersedia. Silakan login ulang.");
+          var image = await window.cnUploadMediaToR2(storyCompressedImg, "lounge");
+          var token = (s.sessionToken || s.token) || await window.getCnHmacSessionToken();
+          var response = await fetch((window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev") + "/api/lounge/story/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({
+              id: "ust_" + Date.now(),
+              ownerUsername: s.username,
+              ownerName: s.name,
+              image: image,
+              caption: document.getElementById("cnStoryCaptionInput").value.trim(),
+              createdAt: Date.now()
+            })
+          });
+          var data = await response.json().catch(function() { return {}; });
+          if (!response.ok || !data.success || !data.story) throw new Error(data.error || "Story gagal diunggah.");
 
-        storyCompressedImg = "";
-        document.getElementById("cnStoryUploadForm").reset();
-        document.getElementById("cnStoryPreviewWrap").style.display = "none";
-        document.getElementById("cnStoryUploadLabel").textContent = "Pilih foto dari galeri";
-        window.closeCnStoryComposer();
-        renderStoryBarWithUpload();
+          var list = getUploadedStories().filter(function(story) { return String(story.id) !== String(data.story.id); });
+          list.push(data.story);
+          saveUploadedStories(list);
+
+          storyCompressedImg = "";
+          document.getElementById("cnStoryUploadForm").reset();
+          document.getElementById("cnStoryPreviewWrap").style.display = "none";
+          document.getElementById("cnStoryUploadLabel").textContent = "Pilih foto dari galeri";
+          window.closeCnStoryComposer();
+          renderStoryBarWithUpload();
+          if (data.story.qcStatus === "pending" && window.cnToast) window.cnToast("Story terkirim dan menunggu QC Admin.", "info");
+        } catch (error) {
+          if (window.cnToast) window.cnToast(error.message || "Story gagal diunggah.", "error");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
       };
 
       
@@ -4089,7 +4291,7 @@
         // Kirim perintah hapus permanen ke Cloudflare Backend (D1 + R2)
         try {
           var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
-          (async function(){ var _s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null; var _tok = (_s && (_s.sessionToken || _s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : ""); return fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/lounge/story/delete", { method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": _tok },
+          (async function(){ var _s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null; var _tok = (_s && (_s.sessionToken || _s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : ""); return fetch(window.CN_WORKER_API + "/api/lounge/story/delete", { method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": _tok },
             body: JSON.stringify({
               id: target.id,
               image: target.image || "",
@@ -4441,9 +4643,12 @@
           return;
         }
         var role = String(s.role || "").toLowerCase();
-      var uname = String(s.username || "").replace(/^@/, "").toLowerCase();
-      var isDevOrAdmin = (uname === "dewaaeoo" || ["superadmin", "admin", "dev", "developer", "merch", "merch_admin"].indexOf(role) !== -1);
-      if (role !== "talent" && !isDevOrAdmin) {
+        var isDeveloper = ["superadmin", "owner", "dev", "developer"].indexOf(role) !== -1;
+        if (role === "admin" || role === "admin_qc" || role === "admin_qc_merch") {
+          if (window.cnToast) window.cnToast("Admin QC hanya dapat memoderasi konten Lounge.", "warn");
+          return;
+        }
+        if (role !== "talent" && !isDeveloper) {
         if (confirm("Fitur membuat postingan di Lounge khusus untuk akun Talent.\n\nIngin mendaftarkan diri sebagai Talent lewat @clubsnightcs_bot sekarang?")) {
               var _tName = (s && (s.name || s.displayName)) ? (s.name || s.displayName) : "";
               var _tUser = (s && s.username) ? String(s.username).replace(/^@/, "") : "";
@@ -4456,7 +4661,7 @@
             }
         return;
       }
-      if (!isDevOrAdmin && !s.approved) {
+      if (!isDeveloper && !s.approved) {
         alert("Akun Talent Anda masih berstatus Menunggu Persetujuan Admin. Konfirmasi lewat Developer Control Center terlebih dahulu.");
         return;
       }
@@ -4550,11 +4755,14 @@
         var cfg = getConfig();
         var s = window.cnAuth && window.cnAuth.getSession();
         var text = document.getElementById("cnFullPostText").value.trim();
-        if (!s || !s.approved || text.length < (cfg.minPostChars || 1)) return;
+        var role = String(s && s.role || "").toLowerCase();
+        if (!s || !(role === "talent" || ["superadmin", "owner", "dev", "developer"].indexOf(role) !== -1) ||
+            (role === "talent" && s.approved !== true) || text.length < (cfg.minPostChars || 1)) return;
 
         var tagPrefix = "[" + selectedCat + (selectedMood ? " • " + selectedMood : "") + "]\n";
         var newPost = {
           id: "post_" + Date.now(),
+          ownerUsername: s.username,
           author: s.name,
           handle: "@" + s.username.replace(/^@/, ""),
           role: s.role === "talent" ? "TALENT" : "VIP",
@@ -4643,36 +4851,92 @@
           }).join("");
         }
 
-        // Render QC Story List
-        var stories = [];
-        try { stories = JSON.parse(localStorage.getItem(UPLOAD_KEY) || "[]"); } catch (e) {}
-        var pendingQc = stories.filter(function(st) { return st.qcStatus === "pending"; }).length;
-        var badgeQc = document.getElementById("cnDevBadgeQc");
-        if (badgeQc) {
-          badgeQc.textContent = pendingQc;
-          badgeQc.style.display = pendingQc > 0 ? "inline-block" : "none";
-        }
-        var qcList = document.getElementById("cnDevQcList");
-        if (stories.length === 0) {
-          qcList.innerHTML = "<div class=\"cn-dev-empty\">Belum ada story yang diunggah Talent hari ini.</div>";
-        } else {
-          qcList.innerHTML = stories.map(function(st) {
-            var statusLbl = st.qcStatus === "pending" ? "⏳ Menunggu QC" : (st.qcStatus === "rejected" ? "❌ Ditolak" : "✅ Tayang Global");
-            return "<div class=\"cn-dev-item\">" +
-              (st.image ? "<img src=\"" + st.image + "\" class=\"cn-qc-thumb\" alt=\"Story\" />" : "") +
-              "<div class=\"cn-dev-item-info\" style=\"flex:1;\">" +
-                "<b>" + st.ownerName + "</b>" +
-                "<span>" + (st.caption || "Tanpa caption") + "</span>" +
-                "<span class=\"cn-qc-status\">" + statusLbl + "</span>" +
-              "</div>" +
-              "<div class=\"cn-dev-item-btns\">" +
-                "<button type=\"button\" class=\"is-ok\" onclick=\"window.setCnStoryQc('" + st.id + "', 'approved')\" title=\"Lolos QC\"><i class=\"fa-solid fa-check\"></i></button>" +
-                "<button type=\"button\" class=\"is-del\" onclick=\"window.setCnStoryQc('" + st.id + "', 'delete')\" title=\"Tolak & Hapus\"><i class=\"fa-solid fa-trash\"></i></button>" +
-              "</div>" +
-            "</div>";
-          }).join("");
-        }
+        loadServerLoungeQc();
       }
+
+      function loadServerLoungeQc() {
+        var session = window.cnAuth && window.cnAuth.getSession();
+        var token = session && (session.sessionToken || session.token);
+        var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+        var qcList = document.getElementById("cnDevQcList");
+        var qcPane = document.getElementById("cnDevPane_qc");
+        var escStory = window.cnEscapeHtml || function(value) {
+          return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch];
+          });
+        };
+        var jsStoryArg = function(value) { return escStory(JSON.stringify(String(value == null ? "" : value)).replace(/</g, "\\u003c")); };
+        var showFailure = function(message) {
+          if (qcList) qcList.innerHTML = "<div class=\"cn-dev-empty\">" + escStory(message) + "</div>";
+        };
+        if (!token && window.getCnHmacSessionToken) {
+          Promise.resolve(window.getCnHmacSessionToken()).then(function(value) {
+            if (!value) return showFailure("Sesi QC tidak valid. Silakan login ulang.");
+            fetchServerQc(value);
+          }).catch(function() { showFailure("Sesi QC tidak valid. Silakan login ulang."); });
+          return;
+        }
+        if (!token) return showFailure("Sesi QC tidak valid. Silakan login ulang.");
+
+        function fetchServerQc(sessionToken) {
+          fetch(workerApi + "/api/lounge/get", { cache: "no-store", headers: { "X-Session-Token": sessionToken } })
+            .then(function(response) {
+              if (!response.ok) throw new Error("Daftar Lounge tidak dapat dimuat.");
+              return response.json();
+            })
+            .then(function(data) {
+              if (!data || !data.success) throw new Error("Daftar Lounge tidak dapat dimuat.");
+              var stories = Array.isArray(data.stories) ? data.stories : [];
+              var posts = Array.isArray(data.posts) ? data.posts : [];
+              try { localStorage.setItem(UPLOAD_KEY, JSON.stringify(stories)); } catch (_) {}
+              try { localStorage.setItem(FEED_KEY, JSON.stringify(posts)); } catch (_) {}
+              var pendingQc = stories.filter(function(st) { return st.qcStatus === "pending"; }).length;
+              var badgeQc = document.getElementById("cnDevBadgeQc");
+              if (badgeQc) {
+                badgeQc.textContent = pendingQc;
+                badgeQc.style.display = pendingQc > 0 ? "inline-block" : "none";
+              }
+              if (qcList) {
+                qcList.innerHTML = stories.length ? stories.map(function(st) {
+                  var status = st.qcStatus || "approved";
+                  var statusLbl = status === "pending" ? "⏳ Menunggu QC" : (status === "rejected" ? "❌ Ditolak" : "✅ Tayang Global");
+                  var storyImage = window.cnSafeLoungeImage ? window.cnSafeLoungeImage(st.image) : "";
+                  return "<div class=\"cn-dev-item\">" +
+                    (storyImage ? "<img src=\"" + escStory(storyImage) + "\" class=\"cn-qc-thumb\" alt=\"Story\" />" : "") +
+                    "<div class=\"cn-dev-item-info\" style=\"flex:1;\"><b>" + escStory(st.ownerName) + "</b>" +
+                    "<span>" + escStory(st.caption || "Tanpa caption") + "</span><span class=\"cn-qc-status\">" + escStory(statusLbl) + "</span></div>" +
+                    "<div class=\"cn-dev-item-btns\">" +
+                    "<button type=\"button\" class=\"is-ok\" onclick=\"window.setCnStoryQc(" + jsStoryArg(st.id) + ", 'approved')\" title=\"Lolos QC\"><i class=\"fa-solid fa-check\"></i></button>" +
+                    "<button type=\"button\" class=\"is-del\" onclick=\"window.setCnStoryQc(" + jsStoryArg(st.id) + ", 'rejected')\" title=\"Tolak & Hapus\"><i class=\"fa-solid fa-trash\"></i></button>" +
+                    "</div></div>";
+                }).join("") : "<div class=\"cn-dev-empty\">Belum ada story yang diunggah Talent hari ini.</div>";
+              }
+              if (qcPane) {
+                var postList = document.getElementById("cnDevPostQcList");
+                if (!postList) {
+                  var heading = document.createElement("div");
+                  heading.className = "cn-dev-list-title";
+                  heading.textContent = "MODERASI POSTINGAN LOUNGE";
+                  postList = document.createElement("div");
+                  postList.id = "cnDevPostQcList";
+                  postList.className = "cn-dev-list";
+                  qcPane.appendChild(heading);
+                  qcPane.appendChild(postList);
+                }
+                postList.innerHTML = posts.length ? posts.map(function(post) {
+                  return "<div class=\"cn-dev-item\"><div class=\"cn-dev-item-info\" style=\"flex:1;\"><b>" +
+                    escStory(post.author || post.ownerUsername) + "</b><span>" +
+                    escStory(String(post.text || "").slice(0, 120)) + "</span></div><div class=\"cn-dev-item-btns\">" +
+                    "<button type=\"button\" class=\"is-del\" onclick=\"window.deleteCnPost(" + jsStoryArg(post.id) + ")\" title=\"Hapus Post\"><i class=\"fa-solid fa-trash\"></i></button>" +
+                    "</div></div>";
+                }).join("") : "<div class=\"cn-dev-empty\">Belum ada postingan Lounge.</div>";
+              }
+            })
+            .catch(function(error) { showFailure(error.message || "Daftar Lounge tidak dapat dimuat."); });
+        }
+        fetchServerQc(token);
+      }
+      window.refreshCnLoungeQc = loadServerLoungeQc;
 
       window.setCnAccountApproval = function(username, approved) {
         var accs = getAccounts().map(function(a) {
@@ -4696,20 +4960,26 @@
         saveConfig(cfg);
       };
 
-      window.setCnStoryQc = function(storyId, action) {
-        var stories = [];
-        try { stories = JSON.parse(localStorage.getItem(UPLOAD_KEY) || "[]"); } catch (e) {}
-        if (action === "delete") {
-          stories = stories.filter(function(st) { return st.id !== storyId; });
-        } else {
-          stories = stories.map(function(st) {
-            if (st.id === storyId) st.qcStatus = action;
-            return st;
-          });
+      window.setCnStoryQc = async function(storyId, action) {
+        var session = window.cnAuth && window.cnAuth.getSession();
+        var token = session && (session.sessionToken || session.token);
+        if (!token && window.getCnHmacSessionToken) token = await window.getCnHmacSessionToken();
+        if (!token) {
+          if (window.cnToast) window.cnToast("Sesi QC tidak valid. Silakan login ulang.", "error");
+          return;
         }
-        try { localStorage.setItem(UPLOAD_KEY, JSON.stringify(stories)); } catch (e) {}
-        loadDevData();
-        window.dispatchEvent(new CustomEvent("cn:session-changed"));
+        try {
+          var response = await fetch((window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev") + "/api/lounge/story/qc", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({ storyId: storyId, action: action })
+          });
+          var result = await response.json().catch(function() { return {}; });
+          if (!response.ok || !result.success) throw new Error(result.error || "Perubahan QC ditolak.");
+          loadDevData();
+        } catch (error) {
+          if (window.cnToast) window.cnToast(error.message || "Gagal menyimpan QC story.", "error");
+        }
       };
 
       window.saveCnGlobalConfig = function(e) {
@@ -4784,13 +5054,13 @@
       var approved = s.approved === true;
       var hasProof = !!(s.saVerified === true || (s.token && String(s.token).length > 10));
 
-      if ((role === "superadmin" || role === "developer" || role === "dev") && (hasProof || (uname === "dewaaeoo" && approved))) {
+      if ((role === "superadmin" || role === "developer" || role === "dev" || role === "owner") && hasProof) {
         return "developer";
       }
-      if (role === "admin" && approved) {
+      if (["admin", "admin_qc", "admin_qc_merch"].indexOf(role) !== -1 && (approved || s.saVerified === true)) {
         return "admin";
       }
-      if ((role === "merch" || role === "merch_admin") && approved) {
+      if ((role === "merch" || role === "merch_admin" || role === "admin_merch") && (approved || s.saVerified === true)) {
         return "merch";
       }
       if (role === "talent") {
@@ -4827,25 +5097,39 @@
       isTalent: isApprovedTalent
     };
       function isMerchAdmin() {
-        if (isSuperAdmin()) return true;
         var s = window.cnAuth && window.cnAuth.getSession();
-        var role = s ? String(s.role || "").toLowerCase() : "";
-        return role === "merch" || role === "merch_admin";
+        var role = getStrictRole(s);
+        return role === "merch" || role === "admin" || role === "developer";
       }
 
       function enforceDevVisibility() {
-        var allowed = isSuperAdmin();
+        var current = window.cnAuth && window.cnAuth.getSession();
+        var role = getStrictRole(current);
+        var allowed = role === "developer" || role === "admin";
         var lbl = document.getElementById("cnDevSectionLabel");
         var card = document.getElementById("cnDevSectionCard");
         if (lbl) lbl.style.display = allowed ? "" : "none";
         if (card) card.style.display = allowed ? "" : "none";
+        document.querySelectorAll("#cnDevCenterModal .cn-dev-tab").forEach(function(tab) {
+          var key = tab.getAttribute("data-dtab");
+          tab.style.display = (role === "developer" || (role === "admin" && key === "qc") || (isMerchAdmin() && key === "merch")) ? "" : "none";
+        });
+        var approvalPane = document.getElementById("cnDevPane_approval");
+        var configPane = document.getElementById("cnDevPane_config");
+        var gatewayCard = document.querySelector("#cnDevPane_qc .cn-qc-switch-card");
+        if (gatewayCard) gatewayCard.style.display = role === "developer" ? "" : "none";
+        if (role !== "developer") {
+          if (approvalPane) approvalPane.style.display = "none";
+          if (configPane) configPane.style.display = "none";
+          if (role === "admin" && typeof window.switchCnDevTab === "function") window.switchCnDevTab("qc");
+        }
 
         var merchAllowed = isMerchAdmin();
         document.querySelectorAll(".cn-merch-dev-chip").forEach(function(btn) {
           btn.style.display = merchAllowed ? "" : "none";
         });
 
-        // Tutup paksa modal dev jika bukan SuperAdmin
+        // Keep internal controls scoped by role.
         if (!allowed) {
           if (typeof window.closeCnDevCenter === "function") window.closeCnDevCenter();
           if (!isMerchAdmin() && typeof window.closeCnMerchDevModal === "function") window.closeCnMerchDevModal();
@@ -4873,63 +5157,9 @@
 
       // 1. Guard Login: Verifikasi ketat SuperAdmin + Anti Brute-Force
       var origLogin = window.handleCnLogin;
-      window.handleCnLogin = async function(e) {
+      window.handleCnLogin = function(e) {
         e.preventDefault();
-        var idVal = (document.getElementById("cnLoginId").value || "").trim().replace(/^@/, "").toLowerCase();
-        var passVal = document.getElementById("cnLoginPass").value || "";
-
-        if (idVal === "superadmin") {
-          var lockUntil = Number(localStorage.getItem(LOCK_KEY) || "0");
-          if (Date.now() < lockUntil) {
-            var sisa = Math.ceil((lockUntil - Date.now()) / 1000);
-            showAuthMsg("Akses SuperAdmin dikunci sementara (" + sisa + " detik).", true);
-            return;
-          }
-
-          var inputHash = await sha256Hex(passVal);
-          if (inputHash !== SA_HASH) {
-            var fails = Number(localStorage.getItem(FAIL_KEY) || "0") + 1;
-            localStorage.setItem(FAIL_KEY, String(fails));
-            if (fails >= 3) {
-              localStorage.setItem(LOCK_KEY, String(Date.now() + 60000));
-              localStorage.setItem(FAIL_KEY, "0");
-              showAuthMsg("3x gagal! Akses SuperAdmin dikunci selama 60 detik.", true);
-            } else {
-              showAuthMsg("Kata sandi SuperAdmin salah (" + fails + "/3).", true);
-            }
-            return;
-          }
-
-          localStorage.removeItem(FAIL_KEY);
-          localStorage.removeItem(LOCK_KEY);
-          var saSession = {
-            id: "sa_001",
-            name: "SuperAdmin",
-            username: "superadmin",
-            role: "superadmin",
-            approved: true,
-            saVerified: true,
-            loggedInAt: new Date().toISOString()
-          };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(saSession));
-          window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: saSession }));
-          enforceDevVisibility();
-          showAuthMsg("Akses SuperAdmin terverifikasi.", false);
-          setTimeout(function() {
-            if (window.closeCnAuthModal) window.closeCnAuthModal();
-            window.location.reload();
-          }, 550);
-          return;
-        }
-
-        // Pengguna biasa tidak boleh masuk sebagai reserved role
-        if (RESERVED_USERS.indexOf(idVal) !== -1) {
-          showAuthMsg("Username ini dicadangkan oleh sistem.", true);
-          return;
-        }
-
         if (typeof origLogin === "function") origLogin(e);
-        setTimeout(enforceDevVisibility, 80);
       };
 
       // 2. Guard Register: Blokir pendaftaran username reserved
@@ -4949,6 +5179,7 @@
       [
         "openCnDevCenter",
         "openCnMerchDevModal",
+        "switchCnDevTab",
         "setCnAccountApproval",
         "toggleCnQcGateway",
         "setCnStoryQc",
@@ -4960,9 +5191,22 @@
         var origFn = window[fnName];
         if (typeof origFn === "function") {
           window[fnName] = function() {
-            if (fnName.indexOf("Merch") !== -1 ? !isMerchAdmin() : !isSuperAdmin()) {
-              console.warn("⛔ Akses ditolak: Khusus SuperAdmin.");
+            var tab = fnName === "switchCnDevTab" ? String(arguments[0] || "") : "";
+            var adminQcAction = fnName === "openCnDevCenter" || fnName === "setCnStoryQc" ||
+              (fnName === "switchCnDevTab" && tab === "qc");
+            var permitted = fnName.indexOf("Merch") !== -1 || (fnName === "switchCnDevTab" && tab === "merch")
+              ? isMerchAdmin()
+              : adminQcAction ? isAdminOnly() : isSuperAdmin();
+            if (fnName === "switchCnDevTab" && !isSuperAdmin() && ["config", "approval"].indexOf(tab) !== -1) {
+              permitted = false;
+            }
+            if (!permitted) {
+              if (window.cnToast) window.cnToast("Akses ditolak untuk peran akun ini.", "error");
+              else showAuthMsg("Akses ditolak untuk peran akun ini.", true);
               return;
+            }
+            if (fnName === "openCnDevCenter" && !isSuperAdmin()) {
+              return origFn.call(this, "qc");
             }
             return origFn.apply(this, arguments);
           };
@@ -5972,11 +6216,18 @@
         if (userPosts.length === 0) {
           listEl.innerHTML = "<div class=\"cn-dev-empty\">Belum ada postingan di Lounge.</div>";
         } else {
+          var escPost = window.cnEscapeHtml || function(value) {
+            return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+              return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch];
+            });
+          };
           listEl.innerHTML = userPosts.map(function(p) {
-            var imgHtml = p.image ? "<img src=\"" + p.image + "\" class=\"cn-post-img\" alt=\"Post\" loading=\"lazy\" />" : "";
+            var safeImage = window.cnSafeLoungeImage ? window.cnSafeLoungeImage(p.image) : "";
+            var imgHtml = safeImage ? "<img src=\"" + escPost(safeImage) + "\" class=\"cn-post-img\" alt=\"Post\" loading=\"lazy\" />" : "";
             return "<article class=\"cn-post-card\">" +
-              "<div class=\"cn-post-time\" style=\"margin-bottom:6px;\">" + p.time + "</div>" +
-              "<p class=\"cn-post-body\">" + p.text + "</p>" +
+              "<div class=\"cn-post-time\" style=\"margin-bottom:6px;\">" + escPost(p.time) + "</div>" +
+              "<p class=\"cn-post-body\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;\">" +
+                (window.cnSafeLoungeMarkup ? window.cnSafeLoungeMarkup(p.text) : escPost(p.text)) + "</p>" +
               imgHtml +
             "</article>";
           }).join("");
@@ -6213,20 +6464,8 @@
               "<button type=\"button\" class=\"cn-auth-submit\" style=\"margin-top:8px; padding:10px 18px;\" onclick=\"window.openCnAuthModal('login')\">Masuk Sekarang</button>" +
             "</div>";
         } else {
-          var myKey = "cn_orders_" + s.username;
-          var myOrders = [];
-          try { myOrders = JSON.parse(localStorage.getItem(myKey) || "[]"); } catch (e) {}
-          if (myOrders.length === 0) {
-            personalPane.innerHTML =
-              "<div class=\"cn-pwa-placeholder-box\">" +
-                "<i class=\"fa-solid fa-receipt\"></i>" +
-                "<span>Belum ada riwayat order pribadi untuk akun <b>@" + s.username + "</b>.</span>" +
-              "</div>";
-          } else {
-            personalPane.innerHTML = myOrders.map(function(o) {
-              return "<div class=\"cn-order-card\"><div class=\"cn-order-top\"><b>" + o.service + "</b><span class=\"cn-order-badge\">" + o.status + "</span></div><div class=\"cn-order-meta\">" + o.id + " • " + o.time + "</div></div>";
-            }).join("");
-          }
+          personalPane.innerHTML = "<div class=\"cn-pwa-placeholder-box\"><i class=\"fa-solid fa-spinner fa-spin\"></i><span>Memuat riwayat order...</span></div>";
+          refreshOrdersFromServer(s);
         }
 
         globalPane.innerHTML = globalOrdersSeed.map(function(o) {
@@ -6237,6 +6476,97 @@
           "</div>";
         }).join("");
       }
+
+      function escapeOrderHtml(value) {
+        return String(value || "").replace(/[&<>"']/g, function(ch) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+        });
+      }
+
+      async function refreshOrdersFromServer(session) {
+        var pane = document.getElementById("cnOrderPersonalPane");
+        if (!pane) return;
+        if (!window.getCnHmacSessionToken) {
+          pane.innerHTML = "<div class=\"cn-pwa-placeholder-box\"><i class=\"fa-solid fa-triangle-exclamation\"></i><span>Sesi tidak valid. Silakan login ulang.</span></div>";
+          return;
+        }
+        var token = await window.getCnHmacSessionToken();
+        if (!token) {
+          pane.innerHTML = "<div class=\"cn-pwa-placeholder-box\"><i class=\"fa-solid fa-triangle-exclamation\"></i><span>Sesi tidak valid. Silakan login ulang.</span></div>";
+          return;
+        }
+        try {
+          var response = await fetch(window.CN_WORKER_API + "/api/orders/list", {
+            headers: { "X-Session-Token": token },
+            cache: "no-store"
+          });
+          var data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || "Riwayat order tidak dapat dimuat.");
+          var orders = Array.isArray(data.orders) ? data.orders : [];
+          if (!orders.length) {
+            pane.innerHTML = "<div class=\"cn-pwa-placeholder-box\"><i class=\"fa-solid fa-receipt\"></i><span>Belum ada riwayat order untuk akun <b>@" + escapeOrderHtml(session.username) + "</b>.</span></div>";
+            return;
+          }
+          var talentList = [];
+          if (data.canAssign) {
+            var talentResponse = await fetch(window.CN_WORKER_API + "/api/talent/subjects", {
+              headers: { "X-Session-Token": token }
+            });
+            var talentData = await talentResponse.json().catch(function() { return {}; });
+            talentList = Array.isArray(talentData.talents) ? talentData.talents : [];
+          }
+          pane.innerHTML = orders.map(function(order) {
+            var action = data.readOnly ? "" :
+              '<button type="button" class="cn-btn-ghost" data-order-status="' + escapeOrderHtml(order.id) + '">Tandai Diproses</button>';
+            var talentOptions = '<option value="">Unassigned</option>' + talentList.map(function(talent) {
+              var subject = escapeOrderHtml(talent.subject);
+              var selected = order.assigned_talent_subject === talent.subject ? " selected" : "";
+              return '<option value="' + subject + '"' + selected + '>' + escapeOrderHtml(talent.name) + ' (@' + escapeOrderHtml(talent.username) + ')</option>';
+            }).join("");
+            var assignment = data.canAssign
+              ? '<div data-order-id="' + escapeOrderHtml(order.id) + '"><select data-talent-subject>' + talentOptions + '</select><button type="button" data-assign-talent>Assign Talent</button></div>'
+              : "";
+            return "<div class=\"cn-order-card\"><div class=\"cn-order-top\"><b>" + escapeOrderHtml(order.service) + "</b><span class=\"cn-order-badge\">" + escapeOrderHtml(order.status) + "</span></div><div class=\"cn-order-meta\">" + escapeOrderHtml(order.customer_username || order.id) + " • " + escapeOrderHtml(order.created_at || "") + "</div>" + action + assignment + "</div>";
+          }).join("");
+          pane.querySelectorAll("[data-order-status]").forEach(function(button) {
+            button.addEventListener("click", function() {
+              window.updateCnOrderStatus(button.dataset.orderStatus);
+            });
+          });
+          pane.querySelectorAll("[data-assign-talent]").forEach(function(button) {
+            button.addEventListener("click", async function() {
+              var container = button.parentElement;
+              var orderId = container.dataset.orderId;
+              var talentSubject = container.querySelector("[data-talent-subject]").value;
+              var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+              var result = await fetch(window.CN_WORKER_API + "/api/orders/manage", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-Session-Token": token },
+                body: JSON.stringify({ orderId: orderId, talentSubject: talentSubject })
+              });
+              if (!result.ok) {
+                var error = await result.json().catch(function() { return {}; });
+                alert(error.error || "Order tidak dapat ditugaskan.");
+              } else {
+                refreshOrdersFromServer(session);
+              }
+            });
+          });
+        } catch (error) {
+          pane.innerHTML = "<div class=\"cn-pwa-placeholder-box\"><i class=\"fa-solid fa-triangle-exclamation\"></i><span>" + escapeOrderHtml(error.message || "Riwayat order tidak dapat dimuat.") + "</span></div>";
+        }
+      }
+
+      window.updateCnOrderStatus = async function(orderId) {
+        var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+        var response = await fetch(window.CN_WORKER_API + "/api/orders/manage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Session-Token": token },
+          body: JSON.stringify({ orderId: orderId, status: "Diproses" })
+        });
+        if (!response.ok) return alert("Akses ditolak atau status order gagal diperbarui.");
+        renderOrdersPage();
+      };
 
       window.switchCnOrderTab = function(which) {
         document.querySelectorAll("#cnPageOrders .cn-auth-tab").forEach(function(t) {
@@ -6455,8 +6785,12 @@
         var orders = [];
         try { orders = JSON.parse(localStorage.getItem(myKey) || "[]"); } catch (e) {}
         orders.unshift({
-          id: "ORD-" + String(Date.now()).slice(-4),
+          id: "ORD-" + String(Date.now()).slice(-8),
           service: "Merch — " + itemName,
+          orderType: "merch",
+          productId: item && item.id || id,
+          quantity: 1,
+          amount: Number(item && item.price || 0),
           status: "Menunggu CS",
           time: "Baru saja"
         });
@@ -6475,22 +6809,29 @@
         try { posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch (e) {}
         var post = posts.find(function(p) { return p.id === postId; });
         if (!post) return;
+        var esc = window.cnEscapeHtml;
+        var jsArg = function(value) { return esc(JSON.stringify(String(value == null ? "" : value)).replace(/</g, "\\u003c")); };
+        var postIdArg = jsArg(postId);
 
         var s = window.cnAuth && window.cnAuth.getSession();
-        var cleanHandle = (post.handle || "").replace(/^@/, "").toLowerCase();
-        var sr = String(s && s.role || "").toLowerCase(); var su = String(s && s.username || "").toLowerCase(); var cleanAuthor = String(post.author || post.name || "").replace(/^@/, "").toLowerCase(); var sn = String(s && s.name || "").toLowerCase(); var canDelete = !!(s && (su === "dewaaeoo" || ["superadmin","admin","administrator","owner","dev","developer"].indexOf(sr) !== -1 || (su && (su === cleanHandle || su === cleanAuthor)) || (sn && sn === cleanAuthor)));
+        var cleanOwner = String(post.ownerUsername || post.username || post.authorHandle || post.handle || "").replace(/^@/, "").toLowerCase();
+        var sr = String(s && s.role || "").toLowerCase();
+        var su = String(s && s.username || "").replace(/^@/, "").toLowerCase();
+        var isDeveloper = ["superadmin", "owner", "dev", "developer"].indexOf(sr) !== -1;
+        var isQcAdmin = ["admin", "admin_qc", "admin_qc_merch"].indexOf(sr) !== -1;
+        var canDelete = !!(s && (isDeveloper || isQcAdmin || (sr === "talent" && su && su === cleanOwner)));
 
         var itemsHtml =
-          "<button type=\"button\" class=\"cn-action-item\" onclick=\"window.shareCnPost('" + postId + "')\">" +
+          "<button type=\"button\" class=\"cn-action-item\" onclick=\"window.shareCnPost(" + postIdArg + ")\">" +
             "<i class=\"fa-solid fa-share-nodes\"></i> Bagikan / Salin Postingan" +
           "</button>" +
-          "<button type=\"button\" class=\"cn-action-item\" onclick=\"window.reportCnPost('" + postId + "')\">" +
+          "<button type=\"button\" class=\"cn-action-item\" onclick=\"window.reportCnPost(" + postIdArg + ")\">" +
             "<i class=\"fa-solid fa-flag\"></i> Laporkan Pelanggaran" +
           "</button>";
 
         if (canDelete) {
           itemsHtml +=
-            "<button type=\"button\" class=\"cn-action-item is-danger\" onclick=\"window.deleteCnPost('" + postId + "')\">" +
+            "<button type=\"button\" class=\"cn-action-item is-danger\" onclick=\"window.deleteCnPost(" + postIdArg + ")\">" +
               "<i class=\"fa-solid fa-trash\"></i> Hapus Postingan" +
             "</button>";
         }
@@ -6537,17 +6878,39 @@
         window.cnToast("Laporan dikirim ke tim moderasi SuperAdmin.", "warn");
       };
 
-      window.deleteCnPost = function(postId) {
+      window.deleteCnPost = async function(postId) {
         var posts = [];
         try { posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch (e) {}
-        var next = posts.filter(function(p) { return String(p.id) !== String(postId); });
-        try { localStorage.setItem(FEED_KEY, JSON.stringify(next)); if (window.cnForcePushLounge) window.cnForcePushLounge(); } catch (e) {}
+        var s = window.cnAuth && window.cnAuth.getSession();
+        var sr = String(s && s.role || "").toLowerCase();
+        var isDeveloper = ["superadmin", "owner", "dev", "developer"].indexOf(sr) !== -1;
+        var isQcAdmin = ["admin", "admin_qc", "admin_qc_merch"].indexOf(sr) !== -1;
+        if (!(isDeveloper || isQcAdmin || sr === "talent")) {
+          if (window.cnToast) window.cnToast("Anda tidak memiliki izin untuk menghapus postingan ini.", "error");
+          return;
+        }
+        var token = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
+        try {
+          var response = await fetch(window.CN_WORKER_API + "/api/lounge/post/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({ postId: postId })
+          });
+          if (!response.ok) throw new Error("Permintaan penghapusan ditolak.");
+        } catch (err) {
+          if (window.cnToast) window.cnToast(err.message || "Gagal menghapus postingan.", "error");
+          return;
+        }
+        var next = posts.filter(function(p) { return String(p && p.id) !== String(postId); });
+        try { localStorage.setItem(FEED_KEY, JSON.stringify(next)); } catch (e) {}
         window.closeCnPostMenu();
         window.cnToast("Postingan berhasil dihapus.", "info");
 
         // Hapus card langsung dari DOM tanpa reload halaman
-        var card = document.querySelector(".cn-post-card[data-post-id=\"" + postId + "\"]");
-        if (card) card.remove();
+        document.querySelectorAll(".cn-post-card[data-post-id]").forEach(function(card) {
+          if (card.getAttribute("data-post-id") === String(postId)) card.remove();
+        });
+        if (window.refreshCnLoungeQc && (isDeveloper || isQcAdmin)) window.refreshCnLoungeQc();
       };
 
       function enhanceLoungeCards() {
@@ -6638,6 +7001,26 @@
           .replace(/'/g, "&#39;");
       };
 
+      window.cnSafeLoungeMarkup = function(value) {
+        return window.cnEscapeHtml(String(value == null ? "" : value).replace(/\r\n?/g, "\n"))
+          .replace(/&lt;(\/?)(b|strong|i|em|u|br)\s*\/?&gt;/gi, function(_, slash, tag) {
+            return tag.toLowerCase() === "br" ? "<br>" : "<" + slash + tag.toLowerCase() + ">";
+          });
+      };
+
+      window.cnSafeLoungeImage = function(value) {
+        var src = String(value || "").trim();
+        if (/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(src)) return src;
+        try {
+          var parsed = new URL(src);
+          var trustedHosts = ["media-cn.my.id"];
+          try { trustedHosts.push(new URL(window.CN_R2_PUBLIC_URL).hostname); } catch (_) {}
+          var localHosts = ["127.0.0.1", "localhost", "[::1]"];
+          if (parsed.protocol === "http:" && trustedHosts.indexOf(parsed.hostname) !== -1) parsed.protocol = "https:";
+          return parsed.protocol === "https:" || (parsed.protocol === "http:" && localHosts.indexOf(parsed.hostname) !== -1) ? parsed.href : "";
+        } catch (_) { return ""; }
+      };
+
       window.cnSafeSetItem = function(key, val) {
         try {
           localStorage.setItem(key, val);
@@ -6659,36 +7042,43 @@
         if (!posts.length) return;
 
         var esc = window.cnEscapeHtml;
+        var jsArg = function(value) { return esc(JSON.stringify(String(value == null ? "" : value)).replace(/</g, "\\u003c")); };
+        var safeImage = function(value) {
+          return window.cnSafeLoungeImage(value);
+        };
         container.innerHTML = posts.map(function(p) {
-          var imgHtml = p.image ? "<img src=\"" + p.image + "\" class=\"cn-post-img\" alt=\"Post\" loading=\"lazy\" />" : "";
-          var repliesHtml = (p.replies || []).map(function(r) {
-            return "<div class=\"cn-reply-item\"><b>" + esc(r.author) + ":</b> " + esc(r.text) + "</div>";
+          p = p || {};
+          var postId = String(p.id || "");
+          var imgSrc = safeImage(p.image);
+          var imgHtml = imgSrc ? "<img src=\"" + esc(imgSrc) + "\" class=\"cn-post-img\" alt=\"Post\" loading=\"lazy\" />" : "";
+          var repliesHtml = (Array.isArray(p.replies) ? p.replies : []).map(function(r) {
+            return "<div class=\"cn-reply-item\"><b>" + esc(r && r.author) + ":</b> " + window.cnSafeLoungeMarkup(r && r.text) + "</div>";
           }).join("");
 
-          return "<article class=\"cn-post-card\" data-post-id=\"" + esc(p.id) + "\">" +
+          return "<article class=\"cn-post-card\" data-post-id=\"" + esc(postId) + "\">" +
             "<div class=\"cn-post-head\">" +
-              "<div class=\"cn-post-ava\">" + esc((p.author || "U").charAt(0).toUpperCase()) + "</div>" +
+              "<div class=\"cn-post-ava\">" + esc(String(p.author || "U").charAt(0).toUpperCase()) + "</div>" +
               "<div class=\"cn-post-meta\">" +
                 "<div class=\"cn-post-author\">" + esc(p.author) + " <span>" + esc(p.handle) + "</span></div>" +
                 "<div class=\"cn-post-time\">" + esc(p.time) + "</div>" +
               "</div>" +
               "<span class=\"cn-post-badge\">" + esc(p.role) + "</span>" +
             "</div>" +
-            "<p class=\"cn-post-body\">" + esc(p.text) + "</p>" +
+            "<p class=\"cn-post-body\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;\">" + window.cnSafeLoungeMarkup(p.text) + "</p>" +
             imgHtml +
             "<div class=\"cn-post-actions\">" +
-              "<button type=\"button\" class=\"cn-pa-btn" + (p.liked ? " is-liked" : "") + "\" onclick=\"window.toggleCnPostLike('" + esc(p.id) + "')\">" +
+              "<button type=\"button\" class=\"cn-pa-btn" + (p.liked ? " is-liked" : "") + "\" onclick=\"window.toggleCnPostLike(" + jsArg(postId) + ")\">" +
                 "<i class=\"fa-" + (p.liked ? "solid" : "regular") + " fa-heart\"></i> <span>" + (p.likes || 0) + "</span>" +
               "</button>" +
-              "<button type=\"button\" class=\"cn-pa-btn\" onclick=\"window.toggleCnReplyBox('" + esc(p.id) + "')\">" +
+              "<button type=\"button\" class=\"cn-pa-btn\" onclick=\"window.toggleCnReplyBox(" + jsArg(postId) + ")\">" +
                 "<i class=\"fa-regular fa-comment\"></i> <span>" + (p.replies ? p.replies.length : 0) + "</span>" +
               "</button>" +
             "</div>" +
-            "<div id=\"cnReplyBox_" + esc(p.id) + "\" class=\"cn-reply-box\" style=\"display:none;\">" +
+            "<div id=\"cnReplyBox_" + esc(postId) + "\" class=\"cn-reply-box\" style=\"display:none;\">" +
               "<div class=\"cn-reply-list\">" + repliesHtml + "</div>" +
               "<div class=\"cn-reply-input-row\">" +
-                "<input type=\"text\" id=\"cnReplyInput_" + esc(p.id) + "\" placeholder=\"Tulis balasan...\" />" +
-                "<button type=\"button\" onclick=\"window.submitCnReply('" + esc(p.id) + "')\"><i class=\"fa-solid fa-paper-plane\"></i></button>" +
+                "<input type=\"text\" id=\"cnReplyInput_" + esc(postId) + "\" placeholder=\"Tulis balasan...\" />" +
+                "<button type=\"button\" onclick=\"window.submitCnReply(" + jsArg(postId) + ")\"><i class=\"fa-solid fa-paper-plane\"></i></button>" +
               "</div>" +
             "</div>" +
           "</article>";
@@ -6823,14 +7213,16 @@
         } else {
           wrap.innerHTML += "<div class=\"cn-dev-list\">" + reports.map(function(rep, i) {
             var p = posts.find(function(x) { return x.id === rep.postId; });
+            var reportPostId = String(p && p.id || rep.postId || "");
+            var reportPostIdArg = window.cnEscapeHtml(JSON.stringify(reportPostId).replace(/</g, "\\u003c"));
             var preview = p ? window.cnEscapeHtml((p.text || "").slice(0, 75)) + "..." : "(Postingan sudah dihapus)";
             return "<div class=\"cn-dev-item\">" +
               "<div class=\"cn-dev-item-info\" style=\"flex:1;\">" +
-                "<b>" + (p ? window.cnEscapeHtml(p.author) : rep.postId) + "</b>" +
+                "<b>" + (p ? window.cnEscapeHtml(p.author) : window.cnEscapeHtml(rep.postId)) + "</b>" +
                 "<span>" + preview + "</span>" +
               "</div>" +
               "<div class=\"cn-dev-item-btns\">" +
-                (p ? "<button type=\"button\" class=\"is-del\" onclick=\"window.deleteCnPost('" + p.id + "'); window.dismissCnReport(" + i + ");\" title=\"Hapus Post\"><i class=\"fa-solid fa-trash\"></i></button>" : "") +
+                (p ? "<button type=\"button\" class=\"is-del\" onclick=\"window.deleteCnPost(" + reportPostIdArg + "); window.dismissCnReport(" + i + ");\" title=\"Hapus Post\"><i class=\"fa-solid fa-trash\"></i></button>" : "") +
                 "<button type=\"button\" class=\"is-ok\" onclick=\"window.dismissCnReport(" + i + ")\" title=\"Tandai Selesai\"><i class=\"fa-solid fa-check\"></i></button>" +
               "</div>" +
             "</div>";
@@ -7456,6 +7848,8 @@
       async function syncServerSession() {
         var isLocal = ["localhost", "127.0.0.1"].indexOf(window.location.hostname) !== -1;
         if (isLocal) return;
+        var existingSession = getSession();
+        if (existingSession && existingSession.provider === "talent_d1" && existingSession.sessionToken) return;
         try {
           var res = await fetch(window.CN_DEV_CONFIG.phoenixApi + "/api/me", { credentials: "include" });
           if (res.ok) {
@@ -7486,7 +7880,7 @@
           if (!raw) return null;
           var s = JSON.parse(raw);
           // Wajib sesi berbasis Telegram (provider === 'telegram')
-          return (s && s.provider === "telegram" && s.tgId) ? s : null;
+          return s && ((s.provider === "telegram" && (s.tgId || s.tg_id)) || s.provider === "clubsnight" || (s.provider === "talent_d1" && s.sessionToken)) ? s : null;
         } catch (e) { return null; }
       }
 
@@ -7523,6 +7917,10 @@
             });
             if (!res.ok) throw new Error("Verifikasi Telegram gagal.");
             var data = await res.json();
+            localStorage.setItem(SESSION_KEY, JSON.stringify(data.user));
+            var workerToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+            if (!workerToken) throw new Error("Gagal mengaktifkan sesi Worker.");
+            data.user.workerSessionToken = workerToken;
             localStorage.setItem(SESSION_KEY, JSON.stringify(data.user));
             window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: data.user }));
             enforceHardGate();
@@ -7789,8 +8187,6 @@ window.addEventListener("storage", function(e) {
       e.stopPropagation();
 
       var card = dotsBtn.closest(".cn-post-card");
-      var allCards = Array.from(document.querySelectorAll("#cnLoungeFeed .cn-post-card"));
-      var cardIdx = allCards.indexOf(card);
       var postId = dotsBtn.getAttribute("data-post-id") || card.getAttribute("data-post-id") || "";
 
       closeDotsMenu();
@@ -7818,20 +8214,11 @@ window.addEventListener("storage", function(e) {
         var act = actBtn.getAttribute("data-act");
 
         if (act === "delete") {
-          try {
-            var posts = JSON.parse(localStorage.getItem("cn_lounge_posts_v1") || "[]");
-            if (postId) {
-              posts = posts.filter(function(p) { return String(p.id) !== String(postId); });
-            } else if (cardIdx >= 0 && cardIdx < posts.length) {
-              posts.splice(cardIdx, 1);
-            }
-            localStorage.setItem("cn_lounge_posts_v1", JSON.stringify(posts));
-          } catch (_) {}
-          if (card && card.parentNode) card.parentNode.removeChild(card);
-          if (typeof window.refreshCnLoungeFeed === "function") window.refreshCnLoungeFeed();
-          if (typeof window.cnToast === "function") window.cnToast("Postingan berhasil dihapus.", "info");
+          if (window.deleteCnPost && postId) window.deleteCnPost(postId);
+          else if (typeof window.cnToast === "function") window.cnToast("ID postingan tidak ditemukan.", "error");
         } else if (act === "report") {
-          if (typeof window.cnToast === "function") window.cnToast("Laporan terkirim ke tim moderasi.", "info");
+          if (window.reportCnPost && postId) window.reportCnPost(postId);
+          else if (typeof window.cnToast === "function") window.cnToast("Laporan terkirim ke tim moderasi.", "info");
         }
         closeDotsMenu();
       });
@@ -7852,7 +8239,7 @@ window.addEventListener("storage", function(e) {
 
 <script id="cnTalentSelfServiceScript">
 (function() {
-  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_API = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   var MOOD_OPTIONS = ["GFE", "Manja", "Cosplay", "Deep Talk"];
 
   function getActiveTalentSession() {
@@ -8006,9 +8393,10 @@ window.addEventListener("storage", function(e) {
       msgEl.textContent = "Memverifikasi kredensial...";
 
       try {
+        var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
         var res = await fetch(WORKER_API + "/api/talent/update-profile", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
           body: JSON.stringify({
             username: talent.username,
             currentPassword: curPassVal,
@@ -8059,7 +8447,7 @@ window.addEventListener("storage", function(e) {
 
 <script id="cnLoungeCloudSyncScript">
 (function() {
-  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_API = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   var FEED_KEY = "cn_lounge_posts_v1";
   var STORY_KEY = "cn_talent_stories_v1";
   var isPullingFromCloud = false;
@@ -8177,7 +8565,7 @@ window.addEventListener("storage", function(e) {
 
 <script id="cnOrderCloudBridgeScript">
 (function() {
-  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_API = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   var syncedOrderIds = {};
 
   function getMemberSession() {
@@ -8197,11 +8585,14 @@ window.addEventListener("storage", function(e) {
     var sess = getMemberSession();
     try {
       var hTok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
-      await fetch(WORKER_API + "/api/orders/create", {
+      var response = await fetch(WORKER_API + "/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Session-Token": hTok },
         body: JSON.stringify({
           id: oid,
+          orderType: orderObj.orderType || "standard",
+          productId: orderObj.productId || "",
+          quantity: Number(orderObj.quantity || 1),
           customerUsername: (sess && sess.username) || orderObj.user || "vip_member",
           customerName: (sess && sess.name) || orderObj.user || "VIP Member",
           service: orderObj.service,
@@ -8211,6 +8602,10 @@ window.addEventListener("storage", function(e) {
           status: orderObj.status || "Menunggu Konfirmasi"
         })
       });
+      if (!response.ok) {
+        var result = await response.json().catch(function() { return {}; });
+        if (window.cnToast) window.cnToast(result.error || "Order belum dapat dicatat.", "error");
+      }
     } catch (_) {}
   };
 
@@ -8233,27 +8628,43 @@ window.addEventListener("storage", function(e) {
 
 <script id="cnHmacSessionClient">
 (function() {
-  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_API = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   window.getCnHmacSessionToken = async function() {
     try {
       var s = (window.cnAuth && window.cnAuth.getSession && window.cnAuth.getSession())
         || JSON.parse(localStorage.getItem("cn_pwa_session_v1") || "null")
         || JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
-      if (s && s.sessionToken) return s.sessionToken;
+      if (!s) return "";
+      var token = localStorage.getItem("cn_worker_session_v1") || s.workerSessionToken || "";
+      if (token) {
+        try {
+          var payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(token.split(".")[0].replace(/-/g, "+").replace(/_/g, "/")), function(c) { return c.charCodeAt(0); })));
+          if (Number(payload.exp) > Math.floor(Date.now() / 1000) + 30) return token;
+        } catch (_) {}
+      }
+      if (s.provider === "talent_d1" && s.sessionToken) return s.sessionToken;
 
-      var cachedGuest = sessionStorage.getItem("cn_guest_hmac_v1");
-      if (cachedGuest) return cachedGuest;
-
-      var res = await fetch(WORKER_API + "/api/session/guest", {
+      var apiBase = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.phoenixApi) || "";
+      if (!apiBase) return "";
+      var assertionRes = await fetch(apiBase.replace(/\/$/, "") + "/api/auth/worker-assertion", {
+        method: "POST",
+        credentials: "include"
+      });
+      var assertionData = await assertionRes.json().catch(function() { return {}; });
+      if (!assertionRes.ok || !assertionData.assertion) return "";
+      var exchangeRes = await fetch(WORKER_API + "/api/session/exchange", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: (s && s.username) || "vip_member" })
+        body: JSON.stringify({ assertion: assertionData.assertion })
       });
-      var data = await res.json().catch(function() { return {}; });
-      if (res.ok && data.sessionToken) {
-        sessionStorage.setItem("cn_guest_hmac_v1", data.sessionToken);
-        return data.sessionToken;
-      }
+      var exchangeData = await exchangeRes.json().catch(function() { return {}; });
+      if (!exchangeRes.ok || !exchangeData.sessionToken) return "";
+      localStorage.setItem("cn_worker_session_v1", exchangeData.sessionToken);
+      s.workerSessionToken = exchangeData.sessionToken;
+      s.workerRole = exchangeData.identity && exchangeData.identity.role || s.workerRole || "";
+      if (window.cnAuth && window.cnAuth.setSession) window.cnAuth.setSession(s);
+      else localStorage.setItem(s.provider === "clubsnight" ? "cn_auth_session_v1" : "cn_pwa_session_v1", JSON.stringify(s));
+      return exchangeData.sessionToken;
     } catch (_) {}
     return "";
   };
@@ -8334,7 +8745,9 @@ window.addEventListener("storage", function(e) {
 
     var uname = String(active.username).replace(/^@/, "").toLowerCase();
     var role = String(active.role || "user").toLowerCase();
-    if (uname === "superadmin") role = "superadmin";
+    if (["owner", "developer", "dev", "superadmin"].indexOf(role) !== -1) role = "developer";
+    else if (["admin", "admin_qc", "admin_qc_merch"].indexOf(role) !== -1) role = "admin";
+    else if (["merch", "merch_admin", "admin_merch"].indexOf(role) !== -1) role = "merch";
 
     var displayName = active.name || active.displayName || (uname.charAt(0).toUpperCase() + uname.slice(1));
     var isApprovedTalent = (role === "talent" && active.approved !== false);
@@ -8379,7 +8792,7 @@ window.addEventListener("storage", function(e) {
 
     // 3. Kontrol visibilitas Panel Merch (HANYA untuk role === 'merch' atau 'superadmin')
     var merchAdminWrap = document.getElementById("cnMerchRoleWrap");
-    if (role === "merch" || role === "merch_admin") {
+    if (role === "merch" || role === "admin" || role === "developer") {
       if (!merchAdminWrap) {
         merchAdminWrap = document.createElement("div");
         merchAdminWrap.id = "cnMerchRoleWrap";
@@ -8409,9 +8822,9 @@ window.addEventListener("storage", function(e) {
     if (!accountCard) return;
 
     var roleBadgeHtml =
-      role === "superadmin" || role === "admin" || role === "dev"
+      role === "developer" || role === "admin"
         ? '<span style="color:#22d3ee;font-weight:700;">SuperAdmin / Web Master</span>'
-        : role === "merch" || role === "merch_admin"
+        : role === "merch"
         ? '<span style="color:#38bdf8;font-weight:700;">Admin Official Merch</span>'
         : role === "talent"
         ? (isApprovedTalent
@@ -8464,7 +8877,7 @@ window.addEventListener("storage", function(e) {
     window.openCnProfileEditor = function() {
       origOpenEditor.apply(this, arguments);
       var s = readStrictSession();
-      var r = s ? String(s.role || "").toLowerCase() : ""; var isSpecialOrTalent = ["talent", "superadmin", "admin", "dev", "merch", "merch_admin"].indexOf(r) !== -1;
+      var r = s ? String(s.role || "").toLowerCase() : ""; var isSpecialOrTalent = ["talent", "owner", "developer", "admin_qc", "admin_qc_merch", "admin_merch", "superadmin", "admin", "dev", "merch", "merch_admin"].indexOf(r) !== -1;
       ["cnProfAgency", "cnProfStatus"].forEach(function(id) {
         var el = document.getElementById(id);
         if (el && el.parentElement) {
@@ -8524,11 +8937,11 @@ window.addEventListener("storage", function(e) {
           avaEl.textContent = "";
         }
 
-        // Kirim pembaruan profil ke backend Elixir (non-blocking)
-        fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/profile/update", {
+        // Kirim pembaruan profil terautentikasi ke Worker (non-blocking)
+        var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+        fetch(window.CN_WORKER_API + "/api/profile/update", {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
           body: JSON.stringify({
             username: uname,
             role: s.role || "user",
@@ -8692,10 +9105,12 @@ window.addEventListener("storage", function(e) {
         var raw = localStorage.getItem(keys[i]);
         if (!raw) continue;
         var parsed = JSON.parse(raw);
-        if (parsed && (parsed.username || parsed.id)) {
+        if (parsed && (parsed.username || parsed.id) &&
+            (parsed.provider === "talent_d1" ? !!parsed.sessionToken :
+              (["telegram", "clubsnight"].indexOf(parsed.provider) !== -1 &&
+                !!(parsed.workerSessionToken || localStorage.getItem("cn_worker_session_v1"))))) {
           var uname = String(parsed.username || parsed.id).replace(/^@/, "").toLowerCase();
           var role = parsed.role || (keys[i].indexOf("talent") !== -1 ? "talent" : "user");
-          if (uname === "superadmin") role = "superadmin";
           return Object.assign({}, parsed, {
             id: parsed.id || ((role === "talent" ? "tlt_" : "usr_") + uname),
             username: uname,
@@ -8963,7 +9378,9 @@ window.addEventListener("storage", function(e) {
   var MASTER_KEY = "cn_master_qris_payload_v1";
   var WALLET_PREFIX = "cn_wallet_bal_";
   var TOPUP_QUEUE_KEY = "cn_qris_topup_queue_v1";
-  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_API = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var verifiedBalances = window.cnWalletVerifiedBalances || Object.create(null);
+  window.cnWalletVerifiedBalances = verifiedBalances;
 
   var currentAmount = 100000;
   var currentMode = "topup"; // "topup" | "booking"
@@ -9051,15 +9468,34 @@ window.addEventListener("storage", function(e) {
   }
 
   function getUserBalance(username) {
-    if (!username) return 0;
-    return Number(localStorage.getItem(WALLET_PREFIX + username.toLowerCase()) || "0") || 0;
+    if (!username) return null;
+    var key = username.toLowerCase();
+    return Object.prototype.hasOwnProperty.call(verifiedBalances, key) ? verifiedBalances[key] : null;
   }
 
   function setUserBalance(username, amount) {
     if (!username) return;
-    localStorage.setItem(WALLET_PREFIX + username.toLowerCase(), String(Math.max(0, Math.round(Number(amount) || 0))));
+    verifiedBalances[username.toLowerCase()] = Math.max(0, Math.round(Number(amount) || 0));
     renderWalletCardInActivity();
   }
+  window.setCnVerifiedWalletBalance = setUserBalance;
+  window.cnCanUseWallet = function(session) {
+    var role = String(session && session.role || "").toLowerCase();
+    return ["consumer", "user", "admin", "developer", "owner", "superadmin", "dev"].indexOf(role) !== -1;
+  };
+  window.applyCnWalletRoleVisibility = function() {
+    var session = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null;
+    var role = String(session && session.role || "").toLowerCase();
+    var hidden = role === "talent" || role === "merch" || role === "merch_admin" || role === "admin_merch";
+    document.querySelectorAll(".item-topup-highlight, #cnWalletActivityWrap, #cnPagePaywall, #qrisContainer, #cnQrisPayModal, #cnWithdrawModal, #cnBackupQrisPanel").forEach(function(el) {
+      el.style.display = hidden ? "none" : "";
+    });
+  };
+  window.addEventListener("cn:session-changed", function() {
+    verifiedBalances = Object.create(null);
+    window.cnWalletVerifiedBalances = verifiedBalances;
+    window.applyCnWalletRoleVisibility();
+  });
 
   function formatRupiah(num) {
     return "Rp " + (Math.round(Number(num) || 0)).toLocaleString("id-ID");
@@ -9082,6 +9518,11 @@ window.addEventListener("storage", function(e) {
         page.insertBefore(wrap, page.firstChild);
       }
     }
+    if (!window.cnCanUseWallet(user)) {
+      wrap.style.display = "none";
+      return;
+    }
+    wrap.style.display = "";
 
     var bal = getUserBalance(user.username);
     wrap.innerHTML =
@@ -9089,7 +9530,7 @@ window.addEventListener("storage", function(e) {
         '<div class="cn-wallet-top">' +
           '<div>' +
             '<div class="cn-wallet-label"><i class="fa-solid fa-wallet" style="color:#ff4081;margin-right:4px;"></i> Saldo CN Wallet (@' + user.username + ')</div>' +
-            '<div class="cn-wallet-balance">' + formatRupiah(bal) + '</div>' +
+            '<div class="cn-wallet-balance">' + (bal === null ? "Memuat saldo…" : formatRupiah(bal)) + '</div>' +
           '</div>' +
           '<button type="button" class="cn-wallet-topup-btn" onclick="window.openCnQrisTopupModal()">' +
             '<i class="fa-solid fa-qrcode"></i> Top-Up QRIS' +
@@ -9099,6 +9540,12 @@ window.addEventListener("storage", function(e) {
           'Gunakan saldo untuk booking privat 1-klik tanpa nama layanan di mutasi bank.' +
         '</div>' +
       '</div>';
+    if (bal === null && window.syncWalletBalanceFromServer) {
+      window.syncWalletBalanceFromServer().catch(function() {
+        var balEl = wrap.querySelector(".cn-wallet-balance");
+        if (balEl) balEl.textContent = "Saldo tidak dapat dimuat";
+      });
+    }
   }
 
   // 4. Kontrol Modal QRIS Dinamis
@@ -9184,7 +9631,7 @@ window.addEventListener("storage", function(e) {
     a.click();
   };
 
-  window.confirmCnQrisPayment = function() {
+  window.confirmCnQrisPayment = async function() {
     var user = getActiveUser();
     if (!user) return;
     var uname = user.username.toLowerCase();
@@ -9205,9 +9652,10 @@ window.addEventListener("storage", function(e) {
     });
     localStorage.setItem(TOPUP_QUEUE_KEY, JSON.stringify(queue.slice(0, 100)));
 
+    var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
     fetch(WORKER_API + "/api/orders/create", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
       body: JSON.stringify({
         id: reqId,
         customerUsername: uname,
@@ -9270,25 +9718,49 @@ window.addEventListener("storage", function(e) {
       window.openCnQrisTopupModal(b.amount, b);
     };
 
-    document.getElementById("cnPayWithWalletBtn").onclick = function() {
+    document.getElementById("cnPayWithWalletBtn").onclick = async function() {
       var user = getActiveUser();
       if (!user) {
         if (window.openCnAuthModal) window.openCnAuthModal("login");
         return;
       }
+      if (!window.cnCanUseWallet(user)) return;
       var b = readCalculatedBooking();
       if (b.amount <= 0) {
         alert("Silakan pilih kategori & durasi layanan terlebih dahulu.");
         return;
       }
       var bal = getUserBalance(user.username);
+      if (typeof bal !== "number") {
+        try { bal = await window.syncWalletBalanceFromServer(); }
+        catch (_) {
+          alert("Saldo tidak dapat diverifikasi. Silakan coba lagi.");
+          return;
+        }
+      }
       if (bal < b.amount) {
         if (confirm("Saldo CN Wallet Anda (" + formatRupiah(bal) + ") belum mencukupi untuk total " + formatRupiah(b.amount) + ".\n\nLanjutkan Top-Up QRIS Dinamis sebesar " + formatRupiah(b.amount) + "?")) {
           window.openCnQrisTopupModal(b.amount, b);
         }
         return;
       }
-      setUserBalance(user.username, bal - b.amount);
+      var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+      if (!token) {
+        alert("Sesi wallet tidak valid. Silakan login ulang.");
+        return;
+      }
+      var spendResponse = await fetch(WORKER_API + "/api/wallet/spend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Session-Token": token },
+        body: JSON.stringify({ amount: b.amount, service: b.service })
+      });
+      var spendData = await spendResponse.json().catch(function() { return {}; });
+      if (!spendResponse.ok || !spendData.success) {
+        if (typeof spendData.balance === "number") setUserBalance(user.username, spendData.balance);
+        alert(spendData.error || "Pembayaran wallet gagal.");
+        return;
+      }
+      setUserBalance(user.username, spendData.balance);
       var orderId = "ORD-WALLET-" + Date.now();
       var storeKey = "cn_orders_" + user.username.toLowerCase();
       var list = [];
@@ -9305,30 +9777,36 @@ window.addEventListener("storage", function(e) {
       if (typeof window.sendCnOrderToCloud === "function") {
         window.sendCnOrderToCloud(list[0]);
       }
-      alert("✅ Pembayaran berhasil! Saldo terpotong " + formatRupiah(b.amount) + ". Sisa saldo: " + formatRupiah(bal - b.amount));
+      alert("✅ Pembayaran berhasil! Saldo terpotong " + formatRupiah(b.amount) + ". Sisa saldo: " + formatRupiah(spendData.balance));
     };
   }
 
   // Expose helper untuk SuperAdmin menyetujui top-up QRIS
-  window.approveCnQrisTopup = function(reqId) {
-    var queue = [];
-    try { queue = JSON.parse(localStorage.getItem(TOPUP_QUEUE_KEY) || "[]"); } catch (_) {}
-    var item = queue.find(function(x) { return x.id === reqId; });
-    if (!item || item.status === "Disetujui") return;
-    item.status = "Disetujui";
-    localStorage.setItem(TOPUP_QUEUE_KEY, JSON.stringify(queue));
-    var cur = getUserBalance(item.username);
-    setUserBalance(item.username, cur + Number(item.amount || 0));
+  window.approveCnQrisTopup = async function(intentId) {
+    var session = getActiveUser();
+    var role = String(session && session.role || "").toLowerCase();
+    if (["admin", "developer", "owner", "superadmin", "dev"].indexOf(role) === -1) return;
+    var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+    var response = await fetch(WORKER_API + "/api/wallet/approve-backup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Token": token },
+      body: JSON.stringify({ intentId: intentId })
+    });
+    var result = await response.json().catch(function() { return {}; });
+    if (!response.ok || !result.success) throw new Error(result.error || "Top-up tidak dapat disetujui.");
+    await window.syncWalletBalanceFromServer();
   };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function() {
       renderWalletCardInActivity();
       injectPaymentButtonsInBookingDetail();
+      window.applyCnWalletRoleVisibility();
     });
   } else {
     renderWalletCardInActivity();
     injectPaymentButtonsInBookingDetail();
+    window.applyCnWalletRoleVisibility();
   }
   setTimeout(function() {
     renderWalletCardInActivity();
@@ -9341,7 +9819,7 @@ window.addEventListener("storage", function(e) {
 
 <script id="cnAutoQrisWebhookClientJs">
 (function() {
-  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_API = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   var WALLET_PREFIX = "cn_wallet_bal_";
   var activeIntent = null;
   var pollTimer = null;
@@ -9356,22 +9834,31 @@ window.addEventListener("storage", function(e) {
 
   window.syncWalletBalanceFromServer = async function() {
     var u = getActiveUser();
-    if (!u || !u.username) return 0;
+    if (!u || !u.username || !window.cnCanUseWallet(u)) return null;
     try {
-      var res = await fetch(WORKER_API + "/api/wallet/balance?username=" + encodeURIComponent(u.username), { cache: "no-store" });
+      var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+      var res = await fetch(WORKER_API + "/api/wallet/balance", { cache: "no-store", headers: { "X-Session-Token": token } });
       var data = await res.json();
-      if (res.ok && data && data.success) {
-        localStorage.setItem(WALLET_PREFIX + u.username.toLowerCase(), String(data.balance || 0));
+      if (res.ok && data && data.success && typeof data.balance === "number") {
+        setUserBalance(u.username, data.balance || 0);
         var balEl = document.querySelector("#cnWalletActivityWrap .cn-wallet-balance");
         if (balEl) balEl.textContent = formatRp(data.balance || 0);
         return Number(data.balance || 0);
       }
-    } catch (_) {}
-    return Number(localStorage.getItem(WALLET_PREFIX + u.username.toLowerCase()) || "0") || 0;
+      throw new Error(data && data.error || "Saldo tidak dapat dimuat.");
+    } catch (error) {
+      var balEl = document.querySelector("#cnWalletActivityWrap .cn-wallet-balance");
+      if (balEl) balEl.textContent = "Saldo tidak dapat dimuat";
+      throw error;
+    }
   };
 
   var origOpenModal = window.openCnQrisTopupModal;
   window.openCnQrisTopupModal = async function(presetAmount, bookingCtx) {
+    if (!window.cnCanUseWallet(getActiveUser())) {
+      if (window.cnToast) window.cnToast("Fitur wallet tidak tersedia untuk peran ini.", "error");
+      return;
+    }
     if (typeof origOpenModal === "function") {
       origOpenModal.apply(this, arguments);
     }
@@ -9411,22 +9898,7 @@ window.addEventListener("storage", function(e) {
       var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
       var tOut = setTimeout(function() { if (ctrl) ctrl.abort(); }, 4500);
 
-      var sessTok = (u && u.sessionToken) || localStorage.getItem("cn_session_token") || "";
-      if (!sessTok) {
-        try {
-          var gRes = await fetch(WORKER_API + "/api/session/guest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: u.username }),
-            signal: ctrl ? ctrl.signal : undefined
-          });
-          var gData = await gRes.json();
-          if (gData && gData.sessionToken) {
-            sessTok = gData.sessionToken;
-            localStorage.setItem("cn_session_token", sessTok);
-          }
-        } catch (_) {}
-      }
+      var sessTok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
 
       var res = await fetch(WORKER_API + "/api/wallet/intent", {
         method: "POST",
@@ -9478,19 +9950,30 @@ window.addEventListener("storage", function(e) {
     }
   };
 
-  function startAutoBalancePolling() {
+  async function startAutoBalancePolling() {
     clearInterval(pollTimer);
     var u = getActiveUser();
-    if (!u || !u.username) return;
-
-    var initialBal = Number(localStorage.getItem(WALLET_PREFIX + u.username.toLowerCase()) || "0") || 0;
+    if (!u || !u.username || !window.syncWalletBalanceFromServer) return;
+    var initialBal;
+    try {
+      initialBal = await window.syncWalletBalanceFromServer();
+    } catch (_) {
+      var noteEl = document.getElementById("cnQrisStatusNote");
+      if (noteEl) {
+        noteEl.textContent = "Saldo tidak dapat diverifikasi. Periksa koneksi lalu coba lagi.";
+        noteEl.style.display = "block";
+      }
+      return;
+    }
+    if (typeof initialBal !== "number") return;
     pollTimer = setInterval(async function() {
       var modal = document.getElementById("cnQrisPayModal");
       if (!modal || !modal.classList.contains("open")) {
         clearInterval(pollTimer);
         return;
       }
-      var latestBal = await window.syncWalletBalanceFromServer();
+      var latestBal;
+      try { latestBal = await window.syncWalletBalanceFromServer(); } catch (_) { return; }
       if (latestBal > initialBal) {
         clearInterval(pollTimer);
         var noteEl = document.getElementById("cnQrisStatusNote");
@@ -9524,14 +10007,114 @@ window.addEventListener("storage", function(e) {
 
     devModalBody.appendChild(panel);
 
+    var reviewPanel = document.createElement("div");
+    reviewPanel.style.cssText = "margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(251,191,36,0.35);background:rgba(245,158,11,0.08);";
+    reviewPanel.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+        '<b style="font-size:13px;color:#fbbf24;">Review Klaim Saldo Lama</b>' +
+        '<button type="button" id="cnRefreshWalletReviewBtn" style="padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.08);color:#fff;">Muat Review</button>' +
+      '</div><div id="cnWalletReviewList" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;"></div>';
+    devModalBody.appendChild(reviewPanel);
+
+    var walletPanel = document.createElement("div");
+    walletPanel.id = "cnStaffWalletPanel";
+    walletPanel.style.cssText = "margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(167,139,250,0.35);background:rgba(139,92,246,0.08);";
+    walletPanel.innerHTML =
+      '<b style="font-size:13px;color:#c4b5fd;">Cari &amp; Kelola Wallet Konsumen</b>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;">' +
+        '<input type="text" id="cnStaffWalletQuery" placeholder="Username atau subject (tg:… / cn:…)" autocomplete="off" style="flex:1;min-width:0;padding:8px;border-radius:8px;" />' +
+        '<button type="button" id="cnStaffWalletSearch">Cari</button>' +
+      '</div>' +
+      '<div id="cnStaffWalletResult" style="margin-top:10px;font-size:12px;color:#cbd5e1;">Masukkan username atau subject untuk melihat saldo.</div>' +
+      '<form id="cnStaffWalletAdjustForm" style="display:grid;gap:8px;margin-top:10px;">' +
+        '<input type="number" id="cnStaffWalletDelta" step="1" min="-50000000" max="50000000" placeholder="Nominal penyesuaian (+ kredit / − debit)" required />' +
+        '<input type="text" id="cnStaffWalletReference" maxlength="120" placeholder="Referensi unik (contoh: QRS-1795545097244-291)" required />' +
+        '<input type="text" id="cnStaffWalletReason" maxlength="240" placeholder="Alasan wajib (contoh: QRIS terverifikasi)" required />' +
+        '<button type="submit">Simpan Penyesuaian Teraudit</button>' +
+      '</form>';
+    devModalBody.appendChild(walletPanel);
+
+    function escapeWalletHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, function(ch) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+      });
+    }
+
+    async function loadStaffWallet() {
+      var queryEl = document.getElementById("cnStaffWalletQuery");
+      var resultEl = document.getElementById("cnStaffWalletResult");
+      var query = queryEl && queryEl.value.trim();
+      if (!query || !resultEl) {
+        if (resultEl) resultEl.textContent = "Masukkan username atau subject.";
+        return null;
+      }
+      resultEl.textContent = "Memuat wallet konsumen...";
+      try {
+        var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+        var response = await fetch(WORKER_API + "/api/wallet/lookup?q=" + encodeURIComponent(query), {
+          cache: "no-store",
+          headers: { "X-Session-Token": token }
+        });
+        var data = await response.json().catch(function() { return {}; });
+        if (!response.ok || !data.success) throw new Error(data.error || "Wallet tidak dapat dimuat.");
+        walletPanel.dataset.subject = data.subject;
+        var rows = Array.isArray(data.transactions) ? data.transactions : [];
+        resultEl.innerHTML =
+          '<div><b>@' + escapeWalletHtml(data.username || query) + '</b> • ' + escapeWalletHtml(data.subject) +
+          '<br/>Saldo: <b>' + formatRp(data.balance) + '</b></div>' +
+          '<div style="margin-top:8px;font-weight:700;">Transaksi terbaru</div>' +
+          (rows.length ? rows.map(function(row) {
+            return '<div style="padding:6px 0;border-top:1px solid rgba(255,255,255,.08);">' +
+              escapeWalletHtml(row.transaction_type) + ' • ' + formatRp(row.amount) + ' • ' +
+              escapeWalletHtml(row.reference || "-") +
+              (row.reason ? '<br/><span style="color:#94a3b8;">' + escapeWalletHtml(row.reason) + '</span>' : "") +
+              '</div>';
+          }).join("") : '<div style="padding-top:6px;color:#94a3b8;">Belum ada transaksi.</div>');
+        return data;
+      } catch (error) {
+        walletPanel.dataset.subject = "";
+        resultEl.textContent = error.message || "Wallet tidak dapat dimuat.";
+        return null;
+      }
+    }
+
+    document.getElementById("cnStaffWalletSearch").onclick = loadStaffWallet;
+    document.getElementById("cnStaffWalletAdjustForm").addEventListener("submit", async function(event) {
+      event.preventDefault();
+      var subject = walletPanel.dataset.subject;
+      if (!subject) {
+        if (window.cnToast) window.cnToast("Cari wallet konsumen terlebih dahulu.", "error");
+        return;
+      }
+      var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+      try {
+        var response = await fetch(WORKER_API + "/api/wallet/adjust", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Session-Token": token },
+          body: JSON.stringify({
+            subject: subject,
+            delta: Number(document.getElementById("cnStaffWalletDelta").value),
+            reference: document.getElementById("cnStaffWalletReference").value.trim(),
+            reason: document.getElementById("cnStaffWalletReason").value.trim()
+          })
+        });
+        var data = await response.json().catch(function() { return {}; });
+        if (!response.ok || !data.success) throw new Error(data.error || "Penyesuaian wallet ditolak.");
+        if (window.cnToast) window.cnToast(data.alreadyApplied ? "Referensi ini sudah pernah diproses." : "Penyesuaian wallet tersimpan.", "success");
+        await loadStaffWallet();
+      } catch (error) {
+        if (window.cnToast) window.cnToast(error.message || "Penyesuaian wallet gagal.", "error");
+      }
+    });
+
     async function loadPendingIntents() {
       var listEl = document.getElementById("cnBackupQrisList");
       if (!listEl) return;
       listEl.innerHTML = '<div style="font-size:11.5px;color:#94a3b8;">Memuat data transaksi QRIS...</div>';
       try {
-        var tok = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.adminToken) || localStorage.getItem("cn_admin_token") || "";
+        var tok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
         var res = await fetch(WORKER_API + "/api/wallet/pending", {
-          headers: { "Authorization": "Bearer " + tok }
+          headers: { "X-Session-Token": tok }
         });
         var data = await res.json();
         var items = (data && data.intents) || [];
@@ -9540,7 +10123,7 @@ window.addEventListener("storage", function(e) {
           return;
         }
         listEl.innerHTML = items.map(function(it) {
-          var isPaid = it.status === "PAID_AUTO" || it.status === "PAID_MANUAL";
+          var isPaid = it.status === "PAID" || it.status === "PAID_AUTO" || it.status === "PAID_MANUAL";
           return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,0.35);font-size:11.5px;">' +
             '<div>' +
               '<b>@' + it.username + '</b> • <span style="color:#fbbf24;">' + formatRp(it.total_amount) + '</span><br/>' +
@@ -9557,10 +10140,10 @@ window.addEventListener("storage", function(e) {
     }
 
     window.approveBackupQrisIntent = async function(intentId) {
-      var tok = (window.CN_DEV_CONFIG && window.CN_DEV_CONFIG.adminToken) || localStorage.getItem("cn_admin_token") || "";
+      var tok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
       var res = await fetch(WORKER_API + "/api/wallet/approve-backup", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + tok },
+        headers: { "Content-Type": "application/json", "X-Session-Token": tok },
         body: JSON.stringify({ intentId: intentId })
       });
       var data = await res.json();
@@ -9570,8 +10153,50 @@ window.addEventListener("storage", function(e) {
       }
     };
 
+    async function loadWalletReviews() {
+      var listEl = document.getElementById("cnWalletReviewList");
+      if (!listEl) return;
+      var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+      var response = await fetch(WORKER_API + "/api/wallet/migrations", { headers: { "X-Session-Token": token } });
+      var data = await response.json().catch(function() { return {}; });
+      if (!response.ok) {
+        listEl.textContent = data.error || "Review saldo tidak dapat dimuat.";
+        return;
+      }
+      var reviews = Array.isArray(data.reviews) ? data.reviews : [];
+      listEl.innerHTML = reviews.length ? reviews.map(function(item) {
+        return '<div class="cn-wallet-review-row" data-username="' + escapeWalletHtml(item.legacy_username) + '" data-subject="' + escapeWalletHtml(item.subject) + '" style="padding:8px;background:rgba(0,0,0,.25);border-radius:8px;">' +
+          '<div><b>@' + escapeWalletHtml(item.legacy_username) + '</b> • ' + escapeWalletHtml(item.subject) + ' • ' + formatRp(item.amount) + '</div>' +
+          '<div style="font-size:10px;color:#fbbf24;">' + escapeWalletHtml(item.reason) + ' • Orders: ' + Number(item.order_count || 0) + '</div>' +
+          '<button type="button" data-resolve="claim">Klaim ke subjek ini</button> <button type="button" data-resolve="reject">Tolak klaim ini</button></div>';
+      }).join("") : '<div style="font-size:11.5px;color:#94a3b8;">Tidak ada klaim yang menunggu review.</div>';
+      listEl.querySelectorAll("[data-resolve]").forEach(function(button) {
+        button.addEventListener("click", async function() {
+          var row = button.closest(".cn-wallet-review-row");
+          var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+          var result = await fetch(WORKER_API + "/api/wallet/migrations/resolve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({
+              username: row.dataset.username,
+              subject: row.dataset.subject,
+              action: button.dataset.resolve
+            })
+          });
+          if (!result.ok) {
+            var error = await result.json().catch(function() { return {}; });
+            alert(error.error || "Klaim tidak dapat diselesaikan.");
+            return;
+          }
+          loadWalletReviews();
+        });
+      });
+    }
+
     document.getElementById("cnRefreshBackupQrisBtn").onclick = loadPendingIntents;
+    document.getElementById("cnRefreshWalletReviewBtn").onclick = loadWalletReviews;
     loadPendingIntents();
+    loadWalletReviews();
   }
 
   if (document.readyState === "loading") {
@@ -9716,7 +10341,7 @@ window.addEventListener("storage", function(e) {
 </section>
 <script id="cnHardPaymentGateScript">
 (function() {
-  var WORKER_API = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_API = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   var SAWERIA_QRIS_RAW = "00020101021126570011ID.DANA.WWW011893600915303373915802090337391580303UMI51440014ID.CO.QRIS.WWW0215ID10265626953160303UMI5204594553033605802ID5911zexus store6009Indonesia63043897";
   var activePaywallIntent = null;
   var selectedBankName = "QRIS Instan (Semua Bank)";
@@ -9777,54 +10402,44 @@ window.addEventListener("storage", function(e) {
 
   function getSessionToken() {
     try {
-      var t = localStorage.getItem("cn_session_token");
+      var t = localStorage.getItem("cn_worker_session_v1");
       if (t) return t;
-      var keys = ["cn_talent_session_v1", "cn_pwa_session_v1", "cn_auth_session_v1"];
+      var keys = ["cn_talent_session_v1", "cn_talent_session"];
       for (var i = 0; i < keys.length; i++) {
         var raw = localStorage.getItem(keys[i]);
         if (!raw) continue;
         var obj = JSON.parse(raw);
-        if (obj && (obj.sessionToken || obj.token)) return obj.sessionToken || obj.token;
+        if (obj && obj.role === "talent" && (obj.sessionToken || obj.token)) return obj.sessionToken || obj.token;
       }
     } catch (_) {}
     return "";
   }
 
   function getLocalWalletBalance(uname) {
-    try {
-      var raw = localStorage.getItem("cn_wallet_balances_v1");
-      if (raw) {
-        var map = JSON.parse(raw);
-        if (map && typeof map[uname] === "number") return map[uname];
-      }
-      var single = localStorage.getItem("cn_wallet_balance_" + uname);
-      if (single !== null && !isNaN(Number(single))) return Number(single);
-    } catch (_) {}
-    return 0;
+    var balances = window.cnWalletVerifiedBalances || {};
+    return Object.prototype.hasOwnProperty.call(balances, uname) ? balances[uname] : null;
   }
 
   function setLocalWalletBalance(uname, newBal) {
-    try {
-      var raw = localStorage.getItem("cn_wallet_balances_v1");
-      var map = raw ? JSON.parse(raw) : {};
-      map[uname] = Number(newBal || 0);
-      localStorage.setItem("cn_wallet_balances_v1", JSON.stringify(map));
-      localStorage.setItem("cn_wallet_balance_" + uname, String(Number(newBal || 0)));
-      window.dispatchEvent(new CustomEvent("cn:wallet-updated", { detail: { username: uname, balance: Number(newBal || 0) } }));
-    } catch (_) {}
+    if (window.setCnVerifiedWalletBalance) {
+      window.setCnVerifiedWalletBalance(uname, newBal);
+    } else {
+      var balances = window.cnWalletVerifiedBalances || (window.cnWalletVerifiedBalances = Object.create(null));
+      balances[uname] = Number(newBal || 0);
+    }
+    window.dispatchEvent(new CustomEvent("cn:wallet-updated", { detail: { username: uname, balance: Number(newBal || 0) } }));
   }
 
   async function fetchServerBalance(uname) {
-    var localBal = getLocalWalletBalance(uname);
-    try {
-      var res = await fetch(WORKER_API + "/api/wallet/balance?username=" + encodeURIComponent(uname));
-      var data = await res.json();
-      if (res.ok && data && data.success && typeof data.balance === "number") {
-        setLocalWalletBalance(uname, data.balance);
-        return data.balance;
-      }
-    } catch (_) {}
-    return localBal;
+    var token = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : getSessionToken();
+    if (!token) throw new Error("Sesi wallet tidak valid.");
+    var res = await fetch(WORKER_API + "/api/wallet/balance", { cache: "no-store", headers: { "X-Session-Token": token } });
+    var data = await res.json().catch(function() { return {}; });
+    if (!res.ok || !data || !data.success || typeof data.balance !== "number") {
+      throw new Error(data && data.error || "Saldo tidak dapat dimuat.");
+    }
+    setLocalWalletBalance(uname, data.balance);
+    return data.balance;
   }
 
   function buildDynamicQrisString(amount) {
@@ -9893,6 +10508,10 @@ window.addEventListener("storage", function(e) {
     opts = opts || {};
     var u = getUnifiedUser();
     if (!u) { window.location.href = "/login.html"; return; }
+    if (!window.cnCanUseWallet((window.cnAuth && window.cnAuth.getSession()) || null)) {
+      if (window.cnToast) window.cnToast("Fitur wallet tidak tersedia untuk peran ini.", "error");
+      return;
+    }
 
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     activePaywallIntent = null;
@@ -9919,23 +10538,25 @@ window.addEventListener("storage", function(e) {
     var ctxEl = document.getElementById("cnPwOrderContext");
     if (curEl) curEl.textContent = "Memuat...";
 
-    var bal = 0;
-    try { bal = Number(await fetchServerBalance(u.username)) || 0; }
-    catch (_) { bal = Number(getLocalWalletBalance(u.username)) || 0; }
-    paywallStartBal = bal;
+    var bal = null;
+    try { bal = await fetchServerBalance(u.username); }
+    catch (_) {}
+    paywallStartBal = typeof bal === "number" ? bal : 0;
 
     var required = Number(opts.requiredAmount || 0);
-    var shortage = required > bal ? (required - bal) : (required || 100000);
+    var shortage = required > (bal || 0) ? (required - (bal || 0)) : (required || 100000);
     var suggestedTopup = Math.max(10000, Math.ceil(shortage / 1000) * 1000);
 
     if (curEl) {
-      curEl.textContent = formatRp(bal);
-      curEl.style.color = bal >= required && required > 0 ? "#34d399" : "#fb7185";
+      curEl.textContent = typeof bal === "number" ? formatRp(bal) : "Saldo tidak dapat dimuat";
+      curEl.style.color = typeof bal === "number" && bal >= required && required > 0 ? "#34d399" : "#fb7185";
     }
     if (reqEl) reqEl.textContent = required > 0 ? formatRp(required) : formatRp(suggestedTopup);
 
     if (reasonEl) {
-      if (required > 0 && bal < required) {
+      if (typeof bal !== "number") {
+        reasonEl.textContent = "Saldo tidak dapat dimuat. Periksa koneksi Anda dan coba lagi.";
+      } else if (required > 0 && bal < required) {
         reasonEl.innerHTML =
           "<b><i class=\"fa-solid fa-triangle-exclamation\"></i> Saldo CN Wallet Anda Kurang " + formatRp(required - bal) + "</b><br/>" +
           "Silakan isi saldo minimal <b>" + formatRp(suggestedTopup) + "</b> di bawah ini, lalu kembali selesaikan order Anda.";
@@ -9978,19 +10599,7 @@ window.addEventListener("storage", function(e) {
     }
 
     try {
-      var sessTok = getSessionToken();
-      if (!sessTok) {
-        var gRes = await fetch(WORKER_API + "/api/session/guest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: u.username })
-        });
-        var gData = await gRes.json().catch(function() { return {}; });
-        if (gData && gData.sessionToken) {
-          sessTok = gData.sessionToken;
-          localStorage.setItem("cn_session_token", sessTok);
-        }
-      }
+      var sessTok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : getSessionToken();
 
       var res = await fetch(WORKER_API + "/api/wallet/intent", {
         method: "POST",
@@ -10092,9 +10701,10 @@ window.addEventListener("storage", function(e) {
     var amt = activePaywallIntent ? activePaywallIntent.totalAmount : Number(document.getElementById("cnPwAmountInput")?.value || 0);
     var reqId = activePaywallIntent ? activePaywallIntent.id : ("TOPUP-" + Date.now());
     try {
+      var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
       await fetch(WORKER_API + "/api/orders/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
         body: JSON.stringify({
           id: reqId,
           customerUsername: u.username,
@@ -10133,20 +10743,23 @@ window.addEventListener("storage", function(e) {
     var u = getUnifiedUser();
     var total = readGrandTotalOrder();
     var bal = u ? getLocalWalletBalance(u.username) : 0;
-    var enough = u && total > 0 && bal >= total;
+    var balanceReady = typeof bal === "number" && Number.isFinite(bal);
+    var enough = u && balanceReady && total > 0 && bal >= total;
 
     qrisBox.innerHTML =
       '<div style="padding:12px 14px;border-radius:12px;background:rgba(139,92,246,0.12);border:1px solid rgba(167,139,250,0.4);text-align:left;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">' +
           '<span style="font-size:11.5px;font-weight:800;color:#c4b5fd;"><i class="fa-solid fa-shield-halved"></i> WAJIB BAYAR VIA SALDO CN WALLET</span>' +
-          '<span style="font-size:11.5px;font-weight:800;color:' + (enough ? '#34d399' : '#fb7185') + ';">Saldo: ' + (u ? formatRp(bal) : 'Belum Login') + '</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:' + (enough ? '#34d399' : '#fb7185') + ';">Saldo: ' + (u ? (balanceReady ? formatRp(bal) : 'Memuat...') : 'Belum Login') + '</span>' +
         '</div>' +
         '<p style="font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);margin:0;">' +
           'Pemesanan sekarang dipotong otomatis dari <b>Saldo CN Wallet</b> sebelum format order diteruskan ke Telegram. ' +
           (u
-            ? (enough
+            ? (!balanceReady
+                ? 'Saldo sedang diverifikasi dari server. Coba kembali beberapa saat lagi.'
+                : (enough
                 ? 'Saldo Anda mencukupi. Klik tombol di bawah untuk memotong saldo &amp; lanjut ke Telegram.'
-                : 'Saldo Anda belum mencukupi untuk tagihan <b>' + formatRp(total) + '</b>. Klik tombol di bawah untuk langsung masuk ke <b>Paywall Top-Up CN Wallet</b>.')
+                : 'Saldo Anda belum mencukupi untuk tagihan <b>' + formatRp(total) + '</b>. Klik tombol di bawah untuk langsung masuk ke <b>Paywall Top-Up CN Wallet</b>.'))
             : 'Silakan login terlebih dahulu untuk menggunakan Saldo CN Wallet.') +
         '</p>' +
       '</div>';
@@ -10154,10 +10767,16 @@ window.addEventListener("storage", function(e) {
     var submitBtn = document.querySelector("#calculatorCardInline .btn-submit-telegram");
     if (submitBtn) {
       if (!u) {
+        submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login &amp; Bayar via Saldo CN Wallet';
+      } else if (!balanceReady) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memverifikasi Saldo...';
       } else if (total > 0 && bal < total) {
+        submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fa-solid fa-wallet"></i> Saldo Kurang — Top-Up di Paywall Sekarang';
       } else {
+        submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Bayar ' + formatRp(total) + ' &amp; Lanjut ke Telegram';
       }
     }
@@ -10336,6 +10955,7 @@ window.addEventListener("storage", function(e) {
   };
 
   window.openCnWithdrawModal = async function() {
+    if (!window.cnCanUseWallet((window.cnAuth && window.cnAuth.getSession()) || null)) return;
     if (!isExternalWithdrawAllowed()) {
       alert("Fitur penarikan kelebihan saldo hanya tersedia untuk akun Eksternal.");
       return;
@@ -10352,7 +10972,7 @@ window.addEventListener("storage", function(e) {
       var bal = await fetchServerBalance(u.username);
       if (balEl) balEl.textContent = formatRp(bal);
     } catch (_) {
-      if (balEl) balEl.textContent = formatRp(getLocalWalletBalance(u.username));
+      if (balEl) balEl.textContent = "Saldo tidak dapat dimuat";
     }
   };
 
@@ -10387,18 +11007,7 @@ window.addEventListener("storage", function(e) {
         if (btn) { btn.disabled = false; btn.textContent = "Ajukan Penarikan Saldo"; }
         return;
       }
-      var sessTok = typeof getSessionToken === "function" ? getSessionToken() : "";
-      if (!sessTok) {
-        var gRes = await fetch(WORKER_API + "/api/session/guest", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: u.username })
-        });
-        var gData = await gRes.json().catch(function() { return {}; });
-        if (gData && gData.sessionToken) {
-          sessTok = gData.sessionToken;
-          localStorage.setItem("cn_session_token", sessTok);
-        }
-      }
+      var sessTok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : getSessionToken();
       var wdTicket = "WD-" + Date.now().toString().slice(-6);
       var spendRes = await fetch(WORKER_API + "/api/wallet/spend", {
         method: "POST",
@@ -10416,7 +11025,7 @@ window.addEventListener("storage", function(e) {
 
       fetch(WORKER_API + "/api/orders/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
         body: JSON.stringify({
           username: u.username,
           service: "WITHDRAW REFUND " + wdTicket,
@@ -10570,6 +11179,11 @@ window.addEventListener("storage", function(e) {
 
     var gatedFn = async function(e) {
       if (e && typeof e.preventDefault === "function") e.preventDefault();
+      var activeSession = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null;
+      if (!window.cnCanUseWallet(activeSession)) {
+        if (window.cnToast) window.cnToast("Fitur wallet tidak tersedia untuk peran ini.", "error");
+        return;
+      }
 
       var chk1 = document.getElementById("chkNoRecord");
       var chk2 = document.getElementById("chkRuleAgree");
@@ -10637,19 +11251,7 @@ window.addEventListener("storage", function(e) {
           submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses Pembayaran Saldo...';
         }
 
-        var sessTok = getSessionToken();
-        if (!sessTok) {
-          var gRes = await fetch(WORKER_API + "/api/session/guest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: u.username })
-          });
-          var gData = await gRes.json().catch(function() { return {}; });
-          if (gData && gData.sessionToken) {
-            sessTok = gData.sessionToken;
-            localStorage.setItem("cn_session_token", sessTok);
-          }
-        }
+        var sessTok = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : getSessionToken();
 
         var spendRes = await fetch(WORKER_API + "/api/wallet/spend", {
           method: "POST",
@@ -11821,7 +12423,7 @@ window.addEventListener("storage", function(e) {
     cropModal.setAttribute("aria-hidden", "true");
   };
 
-  form.onsubmit = function(e) {
+  form.onsubmit = async function(e) {
     e.preventDefault();
     var newName = document.getElementById("cnPeName").value.trim();
     var newBio = document.getElementById("cnPeBio").value.trim();
@@ -11852,10 +12454,10 @@ window.addEventListener("storage", function(e) {
     }
 
     try {
-      fetch("https://clubsnight-fullstack.clubsnight.workers.dev/api/profile/update", {
+      var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+      fetch(window.CN_WORKER_API + "/api/profile/update", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
         body: JSON.stringify({ name: newName, bio: newBio, avatar: pendingAvatarDataUrl })
       }).catch(function() {});
     } catch (_) {}
@@ -12388,29 +12990,22 @@ window.addEventListener("storage", function(e) {
 
 <script id="cnUnifiedSyncUpgradeJs">
 (function() {
-  var WORKER_BASE = "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var WORKER_BASE = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   var RENDER_BASE = "https://clubsnight-api.onrender.com";
 
   // Helper: Upload base64 image ke Cloudflare R2 via Worker (fallback aman ke base64 jika endpoint belum aktif)
-  window.cnUploadMediaToR2 = async function(dataUrl, folder) {
+  window.cnUploadMediaToR2 = async function(dataUrl, purpose) {
     if (!dataUrl || dataUrl.indexOf("data:image") !== 0) return dataUrl;
-    try {
-      var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
-      var res = await fetch(WORKER_BASE + "/api/media/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image: dataUrl,
-          folder: folder || "stories",
-          username: (s && s.username) || "user"
-        })
-      });
-      if (res.ok) {
-        var json = await res.json();
-        if (json && json.success && json.url) return json.url;
-      }
-    } catch (_) {}
-    return dataUrl; // Fallback aman
+    var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+    if (!sessionToken) throw new Error("Sesi upload tidak valid. Silakan login ulang.");
+    var res = await fetch(WORKER_BASE + "/api/media/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
+      body: JSON.stringify({ image: dataUrl, purpose: purpose || "lounge" })
+    });
+    var json = await res.json().catch(function() { return {}; });
+    if (!res.ok || !json.success || !json.url) throw new Error(json.error || "Upload media gagal.");
+    return json.url;
   };
 
   // Wrap cnPublishStoryDirect agar otomatis upload ke R2 + simpan ke D1 + broadcast WebSocket
@@ -12421,13 +13016,14 @@ window.addEventListener("storage", function(e) {
       sendBtns.forEach(function(b) { if (b) { b.disabled = true; b.style.opacity = "0.55"; } });
 
       try {
-        var finalUrl = await window.cnUploadMediaToR2(imgDataUrl, "stories");
+        var finalUrl = await window.cnUploadMediaToR2(imgDataUrl, "lounge");
         var ok = origPublish(finalUrl, captionText);
         if (ok) {
           var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
+          var sessionToken = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
           fetch(WORKER_BASE + "/api/lounge/story/create", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
             body: JSON.stringify({
               id: "ust_" + Date.now(),
               ownerUsername: s.username || "",
@@ -12464,7 +13060,7 @@ window.addEventListener("storage", function(e) {
           if (u && u.username) {
             var avatarUrl = u.avatar || "";
             if (avatarUrl.indexOf("data:image") === 0) {
-              avatarUrl = await window.cnUploadMediaToR2(avatarUrl, "avatars");
+              avatarUrl = await window.cnUploadMediaToR2(avatarUrl, "profile");
               u.avatar = avatarUrl;
               ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"].forEach(function(k) {
                 try {
@@ -12480,9 +13076,10 @@ window.addEventListener("storage", function(e) {
               bio: u.bio || "",
               avatar: avatarUrl
             });
+            var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
             fetch(WORKER_BASE + "/api/profile/update", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
               body: payload
             }).catch(function() {});
             fetch(RENDER_BASE + "/api/profile", {
@@ -12593,17 +13190,22 @@ window.addEventListener("storage", function(e) {
 
 <script id="cnFullstackSyncHardeningJs">
 (function() {
-  var WORKER_HOST = "clubsnight-fullstack.clubsnight.workers.dev";
-  var SESSION_KEYS = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1", "cn_talent_session", "cn_chat_session", "cn_session_token"];
+  var WORKER_HOST = (window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev").replace(/^https?:\/\//, "");
+  var SESSION_KEYS = ["cn_worker_session_v1", "cn_talent_session_v1", "cn_talent_session", "cn_auth_session_v1", "cn_pwa_session_v1"];
 
   function getActiveSessionToken() {
+    try {
+      var workerToken = localStorage.getItem("cn_worker_session_v1");
+      if (workerToken) return workerToken;
+    } catch (_) {}
     for (var i = 0; i < SESSION_KEYS.length; i++) {
+      if (SESSION_KEYS[i] === "cn_worker_session_v1" || SESSION_KEYS[i] === "cn_auth_session_v1" || SESSION_KEYS[i] === "cn_pwa_session_v1") continue;
       try {
         var raw = localStorage.getItem(SESSION_KEYS[i]);
         if (!raw) continue;
         if (raw.charAt(0) === "{") {
           var obj = JSON.parse(raw);
-          if (obj && obj.sessionToken) return String(obj.sessionToken);
+          if (obj && obj.role === "talent" && obj.sessionToken) return String(obj.sessionToken);
         } else if (raw.indexOf(".") !== -1 && raw.length > 20) {
           return raw;
         }

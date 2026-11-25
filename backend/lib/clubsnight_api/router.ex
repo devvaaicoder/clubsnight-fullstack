@@ -26,17 +26,23 @@ defmodule ClubsnightApi.Router do
   post "/api/auth/telegram" do
     case TelegramAuth.verify(conn.body_params) do
       {:ok, user} ->
-        D1.query(
-          "INSERT INTO users (tg_id, username, name, role, avatar_url) VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(tg_id) DO UPDATE SET username=excluded.username, name=excluded.name, role=excluded.role, avatar_url=excluded.avatar_url",
-          [user.tg_id, user.username, user.name, user.role, user.avatar_url]
-        )
+        case record_telegram_username_change(user) do
+          :ok ->
+            D1.query(
+              "INSERT INTO users (tg_id, username, name, role, avatar_url) VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(tg_id) DO UPDATE SET username=excluded.username, name=excluded.name, role=excluded.role, avatar_url=excluded.avatar_url",
+              [user.tg_id, user.username, user.name, user.role, user.avatar_url]
+            )
 
-        token = Plug.Crypto.sign(System.fetch_env!("SESSION_SECRET"), "cn_session", user)
+            token = Plug.Crypto.sign(System.fetch_env!("SESSION_SECRET"), "cn_session", user)
 
-        conn
-        |> put_resp_cookie("cn_sess", token, http_only: true, secure: true, same_site: "None", max_age: 2_592_000)
-        |> send_json(200, %{ok: true, user: Map.put(user, :provider, "telegram")})
+            conn
+            |> put_resp_cookie("cn_sess", token, http_only: true, secure: true, same_site: "None", max_age: 2_592_000)
+            |> send_json(200, %{ok: true, user: Map.put(user, :provider, "telegram")})
+
+          {:error, _reason} ->
+            send_json(conn, 503, %{error: "Riwayat identitas belum tersedia. Silakan coba lagi."})
+        end
 
       {:error, reason} ->
         send_json(conn, 401, %{error: "Auth failed", reason: reason})
@@ -143,8 +149,24 @@ defmodule ClubsnightApi.Router do
 
   get "/api/me" do
     case verify_session(conn) do
-      {:ok, user} -> send_json(conn, 200, %{user: user})
+      {:ok, user} ->
+        provider = if String.starts_with?(to_string(Map.get(user, :tg_id, "")), "cn_"), do: "clubsnight", else: "telegram"
+        send_json(conn, 200, %{user: Map.put(user, :provider, provider)})
       _ -> send_json(conn, 401, %{error: "Unauthorized"})
+    end
+  end
+
+  post "/api/auth/worker-assertion" do
+    with {:ok, user} <- verify_session(conn),
+         {:ok, claims} <- worker_identity_claims(user),
+         secret when is_binary(secret) and byte_size(secret) >= 32 <- System.get_env("WORKER_ASSERTION_SECRET") do
+      encoded = claims |> Jason.encode!() |> Base.url_encode64(padding: false)
+      signature = :crypto.mac(:hmac, :sha256, secret, encoded) |> Base.url_encode64(padding: false)
+      send_json(conn, 200, %{assertion: encoded <> "." <> signature, expires_at: claims.exp})
+    else
+      {:error, :no_cookie} -> send_json(conn, 401, %{error: "Unauthorized"})
+      {:error, _reason} -> send_json(conn, 503, %{error: "Identitas belum dapat diverifikasi."})
+      _ -> send_json(conn, 503, %{error: "Worker assertion belum dikonfigurasi."})
     end
   end
 
@@ -196,6 +218,86 @@ defmodule ClubsnightApi.Router do
     case conn.cookies["cn_sess"] do
       nil -> {:error, :no_cookie}
       token -> Plug.Crypto.verify(System.fetch_env!("SESSION_SECRET"), "cn_session", token, max_age: 2_592_000)
+    end
+  end
+
+  defp worker_identity_claims(user) do
+    id = user |> Map.get(:tg_id, Map.get(user, "tg_id", "")) |> to_string()
+    username = LocalAuth.normalize_username(Map.get(user, :username, Map.get(user, "username", "")))
+    name = Map.get(user, :name, Map.get(user, "name", username)) || username
+
+    cond do
+      username == "" ->
+        {:error, :invalid_username}
+
+      Regex.match?(~r/^cn_[a-f0-9]{12}$/, id) ->
+        subject = "cn:" <> id
+        with {:ok, rows} <- D1.query("SELECT COUNT(*) AS count FROM users WHERE LOWER(username) = ?", [username]),
+             {:ok, history} <- D1.query(
+               "SELECT 1 FROM wallet_username_history WHERE subject = ? AND changed_at >= ? LIMIT 1",
+               [subject, System.system_time(:millisecond) - 90 * 24 * 60 * 60 * 1000]
+             ) do
+          match_count = case rows do
+            [row | _] -> String.to_integer(to_string(row["count"] || "0"))
+            _ -> 0
+          end
+          {role, permissions} = TelegramAuth.worker_access_cn(id)
+          {:ok, build_worker_claims(subject, username, name, role, permissions, match_count > 1, history != [])}
+        end
+
+      Regex.match?(~r/^[0-9]+$/, id) ->
+        subject = "tg:" <> id
+        with {:ok, rows} <- D1.query("SELECT COUNT(*) AS count FROM users WHERE LOWER(username) = ?", [username]),
+             {:ok, history} <- D1.query(
+               "SELECT 1 FROM wallet_username_history WHERE subject = ? AND changed_at >= ? LIMIT 1",
+               [subject, System.system_time(:millisecond) - 90 * 24 * 60 * 60 * 1000]
+             ) do
+          match_count = case rows do
+            [row | _] -> String.to_integer(to_string(row["count"] || "0"))
+            _ -> 0
+          end
+          {role, permissions} = TelegramAuth.worker_access(id)
+          {:ok, build_worker_claims(subject, username, name, role, permissions, match_count > 1, history != [])}
+        end
+
+      true ->
+        {:error, :invalid_subject}
+    end
+  end
+
+  defp build_worker_claims(subject, username, name, role, permissions, ambiguous, changed_recently) do
+    %{
+      sub: subject,
+      username: username,
+      name: name,
+      role: role,
+      permissions: permissions,
+      username_ambiguous: ambiguous,
+      username_changed_recently: changed_recently,
+      exp: System.system_time(:second) + 60
+    }
+  end
+
+  defp record_telegram_username_change(user) do
+    subject = "tg:" <> to_string(user.tg_id)
+    username = LocalAuth.normalize_username(user.username)
+
+    case D1.query("SELECT username FROM users WHERE tg_id = ? LIMIT 1", [user.tg_id]) do
+      {:ok, [row | _]} ->
+        old_username = LocalAuth.normalize_username(row["username"] || "")
+        if old_username != "" and old_username != username do
+          case D1.query(
+                 "INSERT INTO wallet_username_history (subject, old_username, new_username, changed_at) VALUES (?, ?, ?, ?)",
+                 [subject, old_username, username, System.system_time(:millisecond)]
+               ) do
+            {:ok, _} -> :ok
+            {:error, reason} -> {:error, reason}
+          end
+        else
+          :ok
+        end
+      {:ok, []} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 

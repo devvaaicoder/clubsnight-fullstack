@@ -13,6 +13,11 @@ const LIVECHAT_WORKER_URL = import.meta.env.VITE_LIVECHAT_URL || "";
 const TELEGRAM_CS_BOT_URL = "https://t.me/clubsnightcs_bot";
 const WORKER_API_URL = import.meta.env.VITE_API_URL || "";
 const MEDIA_WORKER_URL = import.meta.env.VITE_MEDIA_URL || "";
+async function getWorkerSessionToken() {
+  if (window.getCnHmacSessionToken) return window.getCnHmacSessionToken();
+  return localStorage.getItem("cn_worker_session_v1") || "";
+}
+
 function escapeHTML(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
@@ -450,10 +455,11 @@ async function saveToCloudflareD1(silent = false) {
   let success = false;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
+      const sessionToken = await getWorkerSessionToken();
       const res = await fetch(`${WORKER_API_URL}/api/save?t=${Date.now()}`, {
         method: "POST", cache: "no-store", headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${sessionStorage.getItem("cn_admin_token") || ""}`
+          "X-Session-Token": sessionToken
         },
         body: JSON.stringify(payload)
       });
@@ -1188,46 +1194,33 @@ function openDevPinModal() { document.getElementById('devPinModal').style.displa
 function closeDevPinModal() { document.getElementById('devPinModal').style.display = 'none'; }
 
 async function verifyDevPin() {
-  const pinInput = document.getElementById("devPinInput");
-  const inputVal = pinInput ? pinInput.value.trim() : "";
-  if (!inputVal) { alert("Masukkan PIN Akses!"); return; }
-
   try {
+    const sessionToken = await getWorkerSessionToken();
+    if (!sessionToken) {
+      const next = window.location.pathname + window.location.search + window.location.hash;
+      window.location.assign(`/login.html?next=${encodeURIComponent(next)}`);
+      return;
+    }
     const res = await fetch(`${WORKER_API_URL}/api/verify-auth`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${inputVal}`
+        "X-Session-Token": sessionToken
       },
-      body: JSON.stringify({ role: "developer" })
+      body: JSON.stringify({})
     });
     const data = await res.json();
     if (res.ok && data.success) {
       sessionStorage.setItem("cn_dev_logged_in", "true");
-      sessionStorage.setItem("cn_admin_token", inputVal);
       closeDevPinModal();
       document.getElementById("devPanelView").style.display = "block";
       renderDevTable();
-      if (pinInput) pinInput.value = "";
       showToast("Login Developer Panel Terverifikasi!");
     } else {
-      alert(data.error || "PIN Akses Salah!");
-      if (pinInput) pinInput.value = "";
+      alert(data.error || "Sesi Developer tidak valid.");
     }
   } catch (err) {
-    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    const localToken = import.meta.env.VITE_LOCAL_ADMIN_TOKEN;
-    if (isLocal && localToken && inputVal === localToken) {
-      sessionStorage.setItem("cn_dev_logged_in", "true");
-      sessionStorage.setItem("cn_admin_token", inputVal);
-      closeDevPinModal();
-      document.getElementById("devPanelView").style.display = "block";
-      renderDevTable();
-      if (pinInput) pinInput.value = "";
-      showToast("Login Lokal Aktif (Deploy backend/worker.js untuk mode production)");
-    } else {
-      alert("Gagal terhubung ke server verifikasi. Pastikan backend/worker.js sudah di-deploy di Cloudflare.");
-    }
+    alert(err.message || "Gagal memverifikasi sesi Developer.");
   }
 }
 
@@ -1330,9 +1323,10 @@ async function uploadImageToCatbox() {
 
   try {
     statusText.innerText = "⏳ Mengunggah foto ke R2...";
+    const sessionToken = await getWorkerSessionToken();
     const res = await fetch(`${MEDIA_WORKER_URL}/upload`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${sessionStorage.getItem("cn_admin_token") || ""}` },
+      headers: { "X-Session-Token": sessionToken },
       body: formData
     });
     const data = await res.json();
@@ -1365,9 +1359,10 @@ async function uploadVideoToCloudinary() {
 
   try {
     statusText.innerText = "⏳ Mengunggah video ke R2...";
+    const sessionToken = await getWorkerSessionToken();
     const res = await fetch(`${MEDIA_WORKER_URL}/upload`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${sessionStorage.getItem("cn_admin_token") || ""}` },
+      headers: { "X-Session-Token": sessionToken },
       body: formData
     });
     const data = await res.json();
@@ -2217,6 +2212,10 @@ async function copyAndRedirectToBot(e) {
     discountedBase = Math.max(0, hargaBase - disc);
   }
   const totalTagihan = discountedBase + getAdminFee(discountedBase);
+  const getWorkerToken = async () => {
+    if (window.getCnHmacSessionToken) return window.getCnHmacSessionToken();
+    return localStorage.getItem("cn_worker_session_v1") || activeUser.token || "";
+  };
 
   const submitBtn = document.querySelector("#calculatorCardInline .btn-submit-telegram");
   const origBtnHtml = submitBtn ? submitBtn.innerHTML : "";
@@ -2228,7 +2227,9 @@ async function copyAndRedirectToBot(e) {
   try {
     let currentBal = 0;
     try {
-      const bRes = await fetch(`${WORKER_API}/api/wallet/balance?username=${encodeURIComponent(activeUser.username)}`);
+      const bRes = await fetch(`${WORKER_API}/api/wallet/balance`, {
+        headers: { "X-Session-Token": await getWorkerToken() }
+      });
       const bData = await bRes.json();
       if (bRes.ok && bData && bData.success && typeof bData.balance === "number") {
         currentBal = bData.balance;
@@ -2296,19 +2297,7 @@ async function copyAndRedirectToBot(e) {
       submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memotong Saldo CN Wallet...';
     }
 
-    let sessTok = localStorage.getItem("cn_session_token") || activeUser.token || "";
-    if (!sessTok) {
-      const gRes = await fetch(`${WORKER_API}/api/session/guest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: activeUser.username })
-      });
-      const gData = await gRes.json().catch(() => ({}));
-      if (gData && gData.sessionToken) {
-        sessTok = gData.sessionToken;
-        localStorage.setItem("cn_session_token", sessTok);
-      }
-    }
+    const sessTok = await getWorkerToken();
 
     const spendRes = await fetch(`${WORKER_API}/api/wallet/spend`, {
       method: "POST",

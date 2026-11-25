@@ -6,6 +6,7 @@ compatibility_date = "2025-01-01"
 binding = "DB"
 database_name = "clubsnight-db-v2"
 database_id = "c7042904-82f0-4ef6-9758-3e042d7096a8"
+migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "BUCKET"

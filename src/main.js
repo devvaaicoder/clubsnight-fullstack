@@ -358,57 +358,42 @@ function escapeHTML(str) {
         }
 
         async function handleAdminLogin() {
-            const userVal = document.getElementById("adminUser").value.trim();
-            const passVal = document.getElementById("adminPass").value;
             const errBox = document.getElementById("loginErrorMsg");
-            if (!userVal || !passVal) {
-                errBox.innerText = "Username dan password wajib diisi!";
-                errBox.classList.remove("hidden");
-                return;
-            }
             try {
+                const sessionToken = await getWorkerSessionToken();
                 const res = await fetch(`${WORKER_API_URL}/api/verify-auth`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${passVal}`
+                        "X-Session-Token": sessionToken
                     },
-                    body: JSON.stringify({ username: userVal })
+                    body: JSON.stringify({})
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    sessionStorage.setItem("cn_admin_token", passVal);
                     errBox.classList.add("hidden");
                     document.getElementById("adminLoginForm").classList.add("hidden");
                     document.getElementById("adminDashboard").classList.remove("hidden");
                     refreshAnalyticsView();
-                    showToast("Login Admin Terverifikasi!", "Sesi aman terhubung ke Cloudflare Worker.");
+                    showToast("Sesi Developer terverifikasi.", "Akses diotorisasi oleh Worker.");
                 } else {
-                    errBox.innerText = data.error || "Username atau password/token tidak sah!";
+                    errBox.innerText = data.error || "Diperlukan sesi Developer terverifikasi.";
                     errBox.classList.remove("hidden");
                 }
             } catch (e) {
-    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    const localToken = import.meta.env.VITE_LOCAL_ADMIN_TOKEN;
-    if (isLocal && localToken && passVal === localToken) {
-      sessionStorage.setItem("cn_admin_token", passVal);
-      errBox.classList.add("hidden");
-      document.getElementById("adminLoginForm").classList.add("hidden");
-      document.getElementById("adminDashboard").classList.remove("hidden");
-      refreshAnalyticsView();
-      showToast("Login Lokal Aktif", "Deploy backend/worker.js untuk verifikasi server.");
-    } else {
-      errBox.innerText = "Gagal terhubung ke server autentikasi. Pastikan backend/worker.js sudah di-deploy.";
-      errBox.classList.remove("hidden");
-    }
-  }
+                if (/Masuk dengan akun Clubsnight terverifikasi terlebih dahulu/i.test(e.message || "")) {
+                    const next = window.location.pathname + window.location.search + window.location.hash;
+                    window.location.assign(`/login.html?next=${encodeURIComponent(next)}`);
+                    return;
+                }
+                errBox.innerText = e.message || "Gagal memverifikasi sesi Developer.";
+                errBox.classList.remove("hidden");
+            }
         }
 
         function handleAdminLogout() {
-            sessionStorage.removeItem("cn_admin_token");
             document.getElementById("adminDashboard").classList.add("hidden");
             document.getElementById("adminLoginForm").classList.remove("hidden");
-            document.getElementById("adminPass").value = "";
             showToast("Admin Logout", "Token sesi dihapus.");
         }
 
@@ -508,8 +493,38 @@ Object.assign(window, {
   });
 
 // ==================== SINKRONISASI CLOUDFLARE D1 REALTIME ====================
-const WORKER_API_URL = import.meta.env.VITE_API_URL || "";
+const WORKER_API_URL = import.meta.env.VITE_API_URL || (
+  ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? "http://127.0.0.1:8787"
+    : "https://clubsnight-fullstack.clubsnight.workers.dev"
+);
+const ELIXIR_API_URL = import.meta.env.VITE_ELIXIR_API_URL || "https://clubsnight-api.onrender.com";
 let d1TalentsCache = [];
+
+async function getWorkerSessionToken() {
+  const assertionResponse = await fetch(`${ELIXIR_API_URL.replace(/\/$/, "")}/api/auth/worker-assertion`, {
+    method: "POST",
+    credentials: "include"
+  });
+  const assertionData = await assertionResponse.json().catch(() => ({}));
+  if (!assertionResponse.ok || !assertionData.assertion) {
+    if (assertionResponse.status === 401) {
+      throw new Error("Masuk dengan akun Clubsnight terverifikasi terlebih dahulu.");
+    }
+    throw new Error(assertionData.error || "Masuk dengan akun Clubsnight terverifikasi terlebih dahulu.");
+  }
+  const exchangeResponse = await fetch(`${WORKER_API_URL}/api/session/exchange`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assertion: assertionData.assertion })
+  });
+  const exchangeData = await exchangeResponse.json().catch(() => ({}));
+  if (!exchangeResponse.ok || !exchangeData.sessionToken) {
+    throw new Error(exchangeData.error || "Worker menolak sesi terverifikasi.");
+  }
+  localStorage.setItem("cn_worker_session_v1", exchangeData.sessionToken);
+  return exchangeData.sessionToken;
+}
 
 function getMinTalentPrice(talent) {
   if (!talent || !talent.customServices) return 0;

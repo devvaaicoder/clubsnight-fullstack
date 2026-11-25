@@ -62,6 +62,26 @@ defmodule ClubsnightApi.TelegramAuth do
     end
   end
 
+  def worker_access(tg_id) do
+    {role, permissions} = resolve_access(to_string(tg_id))
+
+    case role do
+      "owner" -> {"developer", permissions}
+      "admin_qc" -> {"admin", permissions}
+      "admin_qc_merch" -> {"admin", permissions}
+      "admin_merch" -> {"merch", permissions}
+      _ -> {"consumer", []}
+    end
+  end
+
+  def worker_access_cn(cn_id) do
+    if to_string(cn_id) in parse_ids("OWNER_CN_IDS") do
+      {"developer", ["all", "qc", "merch", "config"]}
+    else
+      {"consumer", []}
+    end
+  end
+
   defp parse_ids(env_key) do
     (System.get_env(env_key) || "")
     |> String.split(",", trim: true)
