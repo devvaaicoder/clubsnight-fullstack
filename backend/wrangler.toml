@@ -11,3 +11,6 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "clubsnight-assets"
+
+[triggers]
+crons = ["*/10 * * * *"]
