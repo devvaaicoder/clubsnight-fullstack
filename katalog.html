@@ -13418,5 +13418,24 @@ window.addEventListener("storage", function(e) {
   setTimeout(tagDock, 1200);
 })();
 </script>
+<script id="cnBackupApproveGuard">
+(function(){
+  var recent = new WeakMap();
+  document.addEventListener("click", function(e){
+    var btn = e.target.closest && e.target.closest("#cnBackupQrisList button");
+    if (!btn) return;
+    var list = document.getElementById("cnBackupQrisList");
+    var row = btn;
+    while (row.parentElement && row.parentElement !== list) row = row.parentElement;
+    var text = (row.innerText || "").replace(/\s+/g, " ").trim();
+    var stop = function(){ e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
+    if (!/\bPENDING\b/.test(text)) { stop(); alert("Tagihan ini tidak berstatus PENDING, jadi tidak bisa di-approve.\nUntuk pembayaran terlambat, gunakan panel Cari & Kelola Wallet Konsumen."); return; }
+    var last = recent.get(btn) || 0;
+    if (Date.now() - last < 10000) { stop(); return; }
+    if (!confirm("Approve tagihan ini?\n\n" + text.replace(/\s*Approve\s*$/i, ""))) { stop(); return; }
+    recent.set(btn, Date.now());
+  }, true);
+})();
+</script>
 </body>
 </html>
