@@ -306,7 +306,7 @@ export default {
 
     const securityHeaders = {
       "Access-Control-Allow-Origin": corsOrigin,
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Token",
       "Access-Control-Max-Age": "86400",
       "X-Content-Type-Options": "nosniff",
@@ -407,6 +407,18 @@ export default {
         ).run();
         await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS auth_lockouts (ip_key TEXT PRIMARY KEY, fails INTEGER DEFAULT 0, locked_until INTEGER DEFAULT 0)"
+        ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS lounge_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)"
+        ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS talent_approvals (talent_id TEXT PRIMARY KEY, status TEXT NOT NULL CHECK(status IN ('pending', 'approved', 'rejected')), decided_by TEXT, decided_at TEXT, reason TEXT, updated_at TEXT NOT NULL)"
+        ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS lounge_admin_audit (id TEXT PRIMARY KEY, action TEXT NOT NULL, target_id TEXT NOT NULL, actor_subject TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL)"
+        ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS lounge_deleted_stories (story_id TEXT PRIMARY KEY, deleted_by TEXT NOT NULL, deleted_at TEXT NOT NULL)"
         ).run();
         try {
           await env.DB.prepare("ALTER TABLE talent_accounts ADD COLUMN token_version INTEGER DEFAULT 1").run();
@@ -562,6 +574,109 @@ export default {
       const jsonOut = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { ...securityHeaders, "Content-Type": "application/json" } });
       const getActor = async () => verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
       const roleAllowed = (actor, roles) => Boolean(actor && (actor.role === "developer" || roles.includes(actor.role)));
+      const LOUNGE_CONFIG_DEFAULTS = {
+        min_post_chars: 1,
+        max_stories_per_day: 3,
+        max_global_posts: 20,
+        posting_locked: 0,
+        qc_gateway: 1
+      };
+      const LOUNGE_CONFIG_RANGES = {
+        min_post_chars: [1, 1000],
+        max_stories_per_day: [1, 50],
+        max_global_posts: [5, 100],
+        posting_locked: [0, 1],
+        qc_gateway: [0, 1]
+      };
+      const getLoungeConfig = async () => {
+        const cfg = { ...LOUNGE_CONFIG_DEFAULTS };
+        if (!env.DB) return cfg;
+        const res = await env.DB.prepare("SELECT key, value FROM lounge_config").all();
+        for (const row of (res && res.results) || []) {
+          if (!row || !Object.prototype.hasOwnProperty.call(LOUNGE_CONFIG_RANGES, row.key)) continue;
+          const parsed = Number(row.value);
+          const [minVal, maxVal] = LOUNGE_CONFIG_RANGES[row.key];
+          if (Number.isInteger(parsed) && parsed >= minVal && parsed <= maxVal) {
+            cfg[row.key] = parsed;
+          }
+        }
+        return cfg;
+      };
+      const getTalentApprovalStatus = async (username) => {
+        const uname = normalizeUsername(username);
+        if (!uname || !env.DB) return "approved";
+        const row = await env.DB.prepare("SELECT status FROM talent_approvals WHERE talent_id = ?").bind(uname).first();
+        return row && row.status ? String(row.status) : "approved";
+      };
+      const writeLoungeAudit = async (action, targetId, actorSubject, payloadObj) => {
+        if (!env.DB) return;
+        const auditId = "aud_" + Date.now() + "_" + toHex(crypto.getRandomValues(new Uint8Array(6)));
+        await env.DB.prepare(
+          "INSERT INTO lounge_admin_audit (id, action, target_id, actor_subject, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(auditId, action, String(targetId || ""), String(actorSubject || "system"), JSON.stringify(payloadObj || {}), new Date().toISOString()).run();
+      };
+      const getDeletedStoryIdSet = async () => {
+        const set = new Set();
+        if (!env.DB) return set;
+        const res = await env.DB.prepare("SELECT story_id FROM lounge_deleted_stories").all();
+        for (const row of (res && res.results) || []) {
+          if (row && row.story_id) set.add(String(row.story_id));
+        }
+        return set;
+      };
+      const handlePermanentStoryDelete = async (targetId, vActor) => {
+        if (!vActor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        const isStaff = roleAllowed(vActor, ["admin"]);
+        if (!isStaff && vActor.role !== "talent") {
+          return jsonOut({ success: false, error: "Akses ditolak." }, 403);
+        }
+        if (vActor.role === "talent") {
+          const account = await env.DB.prepare("SELECT token_version FROM talent_accounts WHERE username = ?").bind(vActor.username).first();
+          if (!account || Number(account.token_version || 1) !== vActor.tokenVersion) {
+            return jsonOut({ success: false, error: "Sesi kedaluwarsa. Silakan login ulang." }, 401);
+          }
+        }
+        const actorUsername = normalizeUsername(vActor.username);
+        const cleanId = sanitizeText(targetId || "", 80);
+        if (!cleanId || (!isStaff && !actorUsername)) {
+          return jsonOut({ success: false, error: "ID story dan sesi pemilik wajib diisi." }, 400);
+        }
+        const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
+        let curPosts = [], curStories = [];
+        if (row) {
+          try { curPosts = JSON.parse(row.posts || "[]"); } catch (_) {}
+          try { curStories = JSON.parse(row.stories || "[]"); } catch (_) {}
+        }
+        if (!Array.isArray(curPosts)) curPosts = [];
+        if (!Array.isArray(curStories)) curStories = [];
+        const matched = curStories.find((st) => st && String(st.id) === cleanId);
+        if (!matched) {
+          return jsonOut({ success: true, deleted: true, deletedId: cleanId, note: "Story sudah terhapus." });
+        }
+        const isOwner = Boolean(
+          (matched.ownerSubject && vActor.sub && matched.ownerSubject === vActor.sub) ||
+          (actorUsername && normalizeUsername(matched.ownerUsername) === actorUsername)
+        );
+        if (!isStaff && !isOwner) {
+          return jsonOut({ success: false, error: "Forbidden: Hanya bisa menghapus story milik sendiri." }, 403);
+        }
+        const nextStories = curStories.filter((st) => st && String(st.id) !== cleanId);
+        const nowIso = new Date().toISOString();
+        await env.DB.prepare(
+          "INSERT INTO lounge_store (id, posts, stories, updated_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stories = excluded.stories, updated_at = excluded.updated_at"
+        ).bind(JSON.stringify(curPosts), JSON.stringify(nextStories), nowIso).run();
+        await env.DB.prepare(
+          "INSERT OR IGNORE INTO lounge_deleted_stories (story_id, deleted_by, deleted_at) VALUES (?, ?, ?)"
+        ).bind(cleanId, vActor.sub || actorUsername || "staff", nowIso).run();
+        let r2Deleted = false;
+        if (env.BUCKET && matched.image) {
+          const safeKey = extractSafeR2Key(matched.image, env, url.origin);
+          if (safeKey && safeKey.startsWith("stories/")) {
+            try { await env.BUCKET.delete(safeKey); r2Deleted = true; } catch (_) {}
+          }
+        }
+        return jsonOut({ success: true, deleted: true, deletedId: cleanId, r2Deleted, remainingStories: nextStories.length });
+      };
       const resolveWalletSubject = async (value) => {
         const raw = String(value || "").trim();
         if (/^tg:[0-9]+$/.test(raw) || /^cn:cn_[a-f0-9]{12}$/.test(raw)) {
@@ -687,33 +802,195 @@ export default {
         return jsonOut({ success: true, key, url: url.origin + "/r2/" + key });
       }
 
+      if (url.pathname === "/api/lounge/config" && request.method === "GET") {
+        if (!checkMemoryRate(clientIp, "lounge_config_get", 80, 60000)) {
+          return jsonOut({ success: false, error: "Rate limit terlampaui." }, 429);
+        }
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
+        await ensureTableExists();
+        const config = await getLoungeConfig();
+        return jsonOut({ success: true, config, ...config });
+      }
+
+      if (url.pathname === "/api/lounge/config" && request.method === "PUT") {
+        const actor = await getActor();
+        if (!actor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        if (actor.role !== "developer") return jsonOut({ success: false, error: "Akses ditolak: Hanya Developer yang dapat mengubah konfigurasi." }, 403);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
+        await ensureTableExists();
+        const body = stripDangerousKeys(await request.json().catch(() => ({})));
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+          return jsonOut({ success: false, error: "Payload konfigurasi tidak valid." }, 400);
+        }
+        const entries = Object.entries(body);
+        if (entries.length === 0) {
+          return jsonOut({ success: false, error: "Minimal satu parameter konfigurasi wajib dikirim." }, 400);
+        }
+        const updates = {};
+        for (const [key, rawVal] of entries) {
+          if (!Object.prototype.hasOwnProperty.call(LOUNGE_CONFIG_RANGES, key)) {
+            return jsonOut({ success: false, error: "Parameter konfigurasi tidak dikenal: " + sanitizeText(key, 40) }, 400);
+          }
+          if (typeof rawVal !== "number" || !Number.isInteger(rawVal)) {
+            return jsonOut({ success: false, error: "Nilai " + key + " harus berupa bilangan bulat." }, 400);
+          }
+          const [minVal, maxVal] = LOUNGE_CONFIG_RANGES[key];
+          if (rawVal < minVal || rawVal > maxVal) {
+            return jsonOut({ success: false, error: "Nilai " + key + " harus di antara " + minVal + " dan " + maxVal + "." }, 400);
+          }
+          updates[key] = rawVal;
+        }
+        const nowIso = new Date().toISOString();
+        const stmts = Object.entries(updates).map(([key, val]) =>
+          env.DB.prepare(
+            "INSERT INTO lounge_config (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by"
+          ).bind(key, String(val), nowIso, actor.sub)
+        );
+        const auditId = "aud_" + Date.now() + "_" + toHex(crypto.getRandomValues(new Uint8Array(6)));
+        stmts.push(
+          env.DB.prepare(
+            "INSERT INTO lounge_admin_audit (id, action, target_id, actor_subject, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+          ).bind(auditId, "lounge_config_update", "lounge_config", actor.sub, JSON.stringify(updates), nowIso)
+        );
+        await env.DB.batch(stmts);
+        const config = await getLoungeConfig();
+        return jsonOut({ success: true, config, ...config, auditId });
+      }
+
+      if (url.pathname === "/api/talent/approvals" && request.method === "GET") {
+        const actor = await getActor();
+        if (!actor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        if (actor.role !== "developer") return jsonOut({ success: false, error: "Akses ditolak: Hanya Developer yang dapat melihat antrean approval." }, 403);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
+        await ensureTableExists();
+        const res = await env.DB.prepare(
+          "SELECT a.talent_id, a.status, a.decided_by, a.decided_at, a.reason, a.updated_at, t.name, t.agency, t.avatar FROM talent_approvals a LEFT JOIN talent_accounts t ON t.username = a.talent_id WHERE a.status = 'pending' ORDER BY a.updated_at DESC"
+        ).all();
+        const approvals = ((res && res.results) || []).map((r) => ({
+          talent_id: r.talent_id,
+          username: r.talent_id,
+          name: r.name || r.talent_id,
+          agency: r.agency || "Clubs'Night",
+          avatar: r.avatar || "",
+          status: r.status,
+          decided_by: r.decided_by || null,
+          decided_at: r.decided_at || null,
+          reason: r.reason || "",
+          updated_at: r.updated_at
+        }));
+        return jsonOut({ success: true, approvals, count: approvals.length });
+      }
+
+      if (url.pathname.startsWith("/api/talent/approvals/") && request.method === "POST") {
+        const actor = await getActor();
+        if (!actor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        if (actor.role !== "developer") return jsonOut({ success: false, error: "Akses ditolak: Hanya Developer yang dapat memutuskan approval Talent." }, 403);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
+        await ensureTableExists();
+        let rawId = "";
+        try { rawId = decodeURIComponent(url.pathname.slice("/api/talent/approvals/".length)); } catch (_) {}
+        let talentId = "";
+        if (rawId.startsWith("talent:")) {
+          const subjRow = await env.DB.prepare("SELECT username FROM talent_subjects WHERE id = ?").bind(rawId.slice("talent:".length)).first();
+          talentId = subjRow && subjRow.username ? normalizeUsername(subjRow.username) : "";
+        } else {
+          talentId = normalizeUsername(rawId);
+        }
+        if (!talentId) return jsonOut({ success: false, error: "ID Talent tidak valid." }, 400);
+        const body = stripDangerousKeys(await request.json().catch(() => ({})));
+        const decision = String(body.decision || "").trim().toLowerCase();
+        if (decision !== "approved" && decision !== "rejected") {
+          return jsonOut({ success: false, error: "Decision harus 'approved' atau 'rejected'." }, 400);
+        }
+        const reason = sanitizeText(body.reason || "", 300);
+        const existingAccount = await env.DB.prepare("SELECT username FROM talent_accounts WHERE username = ?").bind(talentId).first();
+        const existingApproval = await env.DB.prepare("SELECT talent_id FROM talent_approvals WHERE talent_id = ?").bind(talentId).first();
+        if (!existingAccount && !existingApproval) {
+          return jsonOut({ success: false, error: "Akun Talent tidak ditemukan." }, 404);
+        }
+        const nowIso = new Date().toISOString();
+        const auditId = "aud_" + Date.now() + "_" + toHex(crypto.getRandomValues(new Uint8Array(6)));
+        await env.DB.batch([
+          env.DB.prepare(
+            "INSERT INTO talent_approvals (talent_id, status, decided_by, decided_at, reason, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(talent_id) DO UPDATE SET status = excluded.status, decided_by = excluded.decided_by, decided_at = excluded.decided_at, reason = excluded.reason, updated_at = excluded.updated_at"
+          ).bind(talentId, decision, actor.sub, nowIso, reason, nowIso),
+          env.DB.prepare(
+            "INSERT INTO lounge_admin_audit (id, action, target_id, actor_subject, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+          ).bind(auditId, "talent_approval_decision", talentId, actor.sub, JSON.stringify({ decision, reason }), nowIso)
+        ]);
+        return jsonOut({
+          success: true,
+          auditId,
+          approval: {
+            talent_id: talentId,
+            status: decision,
+            decided_by: actor.sub,
+            decided_at: nowIso,
+            reason,
+            updated_at: nowIso
+          }
+        });
+      }
+
+      if (url.pathname.startsWith("/api/lounge/story/") && request.method === "DELETE") {
+        if (!checkMemoryRate(clientIp, "story_delete", 20, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak permintaan." }, 429);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 500);
+        await ensureTableExists();
+        const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
+        let targetId = "";
+        try { targetId = decodeURIComponent(url.pathname.slice("/api/lounge/story/".length)); } catch (_) {}
+        return await handlePermanentStoryDelete(targetId, vActor);
+      }
+
       if (url.pathname === "/api/lounge/story/create" && request.method === "POST") {
         if (!checkMemoryRate(clientIp, "story_create", 12, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak upload story." }, 429);
         if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 500);
         await ensureTableExists();
         const body = stripDangerousKeys(await request.json().catch(() => ({})));
         const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
-        const isDeveloper = Boolean(vActor && vActor.role === "developer");
-        if (!isDeveloper && (!vActor || vActor.role !== "talent")) return jsonOut({ success: false, error: "Hanya Talent yang dapat membuat story." }, 403);
+        if (!vActor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        const isStaff = roleAllowed(vActor, ["admin"]);
+        if (!isStaff && vActor.role !== "talent") return jsonOut({ success: false, error: "Hanya Talent yang dapat membuat story." }, 403);
         let talentAccount = null;
-        if (vActor && vActor.role === "talent") {
+        if (vActor.role === "talent") {
           talentAccount = await env.DB.prepare("SELECT token_version, name FROM talent_accounts WHERE username = ?").bind(vActor.username).first();
           if (!talentAccount || Number(talentAccount.token_version || 1) !== vActor.tokenVersion) return jsonOut({ success: false, error: "Sesi kedaluwarsa. Silakan login ulang." }, 401);
+          const approvalStatus = await getTalentApprovalStatus(vActor.username);
+          if (approvalStatus !== "approved") {
+            return jsonOut({ success: false, error: "Akun Talent belum disetujui untuk membuat story." }, 403);
+          }
         }
-        const ownerUsername = normalizeUsername(vActor && vActor.role === "talent" ? vActor.username : (vActor && vActor.username) || "developer");
+        const loungeConfig = await getLoungeConfig();
+        if (loungeConfig.posting_locked === 1 && !isStaff) {
+          return jsonOut({ success: false, error: "Posting sedang dikunci sementara (Maintenance)." }, 423);
+        }
+        const ownerUsername = normalizeUsername(vActor.role === "talent" ? vActor.username : (vActor.username || vActor.role || "developer"));
         const image = safeLoungeImage(body.image, env.R2_PUBLIC_URL);
         if (!ownerUsername || !image) return jsonOut({ success: false, error: "Data story tidak valid." }, 400);
         const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
         let curPosts = [], curStories = [];
         if (row) { try { curPosts = JSON.parse(row.posts || "[]"); } catch (_) {} try { curStories = JSON.parse(row.stories || "[]"); } catch (_) {} }
         const now = Date.now();
-        const active = (Array.isArray(curStories) ? curStories : []).filter((st) => st && (!st.createdAt || now - Number(st.createdAt) < 864e5));
+        const deletedIds = await getDeletedStoryIdSet();
+        const active = (Array.isArray(curStories) ? curStories : []).filter((st) => st && !deletedIds.has(String(st.id)) && (!st.createdAt || now - Number(st.createdAt) < 864e5));
+        const utcDayKey = new Date(now).toISOString().slice(0, 10);
         const todayKey = new Date(now + 7 * 3600 * 1e3).toISOString().slice(0, 10);
-        const ownCount = active.filter((st) => normalizeUsername(st.ownerUsername) === ownerUsername && (st.dateKey === todayKey || now - Number(st.createdAt || 0) < 864e5)).length;
-        if (ownCount >= 3 && !isDeveloper) return jsonOut({ success: false, error: "Kuota harian maksimal 3 story." }, 429);
+        const ownCount = active.filter((st) => {
+          const sameSubject = (st.ownerSubject && vActor.sub)
+            ? st.ownerSubject === vActor.sub
+            : normalizeUsername(st.ownerUsername) === ownerUsername;
+          if (!sameSubject) return false;
+          const stUtcDay = st.utcDayKey || (st.createdAt ? new Date(Number(st.createdAt)).toISOString().slice(0, 10) : st.dateKey);
+          return stUtcDay === utcDayKey;
+        }).length;
+        if (!isStaff && ownCount >= loungeConfig.max_stories_per_day) {
+          return jsonOut({ success: false, error: "Kuota harian maksimal " + loungeConfig.max_stories_per_day + " story." }, 429);
+        }
         const storyId = cleanLoungeText(body.id || "ust_" + now, 64).replace(/[^a-zA-Z0-9_-]/g, "") || "ust_" + now;
+        const qcStatus = isStaff ? "approved" : (loungeConfig.qc_gateway === 1 ? "pending" : "approved");
         const newStory = {
           id: storyId,
+          ownerSubject: vActor.sub || "",
           ownerUsername,
           ownerName: cleanLoungeText((talentAccount && talentAccount.name) || body.ownerName || ownerUsername, 60),
           color: "#ff2a5f",
@@ -721,7 +998,8 @@ export default {
           caption: cleanLoungeText(body.caption || "", 180),
           createdAt: now,
           dateKey: todayKey,
-          qcStatus: isDeveloper ? "approved" : "pending"
+          utcDayKey,
+          qcStatus
         };
         const nextStories = [...active, newStory].slice(-60);
         await env.DB.prepare("INSERT INTO lounge_store (id, posts, stories, updated_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stories = excluded.stories, updated_at = excluded.updated_at").bind(JSON.stringify(curPosts), JSON.stringify(nextStories), new Date(now).toISOString()).run();
@@ -756,9 +1034,21 @@ export default {
           : stories.map((story) => story && String(story.id) === storyId
             ? Object.assign({}, story, { qcStatus: action })
             : story);
+        const nowIso = new Date().toISOString();
         await env.DB.prepare(
           "INSERT INTO lounge_store (id, posts, stories, updated_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stories = excluded.stories, updated_at = excluded.updated_at"
-        ).bind(JSON.stringify(posts), JSON.stringify(updatedStories), new Date().toISOString()).run();
+        ).bind(JSON.stringify(posts), JSON.stringify(updatedStories), nowIso).run();
+        if (action === "delete") {
+          await env.DB.prepare(
+            "INSERT OR IGNORE INTO lounge_deleted_stories (story_id, deleted_by, deleted_at) VALUES (?, ?, ?)"
+          ).bind(storyId, actor.sub || "admin", nowIso).run();
+          if (env.BUCKET && target.image) {
+            const safeKey = extractSafeR2Key(target.image, env, url.origin);
+            if (safeKey && safeKey.startsWith("stories/")) {
+              try { await env.BUCKET.delete(safeKey); } catch (_) {}
+            }
+          }
+        }
         return jsonOut({
           success: true,
           deleted: action === "delete",
@@ -827,31 +1117,7 @@ export default {
         await ensureTableExists();
         const body = stripDangerousKeys(await request.json().catch(() => ({})));
         const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
-        const isDeveloper = roleAllowed(vActor, ["admin"]);
-        if (!isDeveloper && (!vActor || vActor.role !== "talent")) return jsonOut({ success: false, error: "Hanya Talent yang dapat menghapus story." }, 403);
-        if (vActor && vActor.role === "talent") {
-          const account = await env.DB.prepare("SELECT token_version FROM talent_accounts WHERE username = ?").bind(vActor.username).first();
-          if (!account || Number(account.token_version || 1) !== vActor.tokenVersion) return jsonOut({ success: false, error: "Sesi kedaluwarsa. Silakan login ulang." }, 401);
-        }
-        const actorUsername = normalizeUsername(vActor && vActor.username);
-        const targetId = sanitizeText(body.id || "", 80);
-        if (!targetId || (!isDeveloper && !actorUsername)) return jsonOut({ success: false, error: "ID story dan sesi pemilik wajib diisi." }, 400);
-        const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
-        let curPosts = [], curStories = [];
-        if (row) { try { curPosts = JSON.parse(row.posts || "[]"); } catch (_) {} try { curStories = JSON.parse(row.stories || "[]"); } catch (_) {} }
-        if (!Array.isArray(curPosts)) curPosts = [];
-        if (!Array.isArray(curStories)) curStories = [];
-        const matched = curStories.find((st) => st && String(st.id) === targetId);
-        if (!matched) return jsonOut({ success: true, deletedId: targetId, note: "Story sudah terhapus." });
-        if (!isDeveloper && normalizeUsername(matched.ownerUsername) !== actorUsername) return jsonOut({ success: false, error: "Forbidden: Hanya bisa menghapus story milik sendiri." }, 403);
-        let r2Deleted = false;
-        if (env.BUCKET && matched.image) {
-          const safeKey = extractSafeR2Key(matched.image, env, url.origin);
-          if (safeKey && safeKey.startsWith("stories/")) { try { await env.BUCKET.delete(safeKey); r2Deleted = true; } catch (_) {} }
-        }
-        const nextStories = curStories.filter((st) => st && String(st.id) !== targetId);
-        await env.DB.prepare("INSERT INTO lounge_store (id, posts, stories, updated_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stories = excluded.stories, updated_at = excluded.updated_at").bind(JSON.stringify(curPosts), JSON.stringify(nextStories), new Date().toISOString()).run();
-        return jsonOut({ success: true, deletedId: targetId, r2Deleted, remainingStories: nextStories.length });
+        return await handlePermanentStoryDelete(body.id || body.storyId || "", vActor);
       }
 
       if (url.pathname === "/api/profile/update" && request.method === "POST") {
@@ -1046,18 +1312,24 @@ export default {
           const uname = String(item.username).trim().toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
           if (!uname) continue;
           const pHash = await hashPasswordPBKDF2(String(item.password).trim());
-          await env.DB.prepare(
-            "INSERT INTO talent_accounts (username, password_hash, name, agency, status, moods, avatar, token_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?) ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name, agency = excluded.agency, status = excluded.status, moods = excluded.moods, avatar = excluded.avatar, updated_at = excluded.updated_at"
-          ).bind(
-            uname,
-            pHash,
-            sanitizeText(item.name, 60),
-            sanitizeText(item.agency || "Clubs'Night", 40),
-            sanitizeText(item.status || "READY", 16),
-            JSON.stringify(Array.isArray(item.moods) ? item.moods.slice(0, 6) : ["GFE"]),
-            String(item.avatar || "").slice(0, 400),
-            new Date().toISOString()
-          ).run();
+          const nowIso = new Date().toISOString();
+          await env.DB.batch([
+            env.DB.prepare(
+              "INSERT INTO talent_approvals (talent_id, status, updated_at) SELECT ?, 'pending', ? WHERE NOT EXISTS (SELECT 1 FROM talent_accounts WHERE username = ?) ON CONFLICT(talent_id) DO NOTHING"
+            ).bind(uname, nowIso, uname),
+            env.DB.prepare(
+              "INSERT INTO talent_accounts (username, password_hash, name, agency, status, moods, avatar, token_version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?) ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name, agency = excluded.agency, status = excluded.status, moods = excluded.moods, avatar = excluded.avatar, updated_at = excluded.updated_at"
+            ).bind(
+              uname,
+              pHash,
+              sanitizeText(item.name, 60),
+              sanitizeText(item.agency || "Clubs'Night", 40),
+              sanitizeText(item.status || "READY", 16),
+              JSON.stringify(Array.isArray(item.moods) ? item.moods.slice(0, 6) : ["GFE"]),
+              String(item.avatar || "").slice(0, 400),
+              nowIso
+            )
+          ]);
           count++;
         }
         return new Response(JSON.stringify({ success: true, seeded: count, algo: "PBKDF2-SHA256-100k" }), {
@@ -1142,6 +1414,7 @@ export default {
           tokenVersion: tokVer
         });
 
+        const approvalStatus = await getTalentApprovalStatus(row.username);
         return new Response(JSON.stringify({
           success: true,
           sessionToken,
@@ -1149,7 +1422,8 @@ export default {
             username: row.username,
             name: row.name,
             role: "talent",
-            approved: true,
+            approved: approvalStatus === "approved",
+            approvalStatus,
             agency: row.agency || "Clubs'Night",
             status: row.status || "READY",
             moods: parsedMoods,
@@ -1288,6 +1562,7 @@ export default {
           permissions: [],
           tokenVersion: nextTokVer
         });
+        const approvalStatus = await getTalentApprovalStatus(row.username);
         return new Response(JSON.stringify({
           success: true,
           message: newPass ? "Password & profil talent berhasil diperbarui (PBKDF2)!" : "Status & profil talent berhasil diperbarui!",
@@ -1295,7 +1570,8 @@ export default {
             username: row.username,
             name: row.name,
             role: "talent",
-            approved: true,
+            approved: approvalStatus === "approved",
+            approvalStatus,
             agency: row.agency || "Clubs'Night",
             status: finalStatus,
             moods: finalMoods,
@@ -1327,9 +1603,10 @@ export default {
         const now = Date.now();
         const actor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
         const canReviewStories = roleAllowed(actor, ["admin"]);
+        const deletedStoryIds = await getDeletedStoryIdSet();
         const activeStories = Array.isArray(stories)
           ? stories.filter((st) => {
-              if (!st || (st.createdAt && now - Number(st.createdAt) >= 86400000)) return false;
+              if (!st || deletedStoryIds.has(String(st.id)) || (st.createdAt && now - Number(st.createdAt) >= 86400000)) return false;
               const status = st.qcStatus || "approved";
               return status === "approved" || canReviewStories ||
                 (actor && actor.role === "talent" && status === "pending" && normalizeUsername(st.ownerUsername) === normalizeUsername(actor.username));
@@ -1360,17 +1637,21 @@ export default {
         const body = stripDangerousKeys(rawBody);
         const sessTok = request.headers.get("X-Session-Token") || (body && body.actor && body.actor.sessionToken) || "";
         const verifiedActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, sessTok);
-        const isDeveloper = Boolean(verifiedActor && verifiedActor.role === "developer");
-        if (!isDeveloper && (!verifiedActor || verifiedActor.role !== "talent")) {
+        if (!verifiedActor) {
+          return jsonOut({ success: false, error: "Unauthorized: Token sesi HMAC tidak valid." }, 401);
+        }
+        const isDeveloper = verifiedActor.role === "developer";
+        const isStaff = roleAllowed(verifiedActor, ["admin"]);
+        if (!isStaff && verifiedActor.role !== "talent") {
           return new Response(JSON.stringify({ success: false, error: "Unauthorized: Token sesi HMAC tidak valid." }), {
             status: 403,
             headers: { ...securityHeaders, "Content-Type": "application/json" }
           });
         }
 
-        // Jika token milik talent, pastikan token_version masih cocok dengan D1 (belum di-revoke)
+        // Jika token milik talent, pastikan token_version masih cocok dengan D1 & status approval approved
         let talentRow = null;
-        if (verifiedActor && verifiedActor.role === "talent") {
+        if (verifiedActor.role === "talent") {
           talentRow = await env.DB.prepare("SELECT token_version, name FROM talent_accounts WHERE username = ?")
             .bind(verifiedActor.username).first();
           if (!talentRow || Number(talentRow.token_version || 1) !== verifiedActor.tokenVersion) {
@@ -1379,14 +1660,16 @@ export default {
               headers: { ...securityHeaders, "Content-Type": "application/json" }
             });
           }
+          const approvalStatus = await getTalentApprovalStatus(verifiedActor.username);
+          if (approvalStatus !== "approved") {
+            return jsonOut({ success: false, error: "Akun Talent belum disetujui untuk membuat postingan." }, 403);
+          }
         }
 
-        const actorUsername = normalizeUsername(verifiedActor && verifiedActor.username);
-        if (!isDeveloper && !actorUsername) return jsonOut({ success: false, error: "Sesi Talent tidak memiliki identitas." }, 401);
-        if (!isDeveloper && (!talentRow || Number(talentRow.token_version || 1) !== verifiedActor.tokenVersion)) {
-          return jsonOut({ success: false, error: "Sesi kedaluwarsa. Silakan login ulang." }, 401);
-        }
+        const actorUsername = normalizeUsername(verifiedActor.username || verifiedActor.role);
+        if (!isStaff && !actorUsername) return jsonOut({ success: false, error: "Sesi Talent tidak memiliki identitas." }, 401);
 
+        const loungeConfig = await getLoungeConfig();
         const row = await env.DB.prepare("SELECT posts, stories FROM lounge_store WHERE id = 1").first();
         let curPosts = [];
         let curStories = [];
@@ -1396,10 +1679,11 @@ export default {
         }
         if (!Array.isArray(curPosts)) curPosts = [];
         if (!Array.isArray(curStories)) curStories = [];
+        const existingPostIds = new Set(curPosts.map((p) => String(p && p.id || "")));
 
         const now = Date.now();
         const rawPosts = Array.isArray(body.posts) ? body.posts.slice(0, 120) : curPosts;
-        const sanitizePost = (post, ownerName) => {
+        const sanitizePost = (post, ownerName, roleLabel) => {
           if (!post || typeof post !== "object") return null;
           const id = cleanLoungeText(post.id || "", 64).replace(/[^a-zA-Z0-9_-]/g, "");
           if (!id) return null;
@@ -1414,7 +1698,7 @@ export default {
             authorHandle: isDeveloper ? cleanLoungeText(post.authorHandle || post.handle || "", 44) : "@" + actorUsername,
             author: isDeveloper ? cleanLoungeText(post.author || "User", 60) : ownerName,
             handle: isDeveloper ? cleanLoungeText(post.handle || "", 44) : "@" + actorUsername,
-            role: isDeveloper ? cleanLoungeText(post.role || "", 24) : "TALENT",
+            role: isDeveloper ? cleanLoungeText(post.role || "", 24) : roleLabel,
             time: cleanLoungeText(post.time || "", 80),
             text: cleanLoungeText(post.text || "", 5000),
             image: safeLoungeImage(post.image, env.R2_PUBLIC_URL),
@@ -1424,34 +1708,70 @@ export default {
             replies
           };
         };
-        let incomingPosts;
+
+        let candidatePosts;
         let rawStories;
         if (isDeveloper) {
-          incomingPosts = rawPosts.map((post) => sanitizePost(post, "")).filter(Boolean);
+          candidatePosts = rawPosts.map((post) => sanitizePost(post, "", "")).filter(Boolean);
           rawStories = Array.isArray(body.stories) ? body.stories : curStories;
         } else {
           const ownPosts = rawPosts.filter((post) => isOwnedLoungePost(post, actorUsername));
           const otherPosts = curPosts.filter((post) => !isOwnedLoungePost(post, actorUsername));
           const otherPostIds = new Set(otherPosts.map((post) => String(post && post.id || "")));
+          const ownerDisplayName = (talentRow && talentRow.name) || verifiedActor.name || actorUsername;
+          const roleLabel = isStaff ? "ADMIN QC" : "TALENT";
           const safeOwnPosts = ownPosts
             .filter((post) => !otherPostIds.has(String(post && post.id || "")))
-            .map((post) => sanitizePost(post, talentRow.name))
+            .map((post) => sanitizePost(post, ownerDisplayName, roleLabel))
             .filter(Boolean);
-          incomingPosts = [...safeOwnPosts, ...otherPosts].slice(0, 120);
+          candidatePosts = [...safeOwnPosts, ...otherPosts];
           rawStories = Array.isArray(body.stories) ? body.stories : curStories;
         }
 
+        const newPosts = candidatePosts.filter((post) => !existingPostIds.has(String(post.id)));
+        if (newPosts.length > 0) {
+          if (loungeConfig.posting_locked === 1 && !isStaff) {
+            return jsonOut({ success: false, error: "Posting sedang dikunci sementara (Maintenance)." }, 423);
+          }
+          for (const np of newPosts) {
+            const plainText = String(np.text || "").replace(/<[^>]*>/g, "").trim();
+            const hasMedia = Boolean(np.image);
+            if (!hasMedia && plainText.length < loungeConfig.min_post_chars) {
+              return jsonOut({
+                success: false,
+                error: "Teks postingan minimal " + loungeConfig.min_post_chars + " karakter."
+              }, 400);
+            }
+          }
+        }
+
+        const maxGlobalPosts = loungeConfig.max_global_posts;
+        const evictedPosts = candidatePosts.length > maxGlobalPosts ? candidatePosts.slice(maxGlobalPosts) : [];
+        const incomingPosts = candidatePosts.slice(0, maxGlobalPosts);
+        if (evictedPosts.length > 0 && env.BUCKET) {
+          const keptImages = new Set(incomingPosts.map((p) => p && p.image).filter(Boolean));
+          for (const ev of evictedPosts) {
+            if (!ev || !ev.image || keptImages.has(ev.image)) continue;
+            const safeKey = extractSafeR2Key(ev.image, env, url.origin);
+            if (safeKey && safeKey.startsWith("stories/")) {
+              try { await env.BUCKET.delete(safeKey); } catch (_) {}
+            }
+          }
+        }
+
+        const deletedStoryIds = await getDeletedStoryIdSet();
         const activeStories = (Array.isArray(curStories) ? curStories : [])
-          .filter((story) => story && (!story.createdAt || now - Number(story.createdAt) < 86400000));
+          .filter((story) => story && !deletedStoryIds.has(String(story.id)) && (!story.createdAt || now - Number(story.createdAt) < 86400000));
         let nextStories;
         if (isDeveloper) {
           nextStories = rawStories
-            .filter((story) => story && (!story.createdAt || now - Number(story.createdAt) < 86400000))
+            .filter((story) => story && !deletedStoryIds.has(String(story.id)) && (!story.createdAt || now - Number(story.createdAt) < 86400000))
             .slice(0, 60)
             .map((story) => {
               const qcStatus = ["pending", "approved", "rejected"].includes(story.qcStatus) ? story.qcStatus : "approved";
               return {
                 id: cleanLoungeText(story.id || "", 64).replace(/[^a-zA-Z0-9_-]/g, ""),
+                ownerSubject: cleanLoungeText(story.ownerSubject || "", 80),
                 ownerUsername: normalizeUsername(story.ownerUsername),
                 ownerName: cleanLoungeText(story.ownerName || "", 60),
                 color: "#ff2a5f",
@@ -1459,6 +1779,7 @@ export default {
                 caption: cleanLoungeText(story.caption || "", 180),
                 createdAt: Number(story.createdAt) || now,
                 dateKey: cleanLoungeText(story.dateKey || "", 10),
+                utcDayKey: cleanLoungeText(story.utcDayKey || "", 10),
                 qcStatus
               };
             })

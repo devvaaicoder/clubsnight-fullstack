@@ -4291,14 +4291,25 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         // Kirim perintah hapus permanen ke Cloudflare Backend (D1 + R2)
         try {
           var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
-          (async function(){ var _s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null; var _tok = (_s && (_s.sessionToken || _s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : ""); return fetch(window.CN_WORKER_API + "/api/lounge/story/delete", { method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": _tok },
+          var _tok = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
+          var delRes = await fetch((window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev") + "/api/lounge/story/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": _tok },
             body: JSON.stringify({
               id: target.id,
               image: target.image || "",
               ownerUsername: s.username || target.ownerUsername
             })
-          }); })().catch(function() {});
-        } catch (_) {}
+          });
+          var delData = await delRes.json().catch(function() { return {}; });
+          if (!delRes.ok || !delData.success) {
+            if (typeof window.cnToast === "function") window.cnToast(delData.error || "Gagal menghapus story di server.", "error");
+            return false;
+          }
+        } catch (_) {
+          if (typeof window.cnToast === "function") window.cnToast("Gagal menghubungi server saat menghapus story.", "error");
+          return false;
+        }
 
         if (typeof window.closeCnStoryViewer === "function") window.closeCnStoryViewer();
         renderStoryBarWithUpload();
@@ -4515,7 +4526,7 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
           <div class="cn-merch-form-row">
             <div class="cn-field">
               <label>Min. Karakter Post</label>
-              <input type="number" id="cnCfgMinChars" min="50" max="1000" value="250" />
+              <input type="number" id="cnCfgMinChars" min="1" max="1000" value="1" />
             </div>
             <div class="cn-field">
               <label>Maks. Story / Hari</label>
@@ -4816,41 +4827,127 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         });
       };
 
-      function loadDevData() {
-        var cfg = getConfig();
-        document.getElementById("cnCfgPhoenixApi").value = cfg.phoenixApi || "";
-        document.getElementById("cnCfgPhoenixWs").value = cfg.phoenixWs || "";
-        document.getElementById("cnCfgMinChars").value = cfg.minPostChars || 1;
-        document.getElementById("cnCfgMaxStories").value = cfg.maxDailyStories || 3;
-        document.getElementById("cnCfgLockPost").checked = !!cfg.lockGlobalPost;
-        document.getElementById("cnQcGatewayToggle").checked = !!cfg.storyQcRequired;
+      function escDevHtml(value) {
+        if (window.cnEscapeHtml) return window.cnEscapeHtml(value);
+        return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", """: "&quot;", "'": "&#39;" }[ch];
+        });
+      }
 
-        // Render Approval List
-        var accs = getAccounts();
-        var pendingCount = accs.filter(function(a) { return !a.approved; }).length;
+      function applyLoungeConfigToUi(cfg) {
+        var phoenixApiEl = document.getElementById("cnCfgPhoenixApi");
+        var phoenixWsEl = document.getElementById("cnCfgPhoenixWs");
+        var minCharsEl = document.getElementById("cnCfgMinChars");
+        var maxStoriesEl = document.getElementById("cnCfgMaxStories");
+        var maxPostsEl = document.getElementById("cnCfgMaxGlobalPosts");
+        var lockPostEl = document.getElementById("cnCfgLockPost");
+        var qcToggleEl = document.getElementById("cnQcGatewayToggle");
+        if (phoenixApiEl) phoenixApiEl.value = cfg.phoenixApi || "";
+        if (phoenixWsEl) phoenixWsEl.value = cfg.phoenixWs || "";
+        if (minCharsEl) minCharsEl.value = cfg.minPostChars || 1;
+        if (maxStoriesEl) maxStoriesEl.value = cfg.maxDailyStories || 3;
+        if (maxPostsEl) maxPostsEl.value = cfg.maxGlobalPosts || 20;
+        if (lockPostEl) lockPostEl.checked = !!cfg.lockGlobalPost;
+        if (qcToggleEl) qcToggleEl.checked = cfg.storyQcRequired !== false;
+      }
+
+      function renderApprovalItems(items, emptyText) {
+        var pendingCount = items.filter(function(a) { return !a.approved; }).length;
         var badgeApp = document.getElementById("cnDevBadgeApproval");
         if (badgeApp) {
           badgeApp.textContent = pendingCount;
           badgeApp.style.display = pendingCount > 0 ? "inline-block" : "none";
         }
         var appList = document.getElementById("cnDevApprovalList");
-        if (accs.length === 0) {
-          appList.innerHTML = "<div class=\"cn-dev-empty\">Belum ada akun terdaftar di perangkat ini.</div>";
-        } else {
-          appList.innerHTML = accs.map(function(a) {
-            return "<div class=\"cn-dev-item\">" +
-              "<div class=\"cn-dev-item-info\">" +
-                "<b>" + a.name + " <span class=\"cn-badge-role " + (a.role === "talent" ? "is-talent" : "is-user") + "\">" + a.role.toUpperCase() + "</span></b>" +
-                "<span>@" + a.username + " • " + (a.approved ? "✅ Terverifikasi" : "⏳ Menunggu Konfirmasi") + "</span>" +
-              "</div>" +
-              "<div class=\"cn-dev-item-btns\">" +
-                "<button type=\"button\" class=\"is-ok\" onclick=\"window.setCnAccountApproval('" + a.username + "', true)\" title=\"Konfirmasi / Approve\"><i class=\"fa-solid fa-check\"></i></button>" +
-                "<button type=\"button\" class=\"is-del\" onclick=\"window.setCnAccountApproval('" + a.username + "', false)\" title=\"Cabut / Pending\"><i class=\"fa-solid fa-ban\"></i></button>" +
-              "</div>" +
-            "</div>";
-          }).join("");
+        if (!appList) return;
+        if (!items.length) {
+          appList.innerHTML = "<div class=\"cn-dev-empty\">" + escDevHtml(emptyText || "Belum ada akun terdaftar di perangkat ini.") + "</div>";
+          return;
         }
+        appList.innerHTML = items.map(function(a) {
+          var uname = String(a.username || a.talent_id || "");
+          var safeArg = escDevHtml(JSON.stringify(uname).replace(/</g, "\u003c"));
+          var role = String(a.role || "talent");
+          return "<div class=\"cn-dev-item\">" +
+            "<div class=\"cn-dev-item-info\">" +
+              "<b>" + escDevHtml(a.name || uname) + " <span class=\"cn-badge-role " + (role === "talent" ? "is-talent" : "is-user") + "\">" + escDevHtml(role.toUpperCase()) + "</span></b>" +
+              "<span>@" + escDevHtml(uname) + " • " + (a.approved ? "✅ Terverifikasi" : "⏳ Menunggu Konfirmasi") + "</span>" +
+            "</div>" +
+            "<div class=\"cn-dev-item-btns\">" +
+              "<button type=\"button\" class=\"is-ok\" onclick=\"window.setCnAccountApproval(" + safeArg + ", true)\" title=\"Konfirmasi / Approve\"><i class=\"fa-solid fa-check\"></i></button>" +
+              "<button type=\"button\" class=\"is-del\" onclick=\"window.setCnAccountApproval(" + safeArg + ", false)\" title=\"Cabut / Pending\"><i class=\"fa-solid fa-ban\"></i></button>" +
+            "</div>" +
+          "</div>";
+        }).join("");
+      }
 
+      async function getDevWorkerToken() {
+        var session = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null;
+        var token = session && (session.sessionToken || session.token);
+        if (!token && window.getCnHmacSessionToken) {
+          try { token = await window.getCnHmacSessionToken(); } catch (_) {}
+        }
+        return token || "";
+      }
+
+      function loadServerLoungeConfig() {
+        var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+        fetch(workerApi + "/api/lounge/config", { cache: "no-store" })
+          .then(function(res) {
+            if (!res.ok) throw new Error("Gagal memuat konfigurasi Lounge.");
+            return res.json();
+          })
+          .then(function(data) {
+            if (!data || !data.success || !data.config) return;
+            var srv = data.config;
+            var cfg = getConfig();
+            cfg.minPostChars = Number(srv.min_post_chars) || 1;
+            cfg.maxDailyStories = Number(srv.max_stories_per_day) || 3;
+            cfg.maxGlobalPosts = Number(srv.max_global_posts) || 20;
+            cfg.lockGlobalPost = Number(srv.posting_locked) === 1;
+            cfg.storyQcRequired = Number(srv.qc_gateway) === 1;
+            saveConfig(cfg);
+            applyLoungeConfigToUi(cfg);
+          })
+          .catch(function() {});
+      }
+
+      function loadServerTalentApprovals() {
+        var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+        getDevWorkerToken().then(function(token) {
+          if (!token) return;
+          return fetch(workerApi + "/api/talent/approvals", {
+            cache: "no-store",
+            headers: { "X-Session-Token": token }
+          })
+            .then(function(res) {
+              if (!res.ok) throw new Error("Gagal memuat antrean approval.");
+              return res.json();
+            })
+            .then(function(data) {
+              if (!data || !data.success || !Array.isArray(data.approvals)) return;
+              var items = data.approvals.map(function(a) {
+                return {
+                  talent_id: a.talent_id,
+                  username: a.username || a.talent_id,
+                  name: a.name || a.talent_id,
+                  role: "talent",
+                  approved: a.status === "approved"
+                };
+              });
+              renderApprovalItems(items, "Tidak ada akun Talent yang menunggu approval.");
+            });
+        }).catch(function() {});
+      }
+
+      function loadDevData() {
+        var cfg = getConfig();
+        applyLoungeConfigToUi(cfg);
+
+        // Render fallback lokal dulu, lalu sinkronkan dari server
+        renderApprovalItems(getAccounts(), "Belum ada akun terdaftar di perangkat ini.");
+        loadServerLoungeConfig();
+        loadServerTalentApprovals();
         loadServerLoungeQc();
       }
 
@@ -4938,26 +5035,66 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
       }
       window.refreshCnLoungeQc = loadServerLoungeQc;
 
-      window.setCnAccountApproval = function(username, approved) {
-        var accs = getAccounts().map(function(a) {
-          if (a.username === username) a.approved = approved;
-          return a;
-        });
-        saveAccounts(accs);
-        // Sinkronkan juga sesi aktif jika user yang sama sedang login
-        var s = window.cnAuth && window.cnAuth.getSession();
-        if (s && s.username === username) {
-          s.approved = approved;
-          try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch (e) {}
-          window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: s }));
+      window.setCnAccountApproval = async function(username, approved) {
+        var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+        var decision = approved ? "approved" : "rejected";
+        try {
+          var token = await getDevWorkerToken();
+          if (!token) throw new Error("Sesi Developer tidak valid. Silakan login ulang.");
+          var res = await fetch(workerApi + "/api/talent/approvals/" + encodeURIComponent(username), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({
+              decision: decision,
+              reason: approved ? "Disetujui melalui Developer Center" : "Ditolak melalui Developer Center"
+            })
+          });
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.success) throw new Error(data.error || "Gagal memperbarui approval Talent.");
+
+          var accs = getAccounts().map(function(a) {
+            if (a.username === username) a.approved = approved;
+            return a;
+          });
+          saveAccounts(accs);
+          var s = window.cnAuth && window.cnAuth.getSession();
+          if (s && s.username === username) {
+            s.approved = approved;
+            try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch (e) {}
+            window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: s }));
+          }
+          if (window.cnToast) window.cnToast("Approval Talent @" + username + " berhasil diperbarui.", "success");
+          loadDevData();
+        } catch (error) {
+          var msg = (error && error.message) || "Gagal memperbarui approval Talent.";
+          if (window.cnToast) window.cnToast(msg, "error");
+          else alert(msg);
         }
-        loadDevData();
       };
 
-      window.toggleCnQcGateway = function(checked) {
-        var cfg = getConfig();
-        cfg.storyQcRequired = checked;
-        saveConfig(cfg);
+      window.toggleCnQcGateway = async function(checked) {
+        var toggleEl = document.getElementById("cnQcGatewayToggle");
+        var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+        try {
+          var token = await getDevWorkerToken();
+          if (!token) throw new Error("Sesi Developer tidak valid. Silakan login ulang.");
+          var res = await fetch(workerApi + "/api/lounge/config", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({ qc_gateway: checked ? 1 : 0 })
+          });
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.success) throw new Error(data.error || "Gagal memperbarui Mode QC Gateway.");
+          var cfg = getConfig();
+          cfg.storyQcRequired = checked;
+          saveConfig(cfg);
+          if (window.cnToast) window.cnToast("Mode QC Gateway diperbarui di server.", "success");
+        } catch (error) {
+          if (toggleEl) toggleEl.checked = !checked;
+          var msg = (error && error.message) || "Gagal menyimpan Mode QC Gateway.";
+          if (window.cnToast) window.cnToast(msg, "error");
+          else alert(msg);
+        }
       };
 
       window.setCnStoryQc = async function(storyId, action) {
@@ -4982,21 +5119,66 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         }
       };
 
-      window.saveCnGlobalConfig = function(e) {
+      window.saveCnGlobalConfig = async function(e) {
         e.preventDefault();
-        var cfg = getConfig();
-        cfg.phoenixApi = document.getElementById("cnCfgPhoenixApi").value.trim();
-        cfg.phoenixWs = document.getElementById("cnCfgPhoenixWs").value.trim();
-        cfg.minPostChars = Math.max(50, Number(document.getElementById("cnCfgMinChars").value) || 1);
-        cfg.maxDailyStories = Math.max(1, Number(document.getElementById("cnCfgMaxStories").value) || 3);
-        cfg.lockGlobalPost = document.getElementById("cnCfgLockPost").checked;
-        saveConfig(cfg);
-
         var fb = document.getElementById("cnCfgFeedback");
-        fb.textContent = "✅ Konfigurasi tersimpan & langsung aktif!";
-        fb.className = "cn-auth-feedback is-success";
-        fb.style.display = "block";
-        setTimeout(function() { fb.style.display = "none"; }, 2200);
+        var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+        var minChars = parseInt(document.getElementById("cnCfgMinChars").value, 10);
+        var maxStories = parseInt(document.getElementById("cnCfgMaxStories").value, 10);
+        var maxPostsEl = document.getElementById("cnCfgMaxGlobalPosts");
+        var maxGlobalPosts = maxPostsEl ? parseInt(maxPostsEl.value, 10) : 20;
+        var lockPost = document.getElementById("cnCfgLockPost").checked;
+        var qcToggleEl = document.getElementById("cnQcGatewayToggle");
+        var qcGateway = qcToggleEl ? qcToggleEl.checked : true;
+
+        try {
+          var token = await getDevWorkerToken();
+          if (!token) throw new Error("Sesi Developer tidak valid. Silakan login ulang.");
+          var res = await fetch(workerApi + "/api/lounge/config", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({
+              min_post_chars: minChars,
+              max_stories_per_day: maxStories,
+              max_global_posts: maxGlobalPosts,
+              posting_locked: lockPost ? 1 : 0,
+              qc_gateway: qcGateway ? 1 : 0
+            })
+          });
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.success) throw new Error(data.error || "Gagal menyimpan konfigurasi ke server.");
+
+          var srv = data.config || {};
+          var cfg = getConfig();
+          cfg.phoenixApi = document.getElementById("cnCfgPhoenixApi").value.trim();
+          cfg.phoenixWs = document.getElementById("cnCfgPhoenixWs").value.trim();
+          cfg.minPostChars = Number(srv.min_post_chars) || minChars;
+          cfg.maxDailyStories = Number(srv.max_stories_per_day) || maxStories;
+          cfg.maxGlobalPosts = Number(srv.max_global_posts) || maxGlobalPosts;
+          cfg.lockGlobalPost = Number(srv.posting_locked) === 1;
+          cfg.storyQcRequired = Number(srv.qc_gateway) === 1;
+          saveConfig(cfg);
+          applyLoungeConfigToUi(cfg);
+
+          if (fb) {
+            fb.textContent = "✅ Konfigurasi tersimpan & langsung aktif!";
+            fb.className = "cn-auth-feedback is-success";
+            fb.style.display = "block";
+            setTimeout(function() { fb.style.display = "none"; }, 2200);
+          }
+          return true;
+        } catch (error) {
+          var msg = (error && error.message) || "Gagal menyimpan konfigurasi ke server.";
+          if (fb) {
+            fb.textContent = "❌ " + msg;
+            fb.className = "cn-auth-feedback is-error";
+            fb.style.display = "block";
+            setTimeout(function() { fb.style.display = "none"; }, 3000);
+          }
+          if (window.cnToast) window.cnToast(msg, "error");
+          else alert(msg);
+          return false;
+        }
       };
 
       // Hook Story Upload agar mematuhi QC Gateway Mode
@@ -5288,18 +5470,13 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
       // Sinkronkan input config SuperAdmin
       var origSaveCfg = window.saveCnGlobalConfig;
       if (typeof origSaveCfg === "function") {
-        window.saveCnGlobalConfig = function(e) {
-          var inp = document.getElementById("cnCfgMaxGlobalPosts");
-          var val = inp ? Math.max(5, Number(inp.value) || 20) : 20;
-          var res = origSaveCfg.apply(this, arguments);
-          try {
-            var cfg = JSON.parse(localStorage.getItem(CFG_KEY) || "{}");
-            cfg.maxGlobalPosts = val;
-            localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-          } catch (err) {}
-          enforcePostLimit();
-          renderQuotaFooter();
-          return res;
+        window.saveCnGlobalConfig = async function(e) {
+          var ok = await origSaveCfg.apply(this, arguments);
+          if (ok) {
+            enforcePostLimit();
+            renderQuotaFooter();
+          }
+          return ok;
         };
       }
 
