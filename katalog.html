@@ -13259,7 +13259,7 @@ window.addEventListener("storage", function(e) {
               method: "POST",
               headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
               body: payload
-            }).catch(function() {});
+            }).then(async function(r){ if (!r.ok) { var j = await r.json().catch(function(){ return {}; }); var m = "Profil gagal disimpan ke server: " + (j.error || ("HTTP " + r.status)); if (window.cnToast) window.cnToast(m, "error"); else alert(m); } }).catch(function(){ var m = "Profil gagal disimpan ke server (jaringan)."; if (window.cnToast) window.cnToast(m, "error"); else alert(m); });
             fetch(RENDER_BASE + "/api/profile", {
               method: "POST",
               credentials: "include",

@@ -1126,7 +1126,7 @@ export default {
         await ensureTableExists();
         const body = stripDangerousKeys(await request.json().catch(() => ({})));
         const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
-        if (!roleAllowed(vActor, ["consumer", "talent", "admin"])) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        if (!roleAllowed(vActor, ["consumer", "talent", "admin", "developer", "merch"])) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
         const requestedUsername = normalizeUsername(body.username);
         const username = normalizeUsername(vActor ? vActor.username : requestedUsername);
         if (requestedUsername && requestedUsername !== username) return jsonOut({ success: false, error: "Forbidden: Identitas profil tidak cocok." }, 403);
