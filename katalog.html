@@ -4847,7 +4847,7 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
       function escDevHtml(value) {
         if (window.cnEscapeHtml) return window.cnEscapeHtml(value);
         return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
-          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", """: "&quot;", "'": "&#39;" }[ch];
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
         });
       }
 
@@ -13528,7 +13528,7 @@ window.addEventListener("storage", function(e) {
     var modal = document.getElementById("cnPreviewProfileModal");
     if (!modal) return;
     var av = document.getElementById("cnPpAvatar");
-    if (p.avatar && /^https?:|^data:image//.test(p.avatar)) {
+    if (p.avatar && /^https?:|^data:image\//.test(p.avatar)) {
       av.innerHTML = "<img src=\"" + p.avatar.replace(/"/g, "&quot;") + "\" alt=\"Avatar\">";
     } else {
       av.textContent = (p.name || "U").trim().charAt(0).toUpperCase();
