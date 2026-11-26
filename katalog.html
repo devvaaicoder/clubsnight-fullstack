@@ -1,6 +1,23 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<script id="cnDebugProbe">
+(function(){
+  if (location.hash.indexOf("cndebug") === -1) return;
+  var logs = [];
+  function show(){ alert(logs.join("\n").slice(0, 1500)); }
+  window.addEventListener("error", function(e){ logs.push("ERROR: " + e.message + " (baris " + (e.lineno || "?") + ")"); });
+  window.addEventListener("unhandledrejection", function(e){ logs.push("PROMISE: " + ((e.reason && e.reason.message) || e.reason)); });
+  window.addEventListener("load", function(){ setTimeout(function(){
+    var s = (window.cnAuth && cnAuth.getSession && cnAuth.getSession()) || {};
+    var safe = {}; ["username","role","approved","saVerified","subject","authMethod","tg_id","id"].forEach(function(k){ if (k in s) safe[k] = s[k]; });
+    logs.unshift("ROLE: " + (window.cnRoleGuard ? cnRoleGuard.getRole() : "n/a") + " | fungsi: " + typeof window.openCnDevCenter + "\nSESI: " + JSON.stringify(safe));
+    show();
+    document.addEventListener("click", function(ev){ var t = ev.target; logs.push("KLIK: " + t.tagName + "#" + t.id + " ." + String(t.className).slice(0, 40)); setTimeout(show, 800); }, { capture: true, once: true });
+  }, 1500); });
+})();
+</script>
+
 <script id="cnImmediateAuthGuard">
 </script>
 <script>
