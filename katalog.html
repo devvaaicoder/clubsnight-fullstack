@@ -13631,5 +13631,28 @@ window.addEventListener("storage", function(e) {
   }, true);
 })();
 </script>
+<script id="cnDevCenterSafeOpen">
+(function(){
+  function install(){
+    var orig = window.openCnDevCenter;
+    if (typeof orig !== "function" || orig.__safe) return;
+    var safe = function(tab){
+      var err = null;
+      try { orig.apply(this, arguments); } catch (e) { err = e; }
+      var m = document.getElementById("cnDevCenterModal");
+      var g = window.cnRoleGuard;
+      if (m && !m.classList.contains("open") && g && g.isAdmin()) {
+        m.classList.add("open"); m.setAttribute("aria-hidden", "false");
+        try { window.switchCnDevTab(g.isDeveloper() ? (tab || "approval") : "qc"); } catch (e2) { err = err || e2; }
+      }
+      if (err) { var t = "Control Center error: " + (err.message || err); if (window.cnToast) window.cnToast(t, "error"); else alert(t); }
+    };
+    safe.__safe = true;
+    window.openCnDevCenter = safe;
+  }
+  if (document.readyState === "complete") setTimeout(install, 500);
+  else window.addEventListener("load", function(){ setTimeout(install, 500); });
+})();
+</script>
 </body>
 </html>
