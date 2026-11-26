@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "check": "node scripts/check-inline-scripts.mjs"
   },
   "devDependencies": {
     "vite": "^6.0.0"

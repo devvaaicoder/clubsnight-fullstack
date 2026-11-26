@@ -420,6 +420,9 @@ export default {
         await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS lounge_deleted_stories (story_id TEXT PRIMARY KEY, deleted_by TEXT NOT NULL, deleted_at TEXT NOT NULL)"
         ).run();
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS client_errors (id TEXT PRIMARY KEY, ts TEXT NOT NULL, page TEXT NOT NULL, message TEXT NOT NULL, line INTEGER NOT NULL DEFAULT 0, ua TEXT NOT NULL)"
+        ).run();
         try {
           await env.DB.prepare("ALTER TABLE talent_accounts ADD COLUMN token_version INTEGER DEFAULT 1").run();
         } catch (_) {}
@@ -765,13 +768,16 @@ export default {
         if (!checkMemoryRate(clientIp, "media_upload", 20, 6e5)) return jsonOut({ success: false, error: "Terlalu banyak upload." }, 429);
         const body = stripDangerousKeys(await request.json().catch(() => ({})));
         const vActor = await verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
-        if (!roleAllowed(vActor, ["talent", "merch", "admin"])) return jsonOut({ success: false, error: "Akses upload ditolak." }, 403);
+        if (!roleAllowed(vActor, ["consumer", "talent", "merch", "admin"])) return jsonOut({ success: false, error: "Akses upload ditolak." }, 403);
         const purpose = String(body.purpose || "");
         if (!["merch_product", "lounge", "profile"].includes(purpose)) {
           return jsonOut({ success: false, error: "Tujuan upload tidak valid." }, 400);
         }
-        if (vActor.role === "merch" && purpose !== "merch_product") {
-          return jsonOut({ success: false, error: "Merch hanya dapat mengunggah foto produk." }, 403);
+        if (vActor.role === "consumer" && purpose !== "profile") {
+          return jsonOut({ success: false, error: "Member hanya dapat mengunggah foto profil." }, 403);
+        }
+        if (vActor.role === "merch" && !["merch_product", "profile"].includes(purpose)) {
+          return jsonOut({ success: false, error: "Merch hanya dapat mengunggah foto produk atau profil." }, 403);
         }
         if (vActor.role === "talent" && !["lounge", "profile"].includes(purpose)) {
           return jsonOut({ success: false, error: "Talent hanya dapat mengunggah media Lounge atau profil." }, 403);
@@ -800,6 +806,52 @@ export default {
         const key = ownerPrefix + Date.now() + "_" + toHex(crypto.getRandomValues(new Uint8Array(8))) + "." + ext;
         await env.BUCKET.put(key, binary, { httpMetadata: { contentType: mime } });
         return jsonOut({ success: true, key, url: url.origin + "/r2/" + key });
+      }
+
+      if (url.pathname === "/api/client-error" && request.method === "POST") {
+        if (!checkMemoryRate(clientIp, "client_error", 30, 60000)) {
+          return jsonOut({ success: false, error: "Terlalu banyak laporan error." }, 429);
+        }
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
+        await ensureTableExists();
+        const body = stripDangerousKeys(await request.json().catch(() => ({})));
+        const redactPii = (val, maxLen) => String(val == null ? "" : val)
+          .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "[REDACTED]")
+          .replace(/(token|secret|password|auth)=[^&\s]+/gi, "$1=[REDACTED]")
+          .replace(/[\u0000-\u001F\u007F]/g, " ")
+          .trim()
+          .slice(0, maxLen);
+        const message = redactPii(body.message || "", 400);
+        if (!message) return jsonOut({ success: false, error: "Pesan error wajib diisi." }, 400);
+        const page = redactPii(body.page || "/", 200).split("?")[0].split("#")[0] || "/";
+        const ua = redactPii(body.ua || request.headers.get("User-Agent") || "", 250);
+        const rawLine = Number(body.line);
+        const line = Number.isFinite(rawLine) && rawLine >= 0 ? Math.min(1000000, Math.round(rawLine)) : 0;
+        const parsedTs = body.ts ? Date.parse(String(body.ts)) : NaN;
+        const ts = Number.isFinite(parsedTs) ? new Date(parsedTs).toISOString() : new Date().toISOString();
+        const errId = "ce_" + Date.now() + "_" + toHex(crypto.getRandomValues(new Uint8Array(6)));
+        await env.DB.batch([
+          env.DB.prepare(
+            "INSERT INTO client_errors (id, ts, page, message, line, ua) VALUES (?, ?, ?, ?, ?, ?)"
+          ).bind(errId, ts, page, message, line, ua),
+          env.DB.prepare(
+            "DELETE FROM client_errors WHERE id NOT IN (SELECT id FROM client_errors ORDER BY ts DESC, rowid DESC LIMIT 500)"
+          )
+        ]);
+        console.warn("[client-error] page=" + page + " line=" + line + " msg=" + message.slice(0, 200));
+        return jsonOut({ success: true, id: errId });
+      }
+
+      if (url.pathname === "/api/client-error" && request.method === "GET") {
+        const actor = await getActor();
+        if (!actor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        if (actor.role !== "developer") return jsonOut({ success: false, error: "Akses ditolak: Hanya Developer yang dapat melihat log error." }, 403);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
+        await ensureTableExists();
+        const res = await env.DB.prepare(
+          "SELECT id, ts, page, message, line, ua FROM client_errors ORDER BY ts DESC LIMIT 50"
+        ).all();
+        return jsonOut({ success: true, errors: (res && res.results) || [] });
       }
 
       if (url.pathname === "/api/lounge/config" && request.method === "GET") {
@@ -1130,19 +1182,62 @@ export default {
         const requestedUsername = normalizeUsername(body.username);
         const username = normalizeUsername(vActor ? vActor.username : requestedUsername);
         if (requestedUsername && requestedUsername !== username) return jsonOut({ success: false, error: "Forbidden: Identitas profil tidak cocok." }, 403);
+        if (vActor && vActor.role === "talent") {
+          const tAcc = await env.DB.prepare("SELECT token_version FROM talent_accounts WHERE username = ?").bind(username).first();
+          if (!tAcc || Number(tAcc.token_version || 1) !== vActor.tokenVersion) {
+            return jsonOut({ success: false, error: "Sesi kedaluwarsa. Silakan login ulang." }, 401);
+          }
+        }
         const name = sanitizeText(body.name || "", 50);
         const bio = sanitizeText(body.bio || "", 200);
-        const avatar = String(body.avatar || "").trim().slice(0, 200000);
+        const rawAvatar = String(body.avatar || "").trim();
+        const avatar = rawAvatar ? safeLoungeImage(rawAvatar, env.R2_PUBLIC_URL) : "";
+        if (rawAvatar && !avatar) return jsonOut({ success: false, error: "URL foto profil tidak valid." }, 400);
         if (!username || !name) return jsonOut({ success: false, error: "Username dan nama wajib diisi." }, 400);
+        const validStatuses = ["READY", "BUSY", "OFFLINE"];
+        const reqStatus = String(body.status || "").trim().toUpperCase();
+        const nextStatus = validStatuses.includes(reqStatus) ? reqStatus : "";
+        const nextMoods = Array.isArray(body.moods) ? body.moods.map((m) => sanitizeText(m, 24)).filter(Boolean).slice(0, 6) : null;
         const prev = await env.DB.prepare("SELECT avatar FROM user_profiles WHERE username = ?").bind(username).first();
         if (env.BUCKET && prev && prev.avatar && avatar && prev.avatar !== avatar) {
           const oldKey = extractSafeR2Key(prev.avatar, env, url.origin);
           if (oldKey && oldKey.startsWith("avatars/")) { try { await env.BUCKET.delete(oldKey); } catch (_) {} }
         }
         const nowIso = new Date().toISOString();
+        const finalAvatar = avatar || (prev && prev.avatar) || "";
         await env.DB.prepare("INSERT INTO user_profiles (username, name, bio, avatar, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(username) DO UPDATE SET name = excluded.name, bio = excluded.bio, avatar = CASE WHEN excluded.avatar != '' THEN excluded.avatar ELSE user_profiles.avatar END, updated_at = excluded.updated_at").bind(username, name, bio, avatar, nowIso).run();
-        try { await env.DB.prepare("UPDATE talent_accounts SET name = ?, avatar = CASE WHEN ? != '' THEN ? ELSE avatar END, updated_at = ? WHERE username = ?").bind(name, avatar, avatar, nowIso, username).run(); } catch (_) {}
-        return jsonOut({ success: true, profile: { username, name, bio, avatar: avatar || (prev && prev.avatar) || "", updatedAt: nowIso } });
+        try {
+          await env.DB.prepare(
+            "UPDATE talent_accounts SET name = ?, avatar = CASE WHEN ? != '' THEN ? ELSE avatar END, status = CASE WHEN ? != '' THEN ? ELSE status END, moods = CASE WHEN ? != '' THEN ? ELSE moods END, updated_at = ? WHERE username = ?"
+          ).bind(name, avatar, avatar, nextStatus, nextStatus, nextMoods && nextMoods.length ? JSON.stringify(nextMoods) : "", nextMoods && nextMoods.length ? JSON.stringify(nextMoods) : "", nowIso, username).run();
+        } catch (_) {}
+        try {
+          const catRow = await env.DB.prepare("SELECT data FROM catalog_store WHERE id = 1").first();
+          if (catRow && catRow.data) {
+            const storeData = JSON.parse(catRow.data);
+            if (Array.isArray(storeData.talents)) {
+              let changed = false;
+              storeData.talents = storeData.talents.map((t) => {
+                const tSlug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/s+/g, "_"));
+                if (tSlug === username) {
+                  changed = true;
+                  return {
+                    ...t,
+                    ...(nextStatus ? { status: nextStatus.toLowerCase() } : {}),
+                    ...(finalAvatar ? { img: finalAvatar } : {}),
+                    ...(nextMoods && nextMoods.length ? { vibe: nextMoods } : {})
+                  };
+                }
+                return t;
+              });
+              if (changed) {
+                await env.DB.prepare("UPDATE catalog_store SET data = ?, updated_at = ? WHERE id = 1")
+                  .bind(JSON.stringify(storeData), nowIso).run();
+              }
+            }
+          }
+        } catch (_) {}
+        return jsonOut({ success: true, profile: { username, name, bio, avatar: finalAvatar, status: nextStatus || undefined, moods: nextMoods || undefined, updatedAt: nowIso } });
       }
 
       if (url.pathname === "/api/profile/get" && request.method === "GET") {
@@ -1221,6 +1316,44 @@ export default {
         let storeData = { talents: [], banners: [], vouchers: [], favorites: [] };
         if (row && row.data) {
           try { storeData = JSON.parse(row.data); } catch (_) {}
+        }
+        if (Array.isArray(storeData.talents) && storeData.talents.length > 0) {
+          try {
+            const [tRes, pRes] = await Promise.all([
+              env.DB.prepare("SELECT username, name, status, moods, avatar FROM talent_accounts").all(),
+              env.DB.prepare("SELECT username, name, avatar FROM user_profiles").all()
+            ]);
+            const tByKey = new Map();
+            for (const ta of (tRes && tRes.results) || []) {
+              const k = normalizeUsername(ta.username);
+              if (k) tByKey.set(k, ta);
+              const nameSlug = normalizeUsername(String(ta.name || "").replace(/s+/g, "_"));
+              if (nameSlug && !tByKey.has(nameSlug)) tByKey.set(nameSlug, ta);
+            }
+            const pByKey = new Map();
+            for (const up of (pRes && pRes.results) || []) {
+              const k = normalizeUsername(up.username);
+              if (k) pByKey.set(k, up);
+            }
+            storeData.talents = storeData.talents.map((t) => {
+              const slug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/s+/g, "_"));
+              const ta = tByKey.get(slug);
+              const up = pByKey.get(ta ? normalizeUsername(ta.username) : slug);
+              if (!ta && !up) return t;
+              const liveStatus = ta && ta.status ? String(ta.status).trim().toLowerCase() : t.status;
+              const liveAvatar = (up && up.avatar) || (ta && ta.avatar) || "";
+              let liveMoods = null;
+              if (ta && ta.moods) {
+                try { const parsed = JSON.parse(ta.moods); if (Array.isArray(parsed) && parsed.length) liveMoods = parsed; } catch (_) {}
+              }
+              return {
+                ...t,
+                ...(liveStatus ? { status: liveStatus } : {}),
+                ...(liveAvatar ? { img: liveAvatar } : {}),
+                ...(liveMoods ? { vibe: liveMoods } : {})
+              };
+            });
+          } catch (_) {}
         }
         return new Response(JSON.stringify({ success: true, data: storeData }), {
           headers: { ...securityHeaders, "Content-Type": "application/json" }
@@ -1463,12 +1596,17 @@ export default {
         const newPass = String(body.newPassword || "").trim();
         const nextStatus = String(body.status || "").trim().toUpperCase();
         const nextMoods = Array.isArray(body.moods) ? body.moods.map((m) => sanitizeText(m, 24)).filter(Boolean).slice(0, 6) : null;
+        const rawAvatar = String(body.avatar || "").trim();
+        const nextAvatar = rawAvatar ? safeLoungeImage(rawAvatar, env.R2_PUBLIC_URL) : "";
+        if (rawAvatar && !nextAvatar) {
+          return jsonOut({ success: false, error: "URL foto profil tidak valid." }, 400);
+        }
 
-        if (!uname || !currentPass) {
-          return new Response(JSON.stringify({ success: false, error: "Username dan password saat ini wajib diisi." }), {
-            status: 400,
-            headers: { ...securityHeaders, "Content-Type": "application/json" }
-          });
+        if (!uname) {
+          return jsonOut({ success: false, error: "Username wajib diisi." }, 400);
+        }
+        if (newPass && !currentPass) {
+          return jsonOut({ success: false, error: "Password saat ini wajib diisi untuk mengganti password." }, 400);
         }
         if (verifiedActor && verifiedActor.role === "talent" && verifiedActor.username !== uname) {
           return new Response(JSON.stringify({ success: false, error: "Forbidden: Identitas talent tidak cocok." }), {
@@ -1494,17 +1632,19 @@ export default {
           });
         }
 
-        const check = await verifyPassword(currentPass, row.password_hash);
-        if (!check.valid) {
-          await recordAuthFailure("talent_update");
-          await new Promise((r) => setTimeout(r, 1000));
-          return new Response(JSON.stringify({ success: false, error: "Password saat ini salah." }), {
-            status: 401,
-            headers: { ...securityHeaders, "Content-Type": "application/json" }
-          });
+        let check = { valid: true, needsUpgrade: false };
+        if (newPass || currentPass) {
+          check = await verifyPassword(currentPass, row.password_hash);
+          if (!check.valid) {
+            await recordAuthFailure("talent_update");
+            await new Promise((r) => setTimeout(r, 1000));
+            return new Response(JSON.stringify({ success: false, error: "Password saat ini salah." }), {
+              status: 401,
+              headers: { ...securityHeaders, "Content-Type": "application/json" }
+            });
+          }
+          await clearAuthFailure("talent_update");
         }
-
-        await clearAuthFailure("talent_update");
 
         if (newPass && (newPass.length < 6 || newPass.length > 64)) {
           return new Response(JSON.stringify({ success: false, error: "Password baru harus 6-64 karakter." }), {
@@ -1515,9 +1655,10 @@ export default {
 
         const validStatuses = ["READY", "BUSY", "OFFLINE"];
         const finalStatus = validStatuses.includes(nextStatus) ? nextStatus : (row.status || "READY");
+        const finalAvatar = nextAvatar || row.avatar || "";
         const finalHash = newPass
           ? await hashPasswordPBKDF2(newPass)
-          : (check.needsUpgrade ? await hashPasswordPBKDF2(currentPass) : row.password_hash);
+          : (check.needsUpgrade && currentPass ? await hashPasswordPBKDF2(currentPass) : row.password_hash);
 
         // Naikkan token_version jika ganti password agar sesi di perangkat lain otomatis hangus
         const nextTokVer = Number(row.token_version || 1) + (newPass ? 1 : 0);
@@ -1526,9 +1667,17 @@ export default {
         try { parsedMoods = JSON.parse(row.moods || "[]"); } catch (_) {}
         const finalMoods = (nextMoods && nextMoods.length) ? nextMoods : parsedMoods;
 
+        const nowIso = new Date().toISOString();
         await env.DB.prepare(
-          "UPDATE talent_accounts SET password_hash = ?, status = ?, moods = ?, token_version = ?, updated_at = ? WHERE username = ?"
-        ).bind(finalHash, finalStatus, JSON.stringify(finalMoods), nextTokVer, new Date().toISOString(), uname).run();
+          "UPDATE talent_accounts SET password_hash = ?, status = ?, moods = ?, avatar = ?, token_version = ?, updated_at = ? WHERE username = ?"
+        ).bind(finalHash, finalStatus, JSON.stringify(finalMoods), finalAvatar, nextTokVer, nowIso, uname).run();
+        if (nextAvatar) {
+          try {
+            await env.DB.prepare(
+              "INSERT INTO user_profiles (username, name, bio, avatar, updated_at) VALUES (?, ?, '', ?, ?) ON CONFLICT(username) DO UPDATE SET avatar = excluded.avatar, updated_at = excluded.updated_at"
+            ).bind(uname, row.name || uname, nextAvatar, nowIso).run();
+          } catch (_) {}
+        }
 
         try {
           const catRow = await env.DB.prepare("SELECT data FROM catalog_store WHERE id = 1").first();
@@ -1537,16 +1686,16 @@ export default {
             if (Array.isArray(storeData.talents)) {
               let changed = false;
               storeData.talents = storeData.talents.map((t) => {
-                const tSlug = String(t.name || "").toLowerCase().replace(/[^\w\s]/g, "").trim().replace(/\s+/g, "_");
+                const tSlug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/s+/g, "_"));
                 if (tSlug === uname || String(t.name || "").toLowerCase() === String(row.name || "").toLowerCase()) {
                   changed = true;
-                  return { ...t, status: finalStatus.toLowerCase(), vibe: finalMoods };
+                  return { ...t, status: finalStatus.toLowerCase(), vibe: finalMoods, ...(finalAvatar ? { img: finalAvatar } : {}) };
                 }
                 return t;
               });
               if (changed) {
                 await env.DB.prepare("UPDATE catalog_store SET data = ?, updated_at = ? WHERE id = 1")
-                  .bind(JSON.stringify(storeData), new Date().toISOString()).run();
+                  .bind(JSON.stringify(storeData), nowIso).run();
               }
             }
           }
@@ -1575,7 +1724,7 @@ export default {
             agency: row.agency || "Clubs'Night",
             status: finalStatus,
             moods: finalMoods,
-            avatar: row.avatar || "",
+            avatar: finalAvatar,
             sessionToken
           }
         }), {
@@ -2108,7 +2257,12 @@ export default {
 
         const baseAmount = Math.max(5000, Math.min(50000000, Math.round(Number(body.baseAmount || 0))));
         const mode = body.mode === "booking" ? "booking" : "topup";
-        const service = sanitizeText(body.service || "Top-Up Saldo CN Wallet", 160);
+        const rawService = sanitizeText(body.service || "", 160);
+        const service = mode === "topup"
+          ? (rawService && !/^Top-Up Saldo CN Wallet/i.test(rawService)
+              ? rawService
+              : "Top-Up Saldo CN Wallet (Rp " + baseAmount.toLocaleString("id-ID") + ")")
+          : (rawService || "Booking Sesi CN Wallet");
         const now = Date.now();
 
         // Batalkan intent PENDING sebelumnya milik user yang sama (Anti-Spam / Anti-Exhaustion kode unik)
@@ -2181,6 +2335,7 @@ export default {
             id: intentId,
             username: actorUser,
             baseAmount,
+            base_amount: baseAmount,
             uniqueCode,
             totalAmount,
             mode,

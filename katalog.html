@@ -1,20 +1,57 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<script id="cnDebugProbe">
+<script id="cnClientErrorReporter">
 (function(){
-  if (location.hash.indexOf("cndebug") === -1) return;
-  var logs = [];
-  function show(){ alert(logs.join("\n").slice(0, 1500)); }
-  window.addEventListener("error", function(e){ logs.push("ERROR: " + e.message + " (baris " + (e.lineno || "?") + ")"); });
-  window.addEventListener("unhandledrejection", function(e){ logs.push("PROMISE: " + ((e.reason && e.reason.message) || e.reason)); });
-  window.addEventListener("load", function(){ setTimeout(function(){
-    var s = (window.cnAuth && cnAuth.getSession && cnAuth.getSession()) || {};
-    var safe = {}; ["username","role","approved","saVerified","subject","authMethod","tg_id","id"].forEach(function(k){ if (k in s) safe[k] = s[k]; });
-    logs.unshift("ROLE: " + (window.cnRoleGuard ? cnRoleGuard.getRole() : "n/a") + " | fungsi: " + typeof window.openCnDevCenter + "\nSESI: " + JSON.stringify(safe));
-    show();
-    document.addEventListener("click", function(ev){ var t = ev.target; logs.push("KLIK: " + t.tagName + "#" + t.id + " ." + String(t.className).slice(0, 40)); setTimeout(show, 800); }, { capture: true, once: true });
-  }, 1500); });
+  var PLACEHOLDER = "https://placehold.co/400x533/180d28/ff1744?text=Clubs+Night";
+  if (typeof window.handleImgError !== "function") {
+    window.handleImgError = function(el) {
+      if (!el) return;
+      el.onerror = null;
+      el.src = PLACEHOLDER;
+    };
+  }
+  var sent = 0;
+  var MAX_REPORTS = 10;
+  function sanitizeMsg(val) {
+    return String(val == null ? "" : val)
+      .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "[REDACTED]")
+      .replace(/(token|secret|password|auth)=[^&\s]+/gi, "$1=[REDACTED]")
+      .slice(0, 360);
+  }
+  function reportClientError(message, line) {
+    if (sent >= MAX_REPORTS) return;
+    var msg = sanitizeMsg(message);
+    if (!msg) return;
+    sent += 1;
+    try {
+      var base = window.CN_WORKER_API || (["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? "http://127.0.0.1:8787"
+        : "https://clubsnight-fullstack.clubsnight.workers.dev");
+      var payload = JSON.stringify({
+        message: msg,
+        line: Number(line) || 0,
+        page: String(location.pathname || "/").slice(0, 180),
+        ua: String(navigator.userAgent || "").slice(0, 220),
+        ts: new Date().toISOString()
+      });
+      fetch(base + "/api/client-error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true
+      }).catch(function(){});
+    } catch (_) {}
+  }
+  window.addEventListener("error", function(e) {
+    if (!e || !e.message) return;
+    reportClientError(e.message, e.lineno || 0);
+  });
+  window.addEventListener("unhandledrejection", function(e) {
+    var reason = e && e.reason;
+    var msg = reason && reason.message ? reason.message : String(reason || "Unhandled rejection");
+    reportClientError("UnhandledRejection: " + msg, 0);
+  });
 })();
 </script>
 
@@ -4778,42 +4815,91 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         document.getElementById("cnFullUploadLabel").textContent = "Pilih foto dari galeri HP (otomatis dikompres & hapus EXIF)";
       };
 
-      window.handleCnFullPostSubmit = function(e) {
+      window.handleCnFullPostSubmit = async function(e) {
         e.preventDefault();
         var cfg = getConfig();
         var s = window.cnAuth && window.cnAuth.getSession();
         var text = document.getElementById("cnFullPostText").value.trim();
         var role = String(s && s.role || "").toLowerCase();
-        if (!s || !(role === "talent" || ["superadmin", "owner", "dev", "developer"].indexOf(role) !== -1) ||
-            (role === "talent" && s.approved !== true) || text.length < (cfg.minPostChars || 1)) return;
+        var isAllowedRole = role === "talent" || ["superadmin", "owner", "dev", "developer", "admin"].indexOf(role) !== -1;
+        if (!s || !isAllowedRole) {
+          if (typeof window.cnToast === "function") window.cnToast("Hanya Talent atau Admin terverifikasi yang dapat memposting.", "error");
+          return;
+        }
+        if (role === "talent" && s.approved === false) {
+          if (typeof window.cnToast === "function") window.cnToast("Akun Talent belum disetujui untuk memposting.", "error");
+          return;
+        }
+        if (!fullComposeImg && text.length < (cfg.minPostChars || 1)) {
+          if (typeof window.cnToast === "function") window.cnToast("Teks postingan minimal " + (cfg.minPostChars || 1) + " karakter.", "error");
+          return;
+        }
 
-        var tagPrefix = "[" + selectedCat + (selectedMood ? " • " + selectedMood : "") + "]\n";
-        var newPost = {
-          id: "post_" + Date.now(),
-          ownerUsername: s.username,
-          author: s.name,
-          handle: "@" + s.username.replace(/^@/, ""),
-          role: s.role === "talent" ? "TALENT" : "VIP",
-          time: "Baru saja",
-          text: tagPrefix + text,
-          image: fullComposeImg,
-          allowReply: document.getElementById("cnAllowReplyToggle").checked,
-          likes: 0,
-          liked: false,
-          replies: []
-        };
+        var submitBtn = document.querySelector("#cnFullComposeForm button[type='submit']");
+        if (submitBtn && submitBtn.disabled) return;
+        if (submitBtn) submitBtn.disabled = true;
 
-        var posts = [];
-        try { posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch (err) {}
-        posts.unshift(newPost);
-        try { localStorage.setItem(FEED_KEY, JSON.stringify(posts)); if (window.cnForcePushLounge) window.cnForcePushLounge(); } catch (err) {}
+        try {
+          var finalImageUrl = fullComposeImg || "";
+          if (finalImageUrl && finalImageUrl.indexOf("data:image") === 0) {
+            if (!window.cnUploadMediaToR2) throw new Error("Layanan upload media tidak tersedia.");
+            finalImageUrl = await window.cnUploadMediaToR2(finalImageUrl, "lounge");
+          }
 
-        // Reset form lalu kembali ke Lounge & reload feed
-        document.getElementById("cnFullComposeForm").reset();
-        window.clearCnFullImg();
-        window.switchPwaTab("lounge");
-        if (typeof window.refreshCnLoungeFeed === "function") window.refreshCnLoungeFeed();
-        if (typeof window.cnToast === "function") window.cnToast("Postingan berhasil dipublikasikan ke Lounge!", "info");
+          var tagPrefix = "[" + selectedCat + (selectedMood ? " • " + selectedMood : "") + "]\n";
+          var newPost = {
+            id: "post_" + Date.now(),
+            ownerUsername: s.username,
+            author: s.name,
+            handle: "@" + s.username.replace(/^@/, ""),
+            role: s.role === "talent" ? "TALENT" : "VIP",
+            time: "Baru saja",
+            text: tagPrefix + text,
+            image: finalImageUrl,
+            allowReply: document.getElementById("cnAllowReplyToggle").checked,
+            likes: 0,
+            liked: false,
+            replies: []
+          };
+
+          var posts = [];
+          try { posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch (err) {}
+          var nextPosts = [newPost].concat(Array.isArray(posts) ? posts : []);
+          var stories = [];
+          try { stories = JSON.parse(localStorage.getItem("cn_uploaded_stories_v1") || "[]"); } catch (err) {}
+
+          var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+          var token = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
+          if (!token) throw new Error("Sesi tidak valid. Silakan login ulang.");
+
+          var saveRes = await fetch(workerApi + "/api/lounge/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({
+              actor: { username: s.username, name: s.name, role: s.role, sessionToken: token },
+              posts: nextPosts,
+              stories: stories
+            })
+          });
+          var saveData = await saveRes.json().catch(function() { return {}; });
+          if (!saveRes.ok || !saveData.success) {
+            throw new Error(saveData.error || ("Postingan ditolak server (HTTP " + saveRes.status + ")."));
+          }
+
+          try { localStorage.setItem(FEED_KEY, JSON.stringify(nextPosts)); } catch (err) {}
+
+          document.getElementById("cnFullComposeForm").reset();
+          window.clearCnFullImg();
+          window.switchPwaTab("lounge");
+          if (typeof window.refreshCnLoungeFeed === "function") window.refreshCnLoungeFeed();
+          if (typeof window.cnToast === "function") window.cnToast("Postingan berhasil dipublikasikan ke Lounge!", "info");
+        } catch (err) {
+          var errMsg = (err && err.message) || "Gagal mempublikasikan postingan ke Lounge.";
+          if (typeof window.cnToast === "function") window.cnToast(errMsg, "error");
+          else alert(errMsg);
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
       };
 
       // === 2. SUPER DEVELOPER CONTROL CENTER ===
@@ -6120,6 +6206,18 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
 };
 
 
+      function getProfiles() {
+        try {
+          var local = JSON.parse(localStorage.getItem("cn_user_profiles_v1") || "{}");
+          var globalMap = JSON.parse(localStorage.getItem("cn_global_profiles_v1") || "{}");
+          return Object.assign({}, globalMap || {}, local || {});
+        } catch (_) { return {}; }
+      }
+      function saveProfiles(map) {
+        try { localStorage.setItem("cn_user_profiles_v1", JSON.stringify(map || {})); } catch (_) {}
+        try { localStorage.setItem("cn_global_profiles_v1", JSON.stringify(map || {})); } catch (_) {}
+      }
+
       // 1. Mount halaman #cnPagePublicProfile di puncak <main>
       function mountPublicProfilePage() {
         var anchor = document.querySelector(".cn-editorial-hero") || document.getElementById("galleryView");
@@ -6308,11 +6406,12 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         reader.readAsDataURL(file);
       };
 
-      window.handleCnProfileSave = function(e) {
+      window.handleCnProfileSave = async function(e) {
         e.preventDefault();
         var s = getActiveEditorSession();
         if (!s) return;
 
+        var fb = document.getElementById("cnProfFeedback");
         var cleanUser = s.username.replace(/^@/, "").toLowerCase();
         var newName = document.getElementById("cnProfName").value.trim() || s.name;
         var newBio = document.getElementById("cnProfBio").value.trim() || "Belum menambahkan biodata.";
@@ -6321,49 +6420,100 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         var newMoods = document.getElementById("cnProfMoods").value
           .split(",").map(function(m) { return m.trim(); }).filter(Boolean);
 
-        var map = getProfiles();
-        map[cleanUser] = {
-          username: cleanUser,
-          name: newName,
-          role: (s.role || "user").toUpperCase(),
-          agency: newAgency,
-          status: newStatus,
-          moods: newMoods.length ? newMoods : ["VIP Lounge"],
-          bio: newBio,
-          avatar: tempAvatarDataUrl
-        };
-        saveProfiles(map);
-
-        // Sinkronkan ke sesi aktif
-        s.name = newName;
-        s.avatar = tempAvatarDataUrl;
-        try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch (err) {}
-
-        // Sinkronkan ke semua postingan milik akun ini di Lounge
         try {
-          var posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]");
-          var changed = false;
-          posts.forEach(function(p) {
-            if ((p.handle || "").replace(/^@/, "").toLowerCase() === cleanUser) {
-              p.author = newName;
-              p.avatar = tempAvatarDataUrl;
-              changed = true;
-            }
+          var finalAvatar = tempAvatarDataUrl || "";
+          if (finalAvatar && finalAvatar.indexOf("data:image") === 0) {
+            if (!window.cnUploadMediaToR2) throw new Error("Layanan upload avatar tidak tersedia.");
+            finalAvatar = await window.cnUploadMediaToR2(finalAvatar, "profile");
+            tempAvatarDataUrl = finalAvatar;
+          }
+
+          var workerApi = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+          var token = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
+          if (!token) throw new Error("Sesi tidak valid. Silakan login ulang.");
+
+          var res = await fetch(workerApi + "/api/profile/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({
+              username: cleanUser,
+              name: newName,
+              bio: newBio,
+              avatar: finalAvatar,
+              status: newStatus,
+              moods: newMoods.length ? newMoods : ["VIP Lounge"]
+            })
           });
-          if (changed) localStorage.setItem(FEED_KEY, JSON.stringify(posts)); if (window.cnForcePushLounge) window.cnForcePushLounge();
-        } catch (err) {}
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || ("Gagal menyimpan profil ke server (HTTP " + res.status + ")."));
+          }
+          var savedAvatar = (data.profile && data.profile.avatar) || finalAvatar;
 
-        var fb = document.getElementById("cnProfFeedback");
-        fb.textContent = "✅ Profil & biodata berhasil diperbarui!";
-        fb.className = "cn-auth-feedback is-success";
-        fb.style.display = "block";
+          var map = getProfiles();
+          map[cleanUser] = {
+            username: cleanUser,
+            name: newName,
+            role: (s.role || "user").toUpperCase(),
+            agency: newAgency,
+            status: newStatus,
+            moods: newMoods.length ? newMoods : ["VIP Lounge"],
+            bio: newBio,
+            avatar: savedAvatar
+          };
+          saveProfiles(map);
 
-        window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: s }));
-        setTimeout(function() {
-          window.closeCnProfileEditor();
-          enhanceActivityProfileCard();
-          decorateLoungePosts();
-        }, 650);
+          ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"].forEach(function(k) {
+            try {
+              var cur = JSON.parse(localStorage.getItem(k) || "null");
+              if (!cur) return;
+              cur.name = newName;
+              cur.bio = newBio;
+              cur.status = newStatus;
+              if (savedAvatar) cur.avatar = savedAvatar;
+              localStorage.setItem(k, JSON.stringify(cur));
+            } catch (_) {}
+          });
+          s.name = newName;
+          s.status = newStatus;
+          if (savedAvatar) s.avatar = savedAvatar;
+
+          try {
+            var posts = JSON.parse(localStorage.getItem(FEED_KEY) || "[]");
+            var changed = false;
+            posts.forEach(function(p) {
+              if ((p.handle || "").replace(/^@/, "").toLowerCase() === cleanUser) {
+                p.author = newName;
+                if (savedAvatar) p.avatar = savedAvatar;
+                changed = true;
+              }
+            });
+            if (changed) localStorage.setItem(FEED_KEY, JSON.stringify(posts));
+          } catch (err) {}
+
+          if (fb) {
+            fb.textContent = "✅ Profil & biodata berhasil diperbarui!";
+            fb.className = "cn-auth-feedback is-success";
+            fb.style.display = "block";
+          }
+          if (typeof window.cnToast === "function") window.cnToast("Profil & status berhasil disimpan ke server!", "info");
+          if (typeof window.refreshCloudflareCatalog === "function") window.refreshCloudflareCatalog();
+          window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: s }));
+          setTimeout(function() {
+            window.closeCnProfileEditor();
+            enhanceActivityProfileCard();
+            decorateLoungePosts();
+          }, 650);
+        } catch (err) {
+          var msg = (err && err.message) || "Gagal menyimpan profil ke server.";
+          if (fb) {
+            fb.textContent = "❌ " + msg;
+            fb.className = "cn-auth-feedback is-error";
+            fb.style.display = "block";
+          }
+          if (typeof window.cnToast === "function") window.cnToast(msg, "error");
+          else alert(msg);
+        }
       };
 
       // 4. Buka Halaman Profil Publik dari Lounge
@@ -8541,7 +8691,7 @@ window.addEventListener("storage", function(e) {
 
           '<div>' +
             '<label style="display:block;font-size:12px;color:#ffb4c2;margin-bottom:6px;font-weight:600;">Verifikasi Password Saat Ini (Wajib) *</label>' +
-            '<input type="password" id="cnTalentCurPass" placeholder="Masukkan password Anda saat ini" required style="width:100%;padding:11px 12px;border-radius:12px;border:1px solid rgba(255,42,95,0.4);background:#1b1328;color:#fff;font-size:14px;box-sizing:border-box;" />' +
+            '<input type="password" id="cnTalentCurPass" placeholder="Isi hanya jika mengganti password" style="width:100%;padding:11px 12px;border-radius:12px;border:1px solid rgba(255,42,95,0.4);background:#1b1328;color:#fff;font-size:14px;box-sizing:border-box;" />' +
           '</div>' +
 
           '<div id="cnTalentSaveMsg" style="font-size:12px;min-height:18px;"></div>' +
@@ -8587,7 +8737,10 @@ window.addEventListener("storage", function(e) {
       msgEl.textContent = "Memverifikasi kredensial...";
 
       try {
-        var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+        if (newPassVal && !curPassVal) {
+          throw new Error("Password saat ini wajib diisi untuk mengganti password.");
+        }
+        var sessionToken = (talent && (talent.sessionToken || talent.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
         var res = await fetch(WORKER_API + "/api/talent/update-profile", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
@@ -8609,8 +8762,11 @@ window.addEventListener("storage", function(e) {
           var updatedSess = Object.assign({}, talent, data.user);
           localStorage.setItem("cn_pwa_session_v1", JSON.stringify(updatedSess));
           localStorage.setItem("cn_auth_session_v1", JSON.stringify(updatedSess));
+          try { localStorage.setItem("cn_talent_session_v1", JSON.stringify(updatedSess)); } catch (_) {}
+          window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: updatedSess }));
         }
 
+        if (typeof window.refreshCloudflareCatalog === "function") window.refreshCloudflareCatalog();
         msgEl.style.color = "#4ade80";
         msgEl.textContent = "✅ " + (data.message || "Tersimpan!");
         injectActivityTalentCard();
@@ -9538,7 +9694,7 @@ window.addEventListener("storage", function(e) {
       </div>
       <div style="margin-bottom:10px;">
         <label style="font-size:11.5px;color:rgba(255,255,255,0.72);display:block;margin-bottom:4px;">Atau Masukkan Nominal (IDR):</label>
-        <input type="number" id="cnQrisCustomAmountInput" min="10000" step="1000" value="100000" oninput="window.setCnQrisAmount(this.value)" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#fff;font-weight:700;font-size:14px;" />
+        <input type="number" id="cnQrisCustomAmountInput" min="5000" step="1000" value="100000" oninput="window.setCnQrisAmount(this.value)" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#fff;font-weight:700;font-size:14px;" />
       </div>
     </div>
 
@@ -9743,8 +9899,19 @@ window.addEventListener("storage", function(e) {
   }
 
   // 4. Kontrol Modal QRIS Dinamis
+  window.renderCnQrisDisplay = function(displayTotal) {
+    var safeTotal = Math.max(5000, Math.round(Number(displayTotal) || currentAmount || 100000));
+    currentGeneratedPayload = window.regenerateDynamicQris(safeTotal);
+    var qrImg = document.getElementById("cnQrisQrImg");
+    if (qrImg) {
+      qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=6&data=" + encodeURIComponent(currentGeneratedPayload);
+    }
+    var nomEl = document.getElementById("cnQrisDisplayNominal");
+    if (nomEl) nomEl.textContent = formatRupiah(safeTotal);
+  };
+
   window.setCnQrisAmount = function(val, btnEl) {
-    currentAmount = Math.max(1000, Math.round(Number(val) || 100000));
+    currentAmount = Math.max(5000, Math.round(Number(val) || 100000));
     var inp = document.getElementById("cnQrisCustomAmountInput");
     if (inp && document.activeElement !== inp) inp.value = currentAmount;
 
@@ -9753,13 +9920,7 @@ window.addEventListener("storage", function(e) {
       btnEl.classList.add("active");
     }
 
-    currentGeneratedPayload = window.regenerateDynamicQris(currentAmount);
-    var qrImg = document.getElementById("cnQrisQrImg");
-    if (qrImg) {
-      qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=6&data=" + encodeURIComponent(currentGeneratedPayload);
-    }
-    var nomEl = document.getElementById("cnQrisDisplayNominal");
-    if (nomEl) nomEl.textContent = formatRupiah(currentAmount);
+    window.renderCnQrisDisplay(currentAmount);
   };
 
   window.openCnQrisTopupModal = function(presetAmount, bookingCtx) {
@@ -10063,10 +10224,14 @@ window.addEventListener("storage", function(e) {
     await requestUniqueQrisIntent(baseNominal, bookingCtx);
   };
 
+  var qrisIntentInFlight = false;
   async function requestUniqueQrisIntent(baseNominal, bookingCtx) {
     var u = getActiveUser();
     if (!u || !u.username) return;
+    if (qrisIntentInFlight) return;
+    qrisIntentInFlight = true;
 
+    var cleanBase = Math.max(5000, Math.round(Number(baseNominal) || 100000));
     var noteEl = document.getElementById("cnQrisStatusNote");
     if (noteEl) {
       noteEl.style.color = "#38bdf8";
@@ -10076,10 +10241,10 @@ window.addEventListener("storage", function(e) {
 
     function applyLocalFallback() {
       var localCode = Math.floor(Math.random() * 499) + 1;
-      var total = baseNominal + localCode;
-      if (typeof origSetAmount === "function") origSetAmount(total);
+      var total = cleanBase + localCode;
+      if (typeof window.renderCnQrisDisplay === "function") window.renderCnQrisDisplay(total);
       var refEl = document.getElementById("cnQrisRefCode");
-      if (refEl) refEl.innerHTML = "Kode Unik: <b>+" + formatRp(localCode) + "</b>";
+      if (refEl) refEl.innerHTML = "Top-Up " + formatRp(cleanBase) + " • Kode Unik: <b>+" + formatRp(localCode) + "</b>";
       if (noteEl) {
         noteEl.style.color = "#fbbf24";
         noteEl.innerHTML = "Scan &amp; bayar sesuai nominal unik <b>" + formatRp(total) + "</b> (Kode unik +" + localCode + ").";
@@ -10099,9 +10264,9 @@ window.addEventListener("storage", function(e) {
         headers: { "Content-Type": "application/json", "X-Session-Token": sessTok },
         body: JSON.stringify({
           username: u.username,
-          baseAmount: baseNominal,
+          baseAmount: cleanBase,
           mode: bookingCtx ? "booking" : "topup",
-          service: bookingCtx ? bookingCtx.service : ("Top-Up Saldo CN Wallet (" + formatRp(baseNominal) + ")")
+          service: bookingCtx ? bookingCtx.service : ""
         }),
         signal: ctrl ? ctrl.signal : undefined
       });
@@ -10110,10 +10275,13 @@ window.addEventListener("storage", function(e) {
       var data = await res.json().catch(function() { return {}; });
       if (res.ok && data && data.success && data.intent) {
         activeIntent = data.intent;
-        if (typeof origSetAmount === "function") origSetAmount(activeIntent.totalAmount);
+        var srvBase = Number(activeIntent.base_amount || activeIntent.baseAmount || cleanBase);
+        var srvService = bookingCtx ? bookingCtx.service : ("Top-Up Saldo CN Wallet (" + formatRp(srvBase) + ")");
+        activeIntent.service = activeIntent.service || srvService;
+        if (typeof window.renderCnQrisDisplay === "function") window.renderCnQrisDisplay(activeIntent.totalAmount);
         var refEl = document.getElementById("cnQrisRefCode");
         if (refEl) {
-          refEl.innerHTML = "ID: <b>" + activeIntent.id + "</b> • Kode Unik: <b>+" + formatRp(activeIntent.uniqueCode) + "</b>";
+          refEl.innerHTML = "ID: <b>" + activeIntent.id + "</b> • " + srvService + " • Kode Unik: <b>+" + formatRp(activeIntent.uniqueCode) + "</b>";
         }
         if (noteEl) {
           noteEl.style.color = "#fbbf24";
@@ -10126,6 +10294,8 @@ window.addEventListener("storage", function(e) {
       }
     } catch (_) {
       applyLocalFallback();
+    } finally {
+      qrisIntentInFlight = false;
     }
   }
 
@@ -10138,7 +10308,7 @@ window.addEventListener("storage", function(e) {
     if (btnEl || (document.activeElement && document.activeElement.id === "cnQrisCustomAmountInput")) {
       clearTimeout(debounceIntentTimer);
       debounceIntentTimer = setTimeout(function() {
-        var cleanBase = Math.max(1000, Math.round(Number(val) || 100000));
+        var cleanBase = Math.max(5000, Math.round(Number(val) || 100000));
         requestUniqueQrisIntent(cleanBase, null);
       }, 650);
     }
@@ -10479,7 +10649,7 @@ window.addEventListener("storage", function(e) {
 
     <div class="form-group" style="margin-bottom:10px;">
       <label style="font-size:11px;color:rgba(255,255,255,0.7);">Nominal Top-Up (Rp)</label>
-      <input type="number" id="cnPwAmountInput" class="form-control" min="10000" step="1000" value="100000" oninput="window.onCnPaywallManualInput(this.value)" />
+      <input type="number" id="cnPwAmountInput" class="form-control" min="5000" step="1000" value="100000" oninput="window.onCnPaywallManualInput(this.value)" />
     </div>
 
     <button type="button" id="cnPwGenerateBtn" class="btn-neon" onclick="window.generateCnPaywallInvoice()" style="width:100%;padding:13px;font-size:13.5px;">
@@ -10782,12 +10952,15 @@ window.addEventListener("storage", function(e) {
     if (typeof renderPaymentGateBanner === "function") renderPaymentGateBanner();
   };
 
+  var paywallIntentInFlight = false;
   window.generateCnPaywallInvoice = async function() {
+    if (paywallIntentInFlight) return;
     var u = getUnifiedUser();
     if (!u) { window.location.href = "/login.html"; return; }
-    var amt = Math.max(10000, Math.round(Number(document.getElementById("cnPwAmountInput")?.value || 0)));
+    var amt = Math.max(5000, Math.round(Number(document.getElementById("cnPwAmountInput")?.value || 0)));
     var btn = document.getElementById("cnPwGenerateBtn");
     var statusEl = document.getElementById("cnPwStatusMsg");
+    paywallIntentInFlight = true;
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = "<i class=\"fa-solid fa-spinner fa-spin\"></i> Membuat Kode Unik &amp; QRIS...";
@@ -10813,6 +10986,7 @@ window.addEventListener("storage", function(e) {
       }
 
       activePaywallIntent = data.intent;
+      var srvBase = Number(data.intent.base_amount || data.intent.baseAmount || amt);
       var totalBayar = data.intent.totalAmount;
       var intentId = data.intent.id;
       var kodeUnik = Number(data.intent.uniqueCode || 0);
@@ -10822,10 +10996,10 @@ window.addEventListener("storage", function(e) {
       if (qrImg) {
         qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=6&data=" + encodeURIComponent(qrisStr);
       }
-      document.getElementById("cnPwInvoiceId").textContent = "ID TAGIHAN: " + intentId + " (" + selectedBankName + ")";
+      document.getElementById("cnPwInvoiceId").textContent = "ID TAGIHAN: " + intentId + " (" + selectedBankName + " • " + formatRp(srvBase) + ")";
       document.getElementById("cnPwExactTotal").textContent = formatRp(totalBayar);
       document.getElementById("cnPwUniqueInfo").textContent = kodeUnik > 0
-        ? ("Nominal " + formatRp(amt) + " + Kode Unik " + formatRp(kodeUnik) + " (Otomatis masuk 1-5 detik setelah bayar)")
+        ? ("Nominal " + formatRp(srvBase) + " + Kode Unik " + formatRp(kodeUnik) + " (Otomatis masuk 1-5 detik setelah bayar)")
         : "Scan QRIS di atas dengan nominal tepat";
 
       document.getElementById("cnPwInvoiceBox").style.display = "block";
@@ -10853,6 +11027,7 @@ window.addEventListener("storage", function(e) {
     } catch (err) {
       alert(err.message || "Gagal membuat tagihan pembayaran. Periksa koneksi internet Anda.");
     } finally {
+      paywallIntentInFlight = false;
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = "<i class=\"fa-solid fa-qrcode\"></i> Buat Ulang Tagihan &amp; QRIS Pembayaran";
@@ -12624,46 +12799,84 @@ window.addEventListener("storage", function(e) {
     var newBio = document.getElementById("cnPeBio").value.trim();
     if (!newName) return;
 
-    var updatedUser = null;
-    var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"];
-    keys.forEach(function(k) {
-      try {
-        var u = JSON.parse(localStorage.getItem(k) || "null");
-        if (!u) return;
-        u.name = newName;
-        u.bio = newBio;
-        if (pendingAvatarDataUrl) u.avatar = pendingAvatarDataUrl;
-        localStorage.setItem(k, JSON.stringify(u));
-        updatedUser = u;
-      } catch (_) {}
-    });
-
-    if (updatedUser && updatedUser.username) {
-      try {
-        var pMap = JSON.parse(localStorage.getItem("cn_global_profiles_v1") || "{}");
-        pMap[String(updatedUser.username).toLowerCase()] = {
-          name: newName, bio: newBio, avatar: pendingAvatarDataUrl || updatedUser.avatar || "", updatedAt: Date.now()
-        };
-        localStorage.setItem("cn_global_profiles_v1", JSON.stringify(pMap));
-      } catch (_) {}
-    }
+    var saveBtn = document.getElementById("cnPeSaveBtn");
+    if (saveBtn && saveBtn.disabled) return;
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = "0.65"; }
 
     try {
-      var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
-      fetch(window.CN_WORKER_API + "/api/profile/update", {
+      var activeUser = getActiveUser();
+      var finalAvatarUrl = pendingAvatarDataUrl || (activeUser && activeUser.avatar) || "";
+      if (finalAvatarUrl && finalAvatarUrl.indexOf("data:image") === 0) {
+        if (!window.cnUploadMediaToR2) throw new Error("Layanan upload foto profil tidak tersedia.");
+        finalAvatarUrl = await window.cnUploadMediaToR2(finalAvatarUrl, "profile");
+        pendingAvatarDataUrl = finalAvatarUrl;
+      }
+
+      var sessionToken = (activeUser && (activeUser.sessionToken || activeUser.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
+      if (!sessionToken) throw new Error("Sesi tidak valid. Silakan login ulang.");
+
+      var res = await fetch((window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev") + "/api/profile/update", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
-        body: JSON.stringify({ name: newName, bio: newBio, avatar: pendingAvatarDataUrl })
-      }).catch(function() {});
-    } catch (_) {}
+        body: JSON.stringify({
+          username: activeUser && activeUser.username ? activeUser.username : "",
+          name: newName,
+          bio: newBio,
+          avatar: finalAvatarUrl
+        })
+      });
+      var data = await res.json().catch(function() { return {}; });
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || ("Profil gagal disimpan ke server (HTTP " + res.status + ")."));
+      }
+      var confirmedAvatar = (data.profile && data.profile.avatar) || finalAvatarUrl;
 
-    applyGlobalAvatarAndName(updatedUser);
-    window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: updatedUser }));
-    if (typeof window.broadcastCnRealtimeEvent === "function") {
-      window.broadcastCnRealtimeEvent("profile_updated", { username: updatedUser && updatedUser.username });
+      var updatedUser = null;
+      var keys = ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"];
+      keys.forEach(function(k) {
+        try {
+          var u = JSON.parse(localStorage.getItem(k) || "null");
+          if (!u) return;
+          u.name = newName;
+          u.bio = newBio;
+          if (confirmedAvatar) u.avatar = confirmedAvatar;
+          localStorage.setItem(k, JSON.stringify(u));
+          updatedUser = u;
+        } catch (_) {}
+      });
+
+      if (updatedUser && updatedUser.username) {
+        var unameKey = String(updatedUser.username).toLowerCase();
+        ["cn_global_profiles_v1", "cn_user_profiles_v1"].forEach(function(pk) {
+          try {
+            var pMap = JSON.parse(localStorage.getItem(pk) || "{}");
+            pMap[unameKey] = Object.assign({}, pMap[unameKey] || {}, {
+              username: unameKey,
+              name: newName,
+              bio: newBio,
+              avatar: confirmedAvatar || updatedUser.avatar || "",
+              updatedAt: Date.now()
+            });
+            localStorage.setItem(pk, JSON.stringify(pMap));
+          } catch (_) {}
+        });
+      }
+
+      applyGlobalAvatarAndName(updatedUser);
+      if (typeof window.refreshCloudflareCatalog === "function") window.refreshCloudflareCatalog();
+      window.dispatchEvent(new CustomEvent("cn:session-changed", { detail: updatedUser }));
+      if (typeof window.broadcastCnRealtimeEvent === "function") {
+        window.broadcastCnRealtimeEvent("profile_updated", { username: updatedUser && updatedUser.username });
+      }
+      closeNewProfileEditor();
+      if (typeof window.cnToast === "function") window.cnToast("Profil & foto berhasil diperbarui!", "info");
+    } catch (err) {
+      var errMsg = (err && err.message) || "Profil gagal disimpan ke server.";
+      if (typeof window.cnToast === "function") window.cnToast(errMsg, "error");
+      else alert(errMsg);
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = "1"; }
     }
-    closeNewProfileEditor();
-    if (typeof window.cnToast === "function") window.cnToast("Profil & foto berhasil diperbarui!", "info");
   };
 
   setTimeout(function() { applyGlobalAvatarAndName(getActiveUser()); }, 400);
@@ -13188,10 +13401,11 @@ window.addEventListener("storage", function(e) {
   var WORKER_BASE = window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
   var RENDER_BASE = "https://clubsnight-api.onrender.com";
 
-  // Helper: Upload base64 image ke Cloudflare R2 via Worker (fallback aman ke base64 jika endpoint belum aktif)
+  // Helper: Upload base64 image ke Cloudflare R2 via Worker
   window.cnUploadMediaToR2 = async function(dataUrl, purpose) {
     if (!dataUrl || dataUrl.indexOf("data:image") !== 0) return dataUrl;
-    var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
+    var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : null;
+    var sessionToken = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
     if (!sessionToken) throw new Error("Sesi upload tidak valid. Silakan login ulang.");
     var res = await fetch(WORKER_BASE + "/api/media/upload", {
       method: "POST",
@@ -13212,82 +13426,38 @@ window.addEventListener("storage", function(e) {
 
       try {
         var finalUrl = await window.cnUploadMediaToR2(imgDataUrl, "lounge");
-        var ok = origPublish(finalUrl, captionText);
-        if (ok) {
-          var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
-          var sessionToken = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
-          fetch(WORKER_BASE + "/api/lounge/story/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
-            body: JSON.stringify({
-              id: "ust_" + Date.now(),
-              ownerUsername: s.username || "",
-              ownerName: s.name || s.username || "",
-              image: finalUrl,
-              caption: (captionText || "").trim(),
-              createdAt: Date.now()
-            })
-          }).catch(function() {});
+        var s = window.cnAuth && window.cnAuth.getSession ? window.cnAuth.getSession() : {};
+        var sessionToken = (s && (s.sessionToken || s.token)) || (window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "");
+        var res = await fetch(WORKER_BASE + "/api/lounge/story/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
+          body: JSON.stringify({
+            id: "ust_" + Date.now(),
+            ownerUsername: s.username || "",
+            ownerName: s.name || s.username || "",
+            image: finalUrl,
+            caption: (captionText || "").trim(),
+            createdAt: Date.now()
+          })
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.success) throw new Error(data.error || "Story gagal disimpan ke server.");
 
-          if (typeof window.broadcastCnRealtimeEvent === "function") {
-            window.broadcastCnRealtimeEvent("story_uploaded", { ts: Date.now() });
-          }
+        var ok = origPublish(finalUrl, captionText);
+        if (ok && typeof window.broadcastCnRealtimeEvent === "function") {
+          window.broadcastCnRealtimeEvent("story_uploaded", { ts: Date.now() });
         }
         return ok;
+      } catch (err) {
+        var msg = (err && err.message) || "Story gagal diunggah ke Lounge.";
+        if (typeof window.cnToast === "function") window.cnToast(msg, "error");
+        else alert(msg);
+        return false;
       } finally {
         sendBtns.forEach(function(b) { if (b) { b.disabled = false; b.style.opacity = "1"; } });
       }
     };
     window.cnPublishStoryDirect.__r2Wrapped = true;
-  }
-
-  // Intercept submit Edit Profil agar avatar ikut naik ke R2 & tersinkron ke Cloudflare D1 + Render
-  var peForm = document.getElementById("cnProEditForm");
-  if (peForm && !peForm.__r2Bound) {
-    peForm.__r2Bound = true;
-    peForm.addEventListener("submit", function() {
-      var saveBtn = document.getElementById("cnPeSaveBtn");
-      if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = "0.65"; }
-
-      setTimeout(async function() {
-        try {
-          var u = JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null");
-          if (u && u.username) {
-            var avatarUrl = u.avatar || "";
-            if (avatarUrl.indexOf("data:image") === 0) {
-              avatarUrl = await window.cnUploadMediaToR2(avatarUrl, "profile");
-              u.avatar = avatarUrl;
-              ["cn_auth_session_v1", "cn_pwa_session_v1", "cn_talent_session_v1"].forEach(function(k) {
-                try {
-                  var cur = JSON.parse(localStorage.getItem(k) || "null");
-                  if (cur) { cur.avatar = avatarUrl; localStorage.setItem(k, JSON.stringify(cur)); }
-                } catch (_) {}
-              });
-            }
-            // Sinkronkan profil ke Cloudflare Worker (D1) & Render.com
-            var payload = JSON.stringify({
-              username: u.username,
-              name: u.name || "",
-              bio: u.bio || "",
-              avatar: avatarUrl
-            });
-            var sessionToken = window.getCnHmacSessionToken ? await window.getCnHmacSessionToken() : "";
-            fetch(WORKER_BASE + "/api/profile/update", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "X-Session-Token": sessionToken },
-              body: payload
-            }).then(async function(r){ if (!r.ok) { var j = await r.json().catch(function(){ return {}; }); var m = "Profil gagal disimpan ke server: " + (j.error || ("HTTP " + r.status)); if (window.cnToast) window.cnToast(m, "error"); else alert(m); } }).catch(function(){ var m = "Profil gagal disimpan ke server (jaringan)."; if (window.cnToast) window.cnToast(m, "error"); else alert(m); });
-            fetch(RENDER_BASE + "/api/profile", {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json" },
-              body: payload
-            }).catch(function() {});
-          }
-        } catch (_) {}
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = "1"; }
-      }, 220);
-    }, false);
   }
 })();
 </script>

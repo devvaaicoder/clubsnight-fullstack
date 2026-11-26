@@ -2075,7 +2075,7 @@ async function copyAndRedirectToBot(e) {
         <div id="cnPwMarqueeFallback"></div>
         <div style="padding:15px;border-radius:18px;background:rgba(18,14,28,0.94);border:1px solid rgba(255,255,255,0.1);">
           <label style="font-size:11.5px;font-weight:700;color:rgba(255,255,255,0.8);display:block;margin-bottom:6px;">Nominal Top-Up (Rp)</label>
-          <input type="number" id="cnPwAmountInput" class="form-control" min="10000" step="1000" value="100000" style="margin-bottom:10px;" />
+          <input type="number" id="cnPwAmountInput" class="form-control" min="5000" step="1000" value="100000" style="margin-bottom:10px;" />
           <button type="button" id="cnPwGenBtnFallback" class="btn-neon" style="width:100%;padding:13px;">
             <i class="fa-solid fa-qrcode"></i> Buat Tagihan QRIS &amp; Transfer Bank
           </button>
@@ -2151,7 +2151,7 @@ async function copyAndRedirectToBot(e) {
     const sec = document.getElementById("cnPagePaywall");
     const bal = Number(opts.currentBalance || 0);
     const req = Number(opts.requiredAmount || 100000);
-    const shortage = Math.max(10000, req - bal);
+    const shortage = Math.max(5000, req - bal);
 
     const curEl = document.getElementById("cnPwCurrentBal");
     const reqEl = document.getElementById("cnPwRequiredBal");
@@ -2592,3 +2592,4 @@ import "./luxury-theme.css";
 // Ekspos openDetail & openDetailById ke global agar tombol Booking di Lounge langsung membuka halaman mandiri Detail Booking
 window.openDetail = openDetail;
 window.openDetailById = openDetailById;
+window.refreshCloudflareCatalog = () => loadCloudflareData(true);
