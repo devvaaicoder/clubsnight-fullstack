@@ -307,7 +307,8 @@ export default {
     const securityHeaders = {
       "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Token",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Token, X-Request-Id",
+      "Access-Control-Expose-Headers": "X-Request-Id, X-Error-Code",
       "Access-Control-Max-Age": "86400",
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
@@ -423,6 +424,16 @@ export default {
         await env.DB.prepare(
           "CREATE TABLE IF NOT EXISTS client_errors (id TEXT PRIMARY KEY, ts TEXT NOT NULL, page TEXT NOT NULL, message TEXT NOT NULL, line INTEGER NOT NULL DEFAULT 0, ua TEXT NOT NULL)"
         ).run();
+        for (const colDef of [
+          "error_code TEXT NOT NULL DEFAULT 'CN-UI-000'",
+          "request_id TEXT NOT NULL DEFAULT ''",
+          "scope TEXT NOT NULL DEFAULT 'global'",
+          "action TEXT NOT NULL DEFAULT ''",
+          "endpoint TEXT NOT NULL DEFAULT ''",
+          "http_status INTEGER NOT NULL DEFAULT 0"
+        ]) {
+          try { await env.DB.prepare("ALTER TABLE client_errors ADD COLUMN " + colDef).run(); } catch (_) {}
+        }
         try {
           await env.DB.prepare("ALTER TABLE talent_accounts ADD COLUMN token_version INTEGER DEFAULT 1").run();
         } catch (_) {}
@@ -574,7 +585,33 @@ export default {
 
       // 0. Terbitkan Guest Session Token berjangka pendek (untuk member/tamu yang membuat order atau komentar)
       
-      const jsonOut = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { ...securityHeaders, "Content-Type": "application/json" } });
+      const rawReqId = String(request.headers.get("X-Request-Id") || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 48);
+      const requestId = rawReqId || ("REQ-" + Date.now().toString(36).toUpperCase() + "-" + toHex(crypto.getRandomValues(new Uint8Array(3))).toUpperCase());
+      const deriveErrorCode = (pathname, statusCode) => {
+        const p = String(pathname || "");
+        let domain = "API";
+        if (p.startsWith("/api/wallet") || p.startsWith("/api/qris") || p.startsWith("/api/saweria")) domain = "WALLET";
+        else if (p.startsWith("/api/lounge")) domain = "LOUNGE";
+        else if (p.startsWith("/api/talent")) domain = "TALENT";
+        else if (p.startsWith("/api/profile")) domain = "PROFILE";
+        else if (p.startsWith("/api/merch")) domain = "MERCH";
+        else if (p.startsWith("/api/media") || p.startsWith("/r2/")) domain = "MEDIA";
+        else if (p.startsWith("/api/verify-auth") || p.startsWith("/api/auth")) domain = "AUTH";
+        else if (p.startsWith("/api/save") || p.startsWith("/api/get")) domain = "CATALOG";
+        else if (p.startsWith("/api/system") || p.startsWith("/api/client-error")) domain = "SYSTEM";
+        return "CN-" + domain + "-" + String(statusCode || 500);
+      };
+      const jsonOut = (d, s = 200, explicitErrorCode = "") => {
+        const isErr = s >= 400 || (d && typeof d === "object" && d.success === false);
+        const headers = { ...securityHeaders, "Content-Type": "application/json", "X-Request-Id": requestId };
+        let payload = d;
+        if (isErr && d && typeof d === "object" && !Array.isArray(d)) {
+          const errCode = explicitErrorCode || d.errorCode || deriveErrorCode(url.pathname, s);
+          headers["X-Error-Code"] = errCode;
+          payload = { ...d, errorCode: errCode, requestId: d.requestId || requestId };
+        }
+        return new Response(JSON.stringify(payload), { status: s, headers });
+      };
       const getActor = async () => verifySessionToken(env.ADMIN_SECRET_TOKEN, request.headers.get("X-Session-Token") || "");
       const roleAllowed = (actor, roles) => Boolean(actor && (actor.role === "developer" || roles.includes(actor.role)));
       const LOUNGE_CONFIG_DEFAULTS = {
@@ -829,17 +866,24 @@ export default {
         const line = Number.isFinite(rawLine) && rawLine >= 0 ? Math.min(1000000, Math.round(rawLine)) : 0;
         const parsedTs = body.ts ? Date.parse(String(body.ts)) : NaN;
         const ts = Number.isFinite(parsedTs) ? new Date(parsedTs).toISOString() : new Date().toISOString();
+        const errorCode = String(body.errorCode || body.error_code || "CN-UI-000").toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 36) || "CN-UI-000";
+        const errReqId = String(body.requestId || body.request_id || requestId).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 48);
+        const scope = String(body.scope || "").toLowerCase() === "internal" ? "internal" : "global";
+        const action = redactPii(body.action || "", 120);
+        const endpoint = redactPii(body.endpoint || "", 160).split("?")[0];
+        const rawHttp = Number(body.httpStatus != null ? body.httpStatus : body.http_status);
+        const httpStatus = Number.isFinite(rawHttp) && rawHttp >= 0 ? Math.min(599, Math.round(rawHttp)) : 0;
         const errId = "ce_" + Date.now() + "_" + toHex(crypto.getRandomValues(new Uint8Array(6)));
         await env.DB.batch([
           env.DB.prepare(
-            "INSERT INTO client_errors (id, ts, page, message, line, ua) VALUES (?, ?, ?, ?, ?, ?)"
-          ).bind(errId, ts, page, message, line, ua),
+            "INSERT INTO client_errors (id, ts, page, message, line, ua, error_code, request_id, scope, action, endpoint, http_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          ).bind(errId, ts, page, message, line, ua, errorCode, errReqId, scope, action, endpoint, httpStatus),
           env.DB.prepare(
             "DELETE FROM client_errors WHERE id NOT IN (SELECT id FROM client_errors ORDER BY ts DESC, rowid DESC LIMIT 500)"
           )
         ]);
-        console.warn("[client-error] page=" + page + " line=" + line + " msg=" + message.slice(0, 200));
-        return jsonOut({ success: true, id: errId });
+        console.warn("[client-error] code=" + errorCode + " scope=" + scope + " req=" + errReqId + " action=" + action + " msg=" + message.slice(0, 160));
+        return jsonOut({ success: true, id: errId, errorCode, requestId: errReqId });
       }
 
       if (url.pathname === "/api/client-error" && request.method === "GET") {
@@ -848,10 +892,124 @@ export default {
         if (actor.role !== "developer") return jsonOut({ success: false, error: "Akses ditolak: Hanya Developer yang dapat melihat log error." }, 403);
         if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
         await ensureTableExists();
-        const res = await env.DB.prepare(
-          "SELECT id, ts, page, message, line, ua FROM client_errors ORDER BY ts DESC LIMIT 50"
-        ).all();
-        return jsonOut({ success: true, errors: (res && res.results) || [] });
+        const scopeParam = String(url.searchParams.get("scope") || "").toLowerCase();
+        const hasLimit = url.searchParams.has("limit");
+        const limitParam = Math.max(1, Math.min(150, Number(url.searchParams.get("limit")) || 50));
+        let res;
+        if (scopeParam === "global" || scopeParam === "internal") {
+          res = await env.DB.prepare(
+            "SELECT id, ts, page, message, line, ua, error_code, request_id, scope, action, endpoint, http_status FROM client_errors WHERE scope = ? ORDER BY ts DESC LIMIT ?"
+          ).bind(scopeParam, limitParam).all();
+        } else if (!hasLimit || limitParam === 50) {
+          res = await env.DB.prepare(
+            "SELECT id, ts, page, message, line, ua, error_code, request_id, scope, action, endpoint, http_status FROM client_errors ORDER BY ts DESC LIMIT 50"
+          ).all();
+        } else {
+          res = await env.DB.prepare(
+            "SELECT id, ts, page, message, line, ua, error_code, request_id, scope, action, endpoint, http_status FROM client_errors ORDER BY ts DESC LIMIT ?"
+          ).bind(limitParam).all();
+        }
+        const rows = (res && res.results) || [];
+        const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+        let total24h = 0, global24h = 0, internal24h = 0;
+        const codeCounts = {};
+        for (const r of rows) {
+          const t = Date.parse(String(r.ts || ""));
+          if (!Number.isFinite(t) || t >= cutoffMs) {
+            total24h += 1;
+            if (r.scope === "internal") internal24h += 1; else global24h += 1;
+            const c = r.error_code || "CN-UI-000";
+            codeCounts[c] = (codeCounts[c] || 0) + 1;
+          }
+        }
+        const topCodes = Object.entries(codeCounts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([code, count]) => ({ code, count }));
+        return jsonOut({ success: true, errors: rows, summary: { total24h, global24h, internal24h, topCodes } });
+      }
+
+      if (url.pathname === "/api/client-error" && request.method === "DELETE") {
+        const actor = await getActor();
+        if (!actor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        if (actor.role !== "developer") return jsonOut({ success: false, error: "Akses ditolak: Hanya Developer yang dapat membersihkan log." }, 403);
+        if (!env.DB) return jsonOut({ success: false, error: "Binding D1 (DB) belum terpasang." }, 503);
+        await ensureTableExists();
+        const olderHours = Number(url.searchParams.get("olderThanHours"));
+        if (Number.isFinite(olderHours) && olderHours > 0) {
+          await env.DB.prepare("DELETE FROM client_errors WHERE ts < ?").bind(new Date(Date.now() - olderHours * 3600 * 1000).toISOString()).run();
+        } else {
+          await env.DB.prepare("DELETE FROM client_errors").run();
+        }
+        return jsonOut({ success: true, cleared: true });
+      }
+
+      if (url.pathname === "/api/system/health-matrix" && request.method === "GET") {
+        const actor = await getActor();
+        if (!actor) return jsonOut({ success: false, error: "Unauthorized: Sesi tidak valid." }, 401);
+        if (actor.role !== "developer") return jsonOut({ success: false, error: "Akses ditolak: Khusus Developer." }, 403);
+        const matrix = {
+          ts: new Date().toISOString(),
+          requestId,
+          worker: { ok: true, status: "healthy" },
+          d1: { ok: false, latencyMs: 0, errors24h: 0 },
+          r2: { ok: false, latencyMs: 0 },
+          elixir: { ok: false, latencyMs: 0, url: String(env.ELIXIR_API_URL || "https://clubsnight-api.onrender.com").replace(/\/+$/, ""), detail: "" },
+          envBindings: {
+            DB: Boolean(env.DB),
+            BUCKET: Boolean(env.BUCKET),
+            ADMIN_SECRET_TOKEN: Boolean(env.ADMIN_SECRET_TOKEN),
+            WORKER_ASSERTION_SECRET: Boolean(env.WORKER_ASSERTION_SECRET),
+            R2_PUBLIC_URL: Boolean(env.R2_PUBLIC_URL),
+            TELEGRAM_BOT_TOKEN: Boolean(env.TELEGRAM_BOT_TOKEN),
+            TELEGRAM_ADMIN_CHAT_ID: Boolean(env.TELEGRAM_ADMIN_CHAT_ID),
+            SAWERIA_WEBHOOK_TOKEN: Boolean(env.SAWERIA_WEBHOOK_TOKEN)
+          },
+          config: null
+        };
+        if (env.DB) {
+          const t0 = Date.now();
+          try {
+            await ensureTableExists();
+            await env.DB.prepare("SELECT 1 AS ok").first();
+            matrix.d1.ok = true;
+            matrix.d1.latencyMs = Date.now() - t0;
+            matrix.config = await getLoungeConfig();
+            const cntRow = await env.DB.prepare("SELECT COUNT(*) AS cnt FROM client_errors WHERE ts >= ?").bind(new Date(Date.now() - 24 * 3600 * 1000).toISOString()).first();
+            matrix.d1.errors24h = Number(cntRow && cntRow.cnt) || 0;
+          } catch (err) {
+            matrix.d1.latencyMs = Date.now() - t0;
+            matrix.d1.error = String(err && err.message || "D1 check failed").slice(0, 140);
+          }
+        }
+        if (env.BUCKET) {
+          const t1 = Date.now();
+          try {
+            if (typeof env.BUCKET.list === "function") await env.BUCKET.list({ limit: 1 });
+            matrix.r2.ok = true;
+            matrix.r2.latencyMs = Date.now() - t1;
+          } catch (err) {
+            matrix.r2.latencyMs = Date.now() - t1;
+            matrix.r2.error = String(err && err.message || "R2 check failed").slice(0, 140);
+          }
+        }
+        const t2 = Date.now();
+        try {
+          const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+          const timer = ctrl ? setTimeout(() => ctrl.abort(), 4000) : null;
+          const eRes = await fetch(matrix.elixir.url + "/api/health", { headers: { "X-Request-Id": requestId }, signal: ctrl ? ctrl.signal : undefined });
+          if (timer) clearTimeout(timer);
+          matrix.elixir.latencyMs = Date.now() - t2;
+          matrix.elixir.httpStatus = eRes.status;
+          const eJson = await eRes.json().catch(() => ({}));
+          matrix.elixir.ok = Boolean(eRes.ok && eJson && eJson.ok);
+          matrix.elixir.ramMb = eJson.ram_mb;
+          matrix.elixir.uptimeSec = eJson.uptime_sec;
+        } catch (err) {
+          matrix.elixir.latencyMs = Date.now() - t2;
+          matrix.elixir.detail = String(err && err.message || "Elixir unreachable").slice(0, 140);
+        }
+        const missingCritical = ["DB", "BUCKET", "ADMIN_SECRET_TOKEN", "WORKER_ASSERTION_SECRET"].filter((k) => !matrix.envBindings[k]);
+        matrix.overall = (matrix.d1.ok && matrix.r2.ok && matrix.elixir.ok && missingCritical.length === 0) ? "healthy" : (matrix.d1.ok ? "degraded" : "critical");
+        matrix.missingCritical = missingCritical;
+        return jsonOut({ success: true, matrix });
       }
 
       if (url.pathname === "/api/lounge/config" && request.method === "GET") {

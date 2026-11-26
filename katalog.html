@@ -3,6 +3,44 @@
 <head>
 <script id="cnClientErrorReporter">
 (function(){
+  var isLocal = ["localhost", "127.0.0.1"].indexOf(window.location.hostname) !== -1;
+  var defaultWorker = isLocal ? "http://127.0.0.1:8787" : "https://clubsnight-fullstack.clubsnight.workers.dev";
+  var defaultAuth = "https://clubsnight-api.onrender.com";
+
+  window.CN_RUNTIME = Object.assign({
+    workerApi: window.CN_WORKER_API || defaultWorker,
+    authApi: window.CN_AUTH_API || defaultAuth,
+    mediaUrl: "",
+    livechatUrl: "",
+    minTopup: 5000
+  }, window.CN_RUNTIME || {});
+  window.CN_WORKER_API = window.CN_RUNTIME.workerApi;
+  window.CN_AUTH_API = window.CN_RUNTIME.authApi;
+
+  window.cnAuthBridge = {
+    getSession: function() {
+      try {
+        if (window.cnAuth && typeof window.cnAuth.getSession === "function") return window.cnAuth.getSession();
+        return JSON.parse(localStorage.getItem("cn_auth_session_v1") || localStorage.getItem("cn_pwa_session_v1") || "null");
+      } catch (_) { return null; }
+    },
+    getRole: function() {
+      if (window.cnRoleGuard && typeof window.cnRoleGuard.getRole === "function") {
+        return String(window.cnRoleGuard.getRole() || "guest").toLowerCase();
+      }
+      var sess = this.getSession();
+      return String((sess && sess.role) || "guest").toLowerCase();
+    },
+    getToken: async function() {
+      var sess = this.getSession();
+      var tok = sess && (sess.sessionToken || sess.token);
+      if (!tok && typeof window.getCnHmacSessionToken === "function") {
+        try { tok = await window.getCnHmacSessionToken(); } catch (_) {}
+      }
+      return tok || "";
+    }
+  };
+
   var PLACEHOLDER = "https://placehold.co/400x533/180d28/ff1744?text=Clubs+Night";
   if (typeof window.handleImgError !== "function") {
     window.handleImgError = function(el) {
@@ -11,46 +49,227 @@
       el.src = PLACEHOLDER;
     };
   }
-  var sent = 0;
-  var MAX_REPORTS = 10;
+
+  var breadcrumbs = [];
+  var sentCount = 0;
+  var MAX_REPORTS = 20;
+  var recentKeys = {};
+
   function sanitizeMsg(val) {
     return String(val == null ? "" : val)
       .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "[REDACTED]")
       .replace(/(token|secret|password|auth)=[^&\s]+/gi, "$1=[REDACTED]")
       .slice(0, 360);
   }
-  function reportClientError(message, line) {
-    if (sent >= MAX_REPORTS) return;
-    var msg = sanitizeMsg(message);
-    if (!msg) return;
-    sent += 1;
+
+  function detectScope(el, endpoint) {
     try {
-      var base = window.CN_WORKER_API || (["localhost", "127.0.0.1"].includes(window.location.hostname)
-        ? "http://127.0.0.1:8787"
-        : "https://clubsnight-fullstack.clubsnight.workers.dev");
-      var payload = JSON.stringify({
-        message: msg,
-        line: Number(line) || 0,
-        page: String(location.pathname || "/").slice(0, 180),
-        ua: String(navigator.userAgent || "").slice(0, 220),
-        ts: new Date().toISOString()
-      });
-      fetch(base + "/api/client-error", {
+      if (el && el.closest && el.closest("#devPanelView, #cnDevCenterModal, #cnMerchDevModal, #cnBackupQrisPanel, #cnStaffWalletPanel")) {
+        return "internal";
+      }
+    } catch (_) {}
+    var ep = String(endpoint || "");
+    if (/\/api\/(system|verify-auth|save|talent\/seed|talent\/approvals|lounge\/story\/qc|wallet\/lookup|wallet\/adjust|merch\/products\/delete)/.test(ep)) {
+      return "internal";
+    }
+    var devModal = document.getElementById("cnDevCenterModal");
+    var devPanel = document.getElementById("devPanelView");
+    if ((devModal && devModal.classList.contains("open")) || (devPanel && devPanel.style.display === "block")) {
+      return "internal";
+    }
+    return "global";
+  }
+
+  function describeTarget(el) {
+    if (!el || !el.tagName) return "unknown";
+    var act = el.getAttribute && el.getAttribute("data-cn-action");
+    if (act) return act.slice(0, 80);
+    var tag = el.tagName.toLowerCase();
+    var id = el.id ? ("#" + el.id) : "";
+    var txt = String(el.innerText || el.value || el.getAttribute && el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim().slice(0, 36);
+    return (tag + id + (txt ? (":" + txt) : "")).slice(0, 100);
+  }
+
+  function recordAction(type, el) {
+    var entry = {
+      type: type,
+      action: describeTarget(el),
+      scope: detectScope(el, ""),
+      ts: Date.now()
+    };
+    breadcrumbs.push(entry);
+    if (breadcrumbs.length > 6) breadcrumbs.shift();
+  }
+
+  document.addEventListener("click", function(ev) {
+    var t = ev.target && ev.target.closest ? ev.target.closest("button, a, [onclick], [data-cn-action], input[type=submit], input[type=checkbox]") : ev.target;
+    if (t) recordAction("click", t);
+  }, true);
+
+  document.addEventListener("submit", function(ev) {
+    if (ev.target) recordAction("submit", ev.target);
+  }, true);
+
+  function newRequestId() {
+    return "REQ-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  }
+
+  function deriveClientCode(endpoint, status) {
+    var ep = String(endpoint || "");
+    var dom = "UI";
+    if (ep.indexOf("/api/wallet") !== -1 || ep.indexOf("/api/qris") !== -1) dom = "WALLET";
+    else if (ep.indexOf("/api/lounge") !== -1) dom = "LOUNGE";
+    else if (ep.indexOf("/api/talent") !== -1) dom = "TALENT";
+    else if (ep.indexOf("/api/profile") !== -1) dom = "PROFILE";
+    else if (ep.indexOf("/api/merch") !== -1) dom = "MERCH";
+    else if (ep.indexOf("/api/media") !== -1) dom = "MEDIA";
+    else if (ep.indexOf("/api/auth") !== -1 || ep.indexOf("/api/verify-auth") !== -1) dom = "AUTH";
+    else if (ep.indexOf("/api/save") !== -1 || ep.indexOf("/api/get") !== -1) dom = "CATALOG";
+    else if (ep.indexOf("/api/system") !== -1) dom = "SYSTEM";
+    return "CN-" + dom + "-" + String(status || "NET");
+  }
+
+  var rawFetch = window.fetch ? window.fetch.bind(window) : null;
+
+  function reportClientError(opts) {
+    if (sentCount >= MAX_REPORTS || !rawFetch) return;
+    var msg = sanitizeMsg(opts && opts.message);
+    if (!msg) return;
+    var lastBc = breadcrumbs.length ? breadcrumbs[breadcrumbs.length - 1] : null;
+    var errorCode = String((opts && opts.errorCode) || "CN-UI-ERR").slice(0, 36);
+    var endpoint = String((opts && opts.endpoint) || "").split("?")[0].slice(0, 140);
+    var dedupKey = errorCode + "|" + endpoint + "|" + msg.slice(0, 60);
+    var now = Date.now();
+    if (recentKeys[dedupKey] && now - recentKeys[dedupKey] < 8000) return;
+    recentKeys[dedupKey] = now;
+    sentCount += 1;
+
+    var scope = (opts && opts.scope) || (lastBc && lastBc.scope) || detectScope(null, endpoint);
+    var action = (opts && opts.action) || (lastBc ? (lastBc.type + " " + lastBc.action) : "page");
+    var reqId = (opts && opts.requestId) || newRequestId();
+    window.cnLastError = {
+      errorCode: errorCode,
+      requestId: reqId,
+      scope: scope,
+      action: action,
+      endpoint: endpoint,
+      httpStatus: Number(opts && opts.httpStatus) || 0,
+      message: msg,
+      ts: new Date().toISOString()
+    };
+
+    try {
+      var base = (window.CN_RUNTIME && window.CN_RUNTIME.workerApi) || window.CN_WORKER_API || defaultWorker;
+      rawFetch(base + "/api/client-error", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: payload,
+        body: JSON.stringify({
+          message: msg,
+          line: Number(opts && opts.line) || 0,
+          page: String(location.pathname || "/").slice(0, 180),
+          ua: String(navigator.userAgent || "").slice(0, 220),
+          ts: new Date().toISOString(),
+          errorCode: errorCode,
+          requestId: reqId,
+          scope: scope,
+          action: action,
+          endpoint: endpoint,
+          httpStatus: Number(opts && opts.httpStatus) || 0
+        }),
         keepalive: true
       }).catch(function(){});
     } catch (_) {}
   }
+
+  window.cnErrorCenter = {
+    report: reportClientError,
+    getBreadcrumbs: function() { return breadcrumbs.slice(); },
+    getLastError: function() { return window.cnLastError || null; }
+  };
+
+  if (rawFetch && !window.fetch.__cnInstrumented) {
+    var wrappedFetch = function(input, init) {
+      var urlStr = typeof input === "string" ? input : (input && input.url ? input.url : "");
+      var workerBase = (window.CN_RUNTIME && window.CN_RUNTIME.workerApi) || defaultWorker;
+      var authBase = (window.CN_RUNTIME && window.CN_RUNTIME.authApi) || defaultAuth;
+      var isTrackedApi = urlStr && (urlStr.indexOf(workerBase) === 0 || urlStr.indexOf(authBase) === 0);
+      var isSelfReport = urlStr && urlStr.indexOf("/api/client-error") !== -1 && init && String(init.method || "GET").toUpperCase() === "POST";
+
+      if (!isTrackedApi || isSelfReport) {
+        return rawFetch(input, init);
+      }
+
+      var reqId = newRequestId();
+      var nextInit = init ? Object.assign({}, init) : {};
+      try {
+        var hdrs = new Headers(nextInit.headers || (typeof input !== "string" && input && input.headers) || undefined);
+        if (!hdrs.has("X-Request-Id")) hdrs.set("X-Request-Id", reqId);
+        nextInit.headers = hdrs;
+      } catch (_) {}
+
+      var pathname = "";
+      try { pathname = new URL(urlStr, window.location.origin).pathname; } catch (_) { pathname = urlStr.slice(0, 120); }
+
+      return rawFetch(input, nextInit).then(function(res) {
+        if (res && res.status >= 400) {
+          var hdrCode = res.headers && res.headers.get ? res.headers.get("X-Error-Code") : "";
+          var hdrReq = res.headers && res.headers.get ? res.headers.get("X-Request-Id") : "";
+          res.clone().json().then(function(j) {
+            var code = (j && j.errorCode) || hdrCode || deriveClientCode(pathname, res.status);
+            var rId = (j && j.requestId) || hdrReq || reqId;
+            var errMsg = (j && (j.error || j.message)) || ("HTTP " + res.status + " pada " + pathname);
+            reportClientError({
+              errorCode: code,
+              requestId: rId,
+              endpoint: pathname,
+              httpStatus: res.status,
+              message: errMsg
+            });
+          }).catch(function() {
+            reportClientError({
+              errorCode: hdrCode || deriveClientCode(pathname, res.status),
+              requestId: hdrReq || reqId,
+              endpoint: pathname,
+              httpStatus: res.status,
+              message: "HTTP " + res.status + " pada " + pathname
+            });
+          });
+        }
+        return res;
+      }, function(err) {
+        if (!err || err.name !== "AbortError") {
+          reportClientError({
+            errorCode: deriveClientCode(pathname, "NET"),
+            requestId: reqId,
+            endpoint: pathname,
+            httpStatus: 0,
+            message: (err && err.message) || ("Network error pada " + pathname)
+          });
+        }
+        throw err;
+      });
+    };
+    wrappedFetch.__cnInstrumented = true;
+    window.fetch = wrappedFetch;
+  }
+
   window.addEventListener("error", function(e) {
     if (!e || !e.message) return;
-    reportClientError(e.message, e.lineno || 0);
+    reportClientError({
+      errorCode: "CN-UI-RUNTIME",
+      message: e.message,
+      line: e.lineno || 0
+    });
   });
+
   window.addEventListener("unhandledrejection", function(e) {
     var reason = e && e.reason;
     var msg = reason && reason.message ? reason.message : String(reason || "Unhandled rejection");
-    reportClientError("UnhandledRejection: " + msg, 0);
+    reportClientError({
+      errorCode: "CN-UI-PROMISE",
+      message: "UnhandledRejection: " + msg,
+      line: 0
+    });
   });
 })();
 </script>
@@ -4545,10 +4764,48 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         <button type="button" class="cn-dev-tab" data-dtab="merch" onclick="window.switchCnDevTab('merch')">
           <i class="fa-solid fa-shirt"></i> Merch
         </button>
+        <button type="button" class="cn-dev-tab" data-dtab="system" onclick="window.switchCnDevTab('system')">
+          <i class="fa-solid fa-heart-pulse"></i> System
+        </button>
       </div>
 
       <!-- TAB 1: KONFIRMASI / APPROVAL TALENT -->
       <div id="cnDevPane_approval" class="cn-dev-pane">
+        <div style="margin-bottom:14px;padding:12px;border-radius:14px;border:1px solid rgba(255,42,95,0.32);background:rgba(255,42,95,0.07);">
+          <div style="font-size:13px;font-weight:700;color:#fda4af;margin-bottom:8px;"><i class="fa-solid fa-user-plus"></i> Buat / Reset Akun Login Talent</div>
+          <form id="cnSeedTalentForm" class="cn-auth-form" onsubmit="window.createCnTalentAccount(event)" style="gap:8px;">
+            <div class="cn-merch-form-row">
+              <div class="cn-field">
+                <label>Username Login</label>
+                <input type="text" id="cnSeedUsername" placeholder="tanpa @ (cth: luna_cn)" required autocomplete="off" />
+              </div>
+              <div class="cn-field">
+                <label>Password Awal</label>
+                <input type="text" id="cnSeedPassword" placeholder="Min. 6 karakter" minlength="6" required autocomplete="off" />
+              </div>
+            </div>
+            <div class="cn-merch-form-row">
+              <div class="cn-field">
+                <label>Nama Tampilan</label>
+                <input type="text" id="cnSeedName" placeholder="Sesuai nama di katalog" required />
+              </div>
+              <div class="cn-field">
+                <label>Agency</label>
+                <select id="cnSeedAgency">
+                  <option value="Clubs'Night">Clubs'Night</option>
+                  <option value="Noctis Angel">Noctis Angel</option>
+                  <option value="Lotus">Lotus</option>
+                </select>
+              </div>
+            </div>
+            <label class="cn-toggle-row" style="margin:2px 0;">
+              <span>Langsung Approve izin posting &amp; story</span>
+              <input type="checkbox" id="cnSeedAutoApprove" checked />
+            </label>
+            <button type="submit" id="cnSeedSubmitBtn" class="cn-auth-submit" data-cn-action="dev_seed_talent_account">Buat Akun Login Talent</button>
+          </form>
+          <div id="cnSeedFeedback" class="cn-auth-feedback" style="display:none;margin-top:8px;"></div>
+        </div>
         <p class="cn-dev-hint">Konfirmasi akun Talent yang baru mendaftar agar mendapatkan izin posting &amp; upload story.</p>
         <div id="cnDevApprovalList" class="cn-dev-list"></div>
       </div>
@@ -4606,6 +4863,30 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         <button type="button" class="cn-auth-submit" style="width:100%;" onclick="window.closeCnDevCenter(); window.openCnMerchDevModal();">
           <i class="fa-solid fa-shirt"></i> Buka Editor Katalog Merch
         </button>
+      </div>
+
+      <!-- TAB 5: SYSTEM HEALTH & DAILY DEBUG MAINTENANCE -->
+      <div id="cnDevPane_system" class="cn-dev-pane" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <b style="font-size:13px;color:#38bdf8;"><i class="fa-solid fa-heart-pulse"></i> Status Integrasi &amp; Debug Harian</b>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" onclick="window.loadCnSystemDiagnostics()" data-cn-action="dev_ping_health" style="padding:5px 10px;border-radius:8px;border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.12);color:#e0f2fe;font-size:11px;cursor:pointer;">Ping Layanan</button>
+            <button type="button" onclick="window.copyCnDailyDebugReport()" data-cn-action="dev_copy_debug" style="padding:5px 10px;border-radius:8px;border:1px solid rgba(167,139,250,0.4);background:rgba(167,139,250,0.12);color:#ede9fe;font-size:11px;cursor:pointer;">Salin Laporan</button>
+            <button type="button" onclick="window.clearCnClientErrors(24)" data-cn-action="dev_clear_old_errors" style="padding:5px 10px;border-radius:8px;border:1px solid rgba(251,191,36,0.4);background:rgba(251,191,36,0.12);color:#fef3c7;font-size:11px;cursor:pointer;">Hapus &gt;24j</button>
+          </div>
+        </div>
+        <div id="cnDevHealthMatrix" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;font-size:12px;">
+          <div class="cn-dev-empty" style="grid-column:1/-1;">Klik "Ping Layanan" untuk mengecek D1, R2, dan Elixir/Render.</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <div id="cnDevErrSummary" style="font-size:11px;color:#cbd5e1;">Rekap 24 jam: memuat...</div>
+          <select id="cnDevErrScopeFilter" onchange="window.loadCnSystemDiagnostics()" style="padding:4px 8px;border-radius:8px;background:#1b1328;color:#fff;border:1px solid rgba(255,255,255,0.2);font-size:11px;">
+            <option value="">Semua Scope</option>
+            <option value="global">Global (User)</option>
+            <option value="internal">Internal (Dev/Staff)</option>
+          </select>
+        </div>
+        <div id="cnDevSystemErrorList" class="cn-dev-list" style="max-height:260px;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
@@ -4924,10 +5205,13 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         document.querySelectorAll(".cn-dev-tab").forEach(function(b) {
           b.classList.toggle("active", b.getAttribute("data-dtab") === tab);
         });
-        ["approval", "qc", "config", "merch"].forEach(function(p) {
+        ["approval", "qc", "config", "merch", "system"].forEach(function(p) {
           var el = document.getElementById("cnDevPane_" + p);
           if (el) el.style.display = (p === tab) ? "block" : "none";
         });
+        if (tab === "system" && typeof window.loadCnSystemDiagnostics === "function") {
+          window.loadCnSystemDiagnostics();
+        }
       };
 
       function escDevHtml(value) {
@@ -5222,6 +5506,150 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         }
       };
 
+      var lastSystemReport = null;
+
+      window.createCnTalentAccount = async function(e) {
+        e.preventDefault();
+        var fb = document.getElementById("cnSeedFeedback");
+        var btn = document.getElementById("cnSeedSubmitBtn");
+        var rawU = (document.getElementById("cnSeedUsername").value || "").trim().toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
+        var pwd = (document.getElementById("cnSeedPassword").value || "").trim();
+        var name = (document.getElementById("cnSeedName").value || "").trim();
+        var agency = (document.getElementById("cnSeedAgency").value || "Clubs'Night").trim();
+        var autoApprove = Boolean(document.getElementById("cnSeedAutoApprove") && document.getElementById("cnSeedAutoApprove").checked);
+        if (!rawU || pwd.length < 6 || !name) {
+          if (fb) { fb.textContent = "Username, nama, dan password (min. 6 karakter) wajib diisi."; fb.className = "cn-auth-feedback is-error"; fb.style.display = "block"; }
+          return;
+        }
+        if (btn) btn.disabled = true;
+        try {
+          var workerApi = (window.CN_RUNTIME && window.CN_RUNTIME.workerApi) || window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+          var token = await getDevWorkerToken();
+          if (!token) throw new Error("Sesi Developer tidak valid (CN-AUTH-401). Silakan login ulang.");
+          var res = await fetch(workerApi + "/api/talent/seed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Session-Token": token },
+            body: JSON.stringify({
+              talents: [{ username: rawU, password: pwd, name: name, agency: agency, status: "READY", moods: ["GFE"] }]
+            })
+          });
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.success) {
+            throw new Error((data.error || "Gagal membuat akun Talent.") + (data.errorCode ? (" [" + data.errorCode + "]") : ""));
+          }
+          if (autoApprove) {
+            await fetch(workerApi + "/api/talent/approvals/" + encodeURIComponent(rawU), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-Session-Token": token },
+              body: JSON.stringify({ decision: "approved", reason: "Auto-approved saat pembuatan akun oleh Developer" })
+            }).catch(function() {});
+          }
+          document.getElementById("cnSeedTalentForm").reset();
+          if (fb) {
+            fb.textContent = "✅ Akun @" + rawU + " berhasil dibuat" + (autoApprove ? " & langsung disetujui!" : " (status pending).");
+            fb.className = "cn-auth-feedback is-success";
+            fb.style.display = "block";
+          }
+          if (window.cnToast) window.cnToast("Akun login Talent @" + rawU + " siap digunakan!", "success");
+          loadServerTalentApprovals();
+        } catch (err) {
+          var msg = (err && err.message) || "Gagal membuat akun Talent.";
+          if (fb) { fb.textContent = "❌ " + msg; fb.className = "cn-auth-feedback is-error"; fb.style.display = "block"; }
+          if (window.cnToast) window.cnToast(msg, "error");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      };
+
+      window.loadCnSystemDiagnostics = async function() {
+        var matEl = document.getElementById("cnDevHealthMatrix");
+        var sumEl = document.getElementById("cnDevErrSummary");
+        var listEl = document.getElementById("cnDevSystemErrorList");
+        var scopeVal = (document.getElementById("cnDevErrScopeFilter") && document.getElementById("cnDevErrScopeFilter").value) || "";
+        var workerApi = (window.CN_RUNTIME && window.CN_RUNTIME.workerApi) || window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+        if (matEl) matEl.innerHTML = '<div class="cn-dev-empty" style="grid-column:1/-1;">⏳ Memeriksa D1, R2, Elixir/Render &amp; log error...</div>';
+        try {
+          var token = await getDevWorkerToken();
+          if (!token) throw new Error("Sesi Developer tidak valid (CN-AUTH-401).");
+          var errUrl = workerApi + "/api/client-error?limit=50" + (scopeVal ? ("&scope=" + encodeURIComponent(scopeVal)) : "");
+          var pair = await Promise.all([
+            fetch(workerApi + "/api/system/health-matrix", { cache: "no-store", headers: { "X-Session-Token": token } }),
+            fetch(errUrl, { cache: "no-store", headers: { "X-Session-Token": token } })
+          ]);
+          var hJson = await pair[0].json().catch(function() { return {}; });
+          var eJson = await pair[1].json().catch(function() { return {}; });
+          if (!pair[0].ok || !hJson.success) throw new Error(hJson.error || "Health matrix gagal dimuat.");
+          var m = hJson.matrix;
+          var errs = (eJson && Array.isArray(eJson.errors)) ? eJson.errors : [];
+          var sum = (eJson && eJson.summary) || { total24h: 0, global24h: 0, internal24h: 0, topCodes: [] };
+          lastSystemReport = { generatedAt: new Date().toISOString(), matrix: m, summary: sum, recentErrors: errs.slice(0, 20) };
+
+          function card(title, ok, detail) {
+            var color = ok ? "#34d399" : "#f87171";
+            var bg = ok ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.12)";
+            return '<div style="padding:9px;border-radius:10px;border:1px solid ' + color + '55;background:' + bg + ';">' +
+              '<div style="font-weight:700;color:' + color + ';">' + (ok ? "● " : "▲ ") + escDevHtml(title) + '</div>' +
+              '<div style="font-size:11px;color:#e2e8f0;margin-top:3px;">' + escDevHtml(detail) + '</div></div>';
+          }
+          if (matEl) {
+            var missingTxt = (m.missingCritical && m.missingCritical.length) ? ("Missing: " + m.missingCritical.join(", ")) : "Semua env kritis aktif";
+            matEl.innerHTML =
+              card("Worker API", m.worker && m.worker.ok, "Status: " + String(m.overall || "unknown").toUpperCase()) +
+              card("Cloudflare D1", m.d1 && m.d1.ok, m.d1 && m.d1.ok ? (m.d1.latencyMs + " ms • " + (m.d1.errors24h || 0) + " err/24j") : (m.d1 && m.d1.error || "Offline")) +
+              card("Cloudflare R2", m.r2 && m.r2.ok, m.r2 && m.r2.ok ? (m.r2.latencyMs + " ms • Connected") : (m.r2 && m.r2.error || "Offline")) +
+              card("Elixir / Render", m.elixir && m.elixir.ok, m.elixir && m.elixir.ok ? (m.elixir.latencyMs + " ms • RAM " + (m.elixir.ramMb || "?") + "MB") : (m.elixir && (m.elixir.detail || ("HTTP " + m.elixir.httpStatus)) || "Unreachable")) +
+              '<div style="grid-column:1/-1;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,0.05);font-size:11px;color:#cbd5e1;">Env Check: ' + escDevHtml(missingTxt) + ' • Ref: ' + escDevHtml(m.requestId || "-") + '</div>';
+          }
+          if (sumEl) {
+            var topTxt = (sum.topCodes || []).slice(0, 3).map(function(x) { return x.code + "(" + x.count + ")"; }).join(", ");
+            sumEl.textContent = "24j: " + sum.total24h + " total (" + sum.global24h + " global, " + sum.internal24h + " internal)" + (topTxt ? (" • Top: " + topTxt) : "");
+          }
+          if (listEl) {
+            listEl.innerHTML = errs.length ? errs.map(function(er) {
+              var badgeColor = er.scope === "internal" ? "#c4b5fd" : "#38bdf8";
+              return '<div class="cn-dev-item" style="align-items:flex-start;">' +
+                '<div class="cn-dev-item-info" style="flex:1;min-width:0;">' +
+                  '<b style="font-size:12px;">' + escDevHtml(er.error_code || "CN-UI-000") + ' <span style="color:' + badgeColor + ';font-size:10px;text-transform:uppercase;">[' + escDevHtml(er.scope || "global") + ']</span></b>' +
+                  '<span style="word-break:break-word;">' + escDevHtml(er.message || "") + '</span>' +
+                  '<span style="font-size:10px;opacity:0.75;">Aksi: ' + escDevHtml(er.action || "-") + ' • Endpoint: ' + escDevHtml(er.endpoint || er.page || "-") + ' • Ref: ' + escDevHtml(er.request_id || "-") + ' • ' + escDevHtml(String(er.ts || "").replace("T", " ").slice(0, 19)) + '</span>' +
+                '</div></div>';
+            }).join("") : '<div class="cn-dev-empty">✅ Tidak ada laporan error tercatat pada filter ini.</div>';
+          }
+        } catch (err) {
+          var msg = (err && err.message) || "Gagal memuat diagnosa sistem.";
+          if (matEl) matEl.innerHTML = '<div class="cn-dev-empty" style="grid-column:1/-1;color:#fca5a5;">❌ ' + escDevHtml(msg) + '</div>';
+        }
+      };
+
+      window.copyCnDailyDebugReport = function() {
+        var payload = JSON.stringify(lastSystemReport || { note: "Jalankan Ping Layanan terlebih dahulu" }, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(payload).then(function() {
+            if (window.cnToast) window.cnToast("Laporan debug harian berhasil disalin!", "success");
+          }).catch(function() { alert("Gagal menyalin ke clipboard."); });
+        } else {
+          alert(payload.slice(0, 1200));
+        }
+      };
+
+      window.clearCnClientErrors = async function(olderHours) {
+        if (!confirm("Bersihkan log error lebih lama dari " + olderHours + " jam?")) return;
+        try {
+          var workerApi = (window.CN_RUNTIME && window.CN_RUNTIME.workerApi) || window.CN_WORKER_API || "https://clubsnight-fullstack.clubsnight.workers.dev";
+          var token = await getDevWorkerToken();
+          var res = await fetch(workerApi + "/api/client-error?olderThanHours=" + encodeURIComponent(olderHours || 24), {
+            method: "DELETE",
+            headers: { "X-Session-Token": token }
+          });
+          var data = await res.json().catch(function() { return {}; });
+          if (!res.ok || !data.success) throw new Error(data.error || "Gagal membersihkan log.");
+          if (window.cnToast) window.cnToast("Log error lama berhasil dibersihkan.", "success");
+          window.loadCnSystemDiagnostics();
+        } catch (err) {
+          if (window.cnToast) window.cnToast((err && err.message) || "Gagal membersihkan log.", "error");
+        }
+      };
+
       window.saveCnGlobalConfig = async function(e) {
         e.preventDefault();
         var fb = document.getElementById("cnCfgFeedback");
@@ -5406,6 +5834,8 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         if (role !== "developer") {
           if (approvalPane) approvalPane.style.display = "none";
           if (configPane) configPane.style.display = "none";
+          var sysPane = document.getElementById("cnDevPane_system");
+          if (sysPane) sysPane.style.display = "none";
           if (role === "admin" && typeof window.switchCnDevTab === "function") window.switchCnDevTab("qc");
         }
 
@@ -5469,6 +5899,9 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
         "toggleCnQcGateway",
         "setCnStoryQc",
         "saveCnGlobalConfig",
+        "createCnTalentAccount",
+        "loadCnSystemDiagnostics",
+        "clearCnClientErrors",
         "saveCnMerchItem",
         "deleteCnMerchItem",
         "editCnMerchItem"
@@ -5482,7 +5915,7 @@ window.CN_WORKER_API = ["localhost", "127.0.0.1"].includes(window.location.hostn
             var permitted = fnName.indexOf("Merch") !== -1 || (fnName === "switchCnDevTab" && tab === "merch")
               ? isMerchAdmin()
               : adminQcAction ? isAdminOnly() : isSuperAdmin();
-            if (fnName === "switchCnDevTab" && !isSuperAdmin() && ["config", "approval"].indexOf(tab) !== -1) {
+            if (fnName === "switchCnDevTab" && !isSuperAdmin() && ["config", "approval", "system"].indexOf(tab) !== -1) {
               permitted = false;
             }
             if (!permitted) {

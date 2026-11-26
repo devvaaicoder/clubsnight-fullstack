@@ -9,10 +9,21 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-const LIVECHAT_WORKER_URL = import.meta.env.VITE_LIVECHAT_URL || "";
+const _rt = (typeof window !== "undefined" && window.CN_RUNTIME) || {};
+const LIVECHAT_WORKER_URL = import.meta.env.VITE_LIVECHAT_URL || _rt.livechatUrl || "";
 const TELEGRAM_CS_BOT_URL = "https://t.me/clubsnightcs_bot";
-const WORKER_API_URL = import.meta.env.VITE_API_URL || "";
-const MEDIA_WORKER_URL = import.meta.env.VITE_MEDIA_URL || "";
+const WORKER_API_URL = import.meta.env.VITE_API_URL || _rt.workerApi || (typeof window !== "undefined" && window.CN_WORKER_API) || "https://clubsnight-fullstack.clubsnight.workers.dev";
+const MEDIA_WORKER_URL = import.meta.env.VITE_MEDIA_URL || _rt.mediaUrl || "";
+if (typeof window !== "undefined") {
+  window.CN_RUNTIME = Object.assign({}, _rt, {
+    workerApi: WORKER_API_URL,
+    mediaUrl: MEDIA_WORKER_URL,
+    livechatUrl: LIVECHAT_WORKER_URL,
+    authApi: import.meta.env.VITE_ELIXIR_API_URL || _rt.authApi || window.CN_AUTH_API || "https://clubsnight-api.onrender.com"
+  });
+  if (!window.CN_WORKER_API) window.CN_WORKER_API = window.CN_RUNTIME.workerApi;
+  if (!window.CN_AUTH_API) window.CN_AUTH_API = window.CN_RUNTIME.authApi;
+}
 async function getWorkerSessionToken() {
   if (window.getCnHmacSessionToken) return window.getCnHmacSessionToken();
   return localStorage.getItem("cn_worker_session_v1") || "";

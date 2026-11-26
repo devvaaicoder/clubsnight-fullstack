@@ -823,3 +823,88 @@ test("Talent approval workflow: grandfathering, new pending accounts, role matri
     body: { posts: [{ id: "p_now_ok", ownerUsername: "talent_pending", text: "Now approved!" }] }
   })).status, 200);
 });
+
+
+function createTelemetryEnv() {
+  const clientErrors = [];
+  const execStmt = (sql, values) => {
+    if (sql.includes("INSERT INTO client_errors")) {
+      clientErrors.unshift({ id: values[0], ts: values[1], page: values[2], message: values[3], line: values[4], ua: values[5], error_code: values[6], request_id: values[7], scope: values[8], action: values[9], endpoint: values[10], http_status: values[11] });
+      return { meta: { changes: 1 } };
+    }
+    if (sql.includes("DELETE FROM client_errors")) {
+      clientErrors.length = 0;
+      return { meta: { changes: 1 } };
+    }
+    return { meta: { changes: 1 } };
+  };
+  const DB = {
+    prepare(sql) {
+      return {
+        sql, values: [],
+        bind(...vals) { this.values = vals; return this; },
+        async run() { return execStmt(sql, this.values); },
+        async first() {
+          if (sql.includes("SELECT 1 AS ok")) return { ok: 1 };
+          if (sql.includes("SELECT COUNT(*) AS cnt FROM client_errors")) return { cnt: clientErrors.length };
+          return null;
+        },
+        async all() {
+          if (sql.includes("FROM client_errors")) return { results: clientErrors.slice(0, 50) };
+          return { results: [] };
+        }
+      };
+    },
+    async batch(stmts) { return stmts.map((st) => execStmt(st.sql, st.values)); }
+  };
+  const BUCKET = {
+    async list() { return { objects: [] }; },
+    async put() {},
+    async delete() {}
+  };
+  return {
+    env: { ADMIN_SECRET_TOKEN: sessionSecret, WORKER_ASSERTION_SECRET: "fake-assertion-secret", R2_PUBLIC_URL: "https://media-cn.my.id", DB, BUCKET },
+    clientErrors
+  };
+}
+
+test("Error responses include X-Error-Code, X-Request-Id, and JSON errorCode/requestId", async () => {
+  const ctx = createTelemetryEnv();
+  const res = await callLoungeWorker(ctx.env, "GET", "/api/client-error");
+  assert.equal(res.status, 401);
+  assert.equal(res.data.errorCode, "CN-SYSTEM-401");
+  assert.ok(typeof res.data.requestId === "string" && res.data.requestId.length > 3);
+});
+
+test("GET /api/system/health-matrix is restricted to Developer and returns service statuses", async () => {
+  const ctx = createTelemetryEnv();
+  const devTok = makeLoungeSessionToken({ role: "developer" });
+  const consumerTok = makeLoungeSessionToken({ role: "consumer" });
+
+  assert.equal((await callLoungeWorker(ctx.env, "GET", "/api/system/health-matrix")).status, 401);
+  assert.equal((await callLoungeWorker(ctx.env, "GET", "/api/system/health-matrix", { token: consumerTok })).status, 403);
+
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, ram_mb: 42.5, uptime_sec: 120 }), { status: 200, headers: { "Content-Type": "application/json" } });
+  try {
+    const devRes = await callLoungeWorker(ctx.env, "GET", "/api/system/health-matrix", { token: devTok });
+    assert.equal(devRes.status, 200);
+    assert.equal(devRes.data.matrix.d1.ok, true);
+    assert.equal(devRes.data.matrix.r2.ok, true);
+    assert.equal(devRes.data.matrix.elixir.ok, true);
+    assert.equal(devRes.data.matrix.envBindings.DB, true);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("DELETE /api/client-error requires Developer role and clears logs", async () => {
+  const ctx = createTelemetryEnv();
+  const devTok = makeLoungeSessionToken({ role: "developer" });
+  const consumerTok = makeLoungeSessionToken({ role: "consumer" });
+
+  assert.equal((await callLoungeWorker(ctx.env, "DELETE", "/api/client-error", { token: consumerTok })).status, 403);
+  const delRes = await callLoungeWorker(ctx.env, "DELETE", "/api/client-error?olderThanHours=24", { token: devTok });
+  assert.equal(delRes.status, 200);
+  assert.equal(delRes.data.cleared, true);
+});

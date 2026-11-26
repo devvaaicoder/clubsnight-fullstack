@@ -302,9 +302,28 @@ defmodule ClubsnightApi.Router do
   end
 
   defp send_json(conn, status, data) do
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(status, Jason.encode!(data))
+    req_id =
+      case Plug.Conn.get_req_header(conn, "x-request-id") do
+        [id | _] when is_binary(id) and byte_size(id) > 0 -> String.slice(id, 0, 48)
+        _ -> "ELX-" <> (:crypto.strong_rand_bytes(4) |> Base.encode16())
+      end
+
+    {final_data, err_code} =
+      if status >= 400 and is_map(data) do
+        domain = if String.starts_with?(conn.request_path || "", "/api/auth"), do: "AUTH", else: "ELIXIR"
+        code = Map.get(data, :errorCode) || Map.get(data, "errorCode") || "CN-#{domain}-#{status}"
+        {data |> Map.put_new(:errorCode, code) |> Map.put_new(:requestId, req_id), code}
+      else
+        {data, nil}
+      end
+
+    conn =
+      conn
+      |> put_resp_header("x-request-id", req_id)
+      |> put_resp_content_type("application/json")
+
+    conn = if err_code, do: put_resp_header(conn, "x-error-code", err_code), else: conn
+    send_resp(conn, status, Jason.encode!(final_data))
   end
 
   defp cors(conn, _opts) do
@@ -326,7 +345,8 @@ defmodule ClubsnightApi.Router do
     |> put_resp_header("access-control-allow-origin", allow_origin)
     |> put_resp_header("vary", "Origin")
     |> put_resp_header("access-control-allow-credentials", "true")
-    |> put_resp_header("access-control-allow-headers", "content-type")
+    |> put_resp_header("access-control-allow-headers", "content-type, x-request-id")
+    |> put_resp_header("access-control-expose-headers", "x-request-id, x-error-code")
     |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
   end
 end
