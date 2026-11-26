@@ -1376,7 +1376,7 @@ export default {
             if (Array.isArray(storeData.talents)) {
               let changed = false;
               storeData.talents = storeData.talents.map((t) => {
-                const tSlug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/s+/g, "_"));
+                const tSlug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/\s+/g, "_"));
                 if (tSlug === username) {
                   changed = true;
                   return {
@@ -1485,7 +1485,7 @@ export default {
             for (const ta of (tRes && tRes.results) || []) {
               const k = normalizeUsername(ta.username);
               if (k) tByKey.set(k, ta);
-              const nameSlug = normalizeUsername(String(ta.name || "").replace(/s+/g, "_"));
+              const nameSlug = normalizeUsername(String(ta.name || "").replace(/\s+/g, "_"));
               if (nameSlug && !tByKey.has(nameSlug)) tByKey.set(nameSlug, ta);
             }
             const pByKey = new Map();
@@ -1494,7 +1494,7 @@ export default {
               if (k) pByKey.set(k, up);
             }
             storeData.talents = storeData.talents.map((t) => {
-              const slug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/s+/g, "_"));
+              const slug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/\s+/g, "_"));
               const ta = tByKey.get(slug);
               const up = pByKey.get(ta ? normalizeUsername(ta.username) : slug);
               if (!ta && !up) return t;
@@ -1537,9 +1537,22 @@ export default {
             headers: { ...securityHeaders, "Content-Type": "application/json" }
           });
         }
+        let cnPrevTalents = [];
+        try { const pr = await env.DB.prepare("SELECT data FROM catalog_store WHERE id = 1").first(); if (pr && pr.data) cnPrevTalents = JSON.parse(pr.data).talents || []; } catch (_) {}
         await env.DB.prepare(
           "INSERT INTO catalog_store (id, data, updated_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at"
         ).bind(JSON.stringify(body), new Date().toISOString()).run();
+        try {
+          const cnSlug = (t) => normalizeUsername(t.username || t.handle || String(t.name || "").replace(/\s+/g, "_"));
+          const cnPrev = new Map(cnPrevTalents.map((t) => [cnSlug(t), String(t.status || "").trim().toLowerCase()]));
+          const cnNow = new Date().toISOString(); const cnStmts = [];
+          for (const t of body.talents) {
+            const slug = cnSlug(t); const st = String(t.status || "").trim().toLowerCase();
+            if (!slug || !/^[a-z_]{2,20}$/.test(st) || cnPrev.get(slug) === st) continue;
+            cnStmts.push(env.DB.prepare("UPDATE talent_accounts SET status = ?, updated_at = ? WHERE username = ? OR lower(replace(name, ' ', '_')) = ?").bind(st.toUpperCase(), cnNow, slug, slug));
+          }
+          if (cnStmts.length) await env.DB.batch(cnStmts);
+        } catch (e) { console.warn("talent status sync failed:", e && e.message); }
 
         return new Response(JSON.stringify({ success: true, message: "Tersimpan aman di D1!" }), {
           headers: { ...securityHeaders, "Content-Type": "application/json" }
@@ -1844,7 +1857,7 @@ export default {
             if (Array.isArray(storeData.talents)) {
               let changed = false;
               storeData.talents = storeData.talents.map((t) => {
-                const tSlug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/s+/g, "_"));
+                const tSlug = normalizeUsername(t.username || t.handle || String(t.name || "").replace(/\s+/g, "_"));
                 if (tSlug === uname || String(t.name || "").toLowerCase() === String(row.name || "").toLowerCase()) {
                   changed = true;
                   return { ...t, status: finalStatus.toLowerCase(), vibe: finalMoods, ...(finalAvatar ? { img: finalAvatar } : {}) };
