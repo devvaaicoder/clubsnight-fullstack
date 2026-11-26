@@ -8,7 +8,7 @@ window.getProfileByUsername = window.getProfileByUsername || function(username, 
   var p = map[u] || map["@" + u] || {};
   var s = {}; try { s = JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null") || {}; } catch (_) {}
   var own = (s.username && String(s.username).toLowerCase() === u && s.avatar) ? { avatar: s.avatar } : {};
-  return Object.assign({ username: u, name: fallbackName || u, role: fallbackRole || "member", avatar: "", bio: "" }, own, p);
+  var r = Object.assign({ username: u, name: fallbackName || u, avatar: "", bio: "" }, own, p); r.username = u; r.role = fallbackRole || p.role || "member"; return r;
 };
 </script>
 
