@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<script id="cnProfileFallback">
+window.getProfileByUsername = window.getProfileByUsername || function(username, fallbackName, fallbackRole) {
+  var u = String(username || "").replace(/^@/, "").toLowerCase();
+  var map = {}; try { map = JSON.parse(localStorage.getItem("cn_user_profiles_v1") || "{}") || {}; } catch (_) {}
+  var p = map[u] || map["@" + u] || {};
+  var s = {}; try { s = JSON.parse(localStorage.getItem("cn_auth_session_v1") || "null") || {}; } catch (_) {}
+  var own = (s.username && String(s.username).toLowerCase() === u && s.avatar) ? { avatar: s.avatar } : {};
+  return Object.assign({ username: u, name: fallbackName || u, role: fallbackRole || "member", avatar: "", bio: "" }, own, p);
+};
+</script>
+
 <script id="cnClientErrorReporter">
 (function(){
   var isLocal = ["localhost", "127.0.0.1"].indexOf(window.location.hostname) !== -1;
@@ -10256,6 +10267,7 @@ window.addEventListener("storage", function(e) {
     return Object.prototype.hasOwnProperty.call(verifiedBalances, key) ? verifiedBalances[key] : null;
   }
 
+  window.setUserBalance = setUserBalance;
   function setUserBalance(username, amount) {
     if (!username) return;
     verifiedBalances[username.toLowerCase()] = Math.max(0, Math.round(Number(amount) || 0));
